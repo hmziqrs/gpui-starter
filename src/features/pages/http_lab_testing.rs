@@ -295,6 +295,11 @@ impl HttpLabTestingPage {
         cx.notify();
     }
 
+    fn verdict(label: &str, passed: bool, detail: &str) -> String {
+        let icon = if passed { "✅" } else { "❌" };
+        format!("{icon} {label}  — {detail}")
+    }
+
     fn send_query_get(&mut self, cx: &mut Context<Self>) {
         let operation_id = self.next_operation_id;
         self.next_operation_id += 1;
@@ -524,10 +529,11 @@ impl HttpLabTestingPage {
             QueryFetchMode::Normal,
         );
         let cache_hit = matches!(second, QueryBeginResult::CacheHit);
-        self.query_message = format!(
-            "TTL cache probe: first={} accepted={accepted} second_cache_hit={cache_hit}",
-            request_id.label()
-        );
+        let v_accepted = Self::verdict("first request started", accepted, &format!("accepted={accepted}"));
+        let v_cache_hit = Self::verdict("cache hit on retry", cache_hit, &format!("cache_hit={cache_hit}"));
+        let all_passed = accepted && cache_hit;
+        let verdict_line = if all_passed { "TTL cache probe PASSED" } else { "TTL cache probe FAILED" };
+        self.query_message = format!("{v_accepted}\n{v_cache_hit}\n{verdict_line}");
 
         tracing::info!(
             target: LOG,
@@ -567,10 +573,11 @@ impl HttpLabTestingPage {
         let cancelled = self
             .query_ignore_resource
             .cancel(QueryError::cancelled("ignore probe cleanup"));
-        self.query_message = format!(
-            "Ignore probe: first={} duplicate_ignored={ignored} cleanup_cancelled={cancelled}",
-            request_id.label()
-        );
+        let v_ignored = Self::verdict("duplicate ignored", ignored, &format!("ignored={ignored}"));
+        let v_cancelled = Self::verdict("cleanup cancelled", cancelled, &format!("cancelled={cancelled}"));
+        let all_passed = ignored && cancelled;
+        let verdict_line = if all_passed { "Ignore-while-loading probe PASSED" } else { "Ignore-while-loading probe FAILED" };
+        self.query_message = format!("{v_ignored}\n{v_cancelled}\n{verdict_line}");
 
         tracing::info!(
             target: LOG,
@@ -626,12 +633,13 @@ impl HttpLabTestingPage {
             fake_response("latest-current"),
             now_ms + 3,
         );
-        self.query_message = format!(
-            "Latest probe: first={} second={} replaced={:?} stale_accepted={stale_accepted} latest_accepted={latest_accepted}",
-            first_id.label(),
-            second_id.label(),
-            replaced_request_id.map(|id| id.label())
-        );
+        let replaced = replaced_request_id.is_some();
+        let v_replaced = Self::verdict("second replaced first", replaced, &format!("replaced={:?}", replaced_request_id.map(|id| id.label())));
+        let v_stale = Self::verdict("stale rejected", !stale_accepted, &format!("stale_accepted={stale_accepted}"));
+        let v_latest = Self::verdict("latest accepted", latest_accepted, &format!("latest_accepted={latest_accepted}"));
+        let all_passed = replaced && !stale_accepted && latest_accepted;
+        let verdict_line = if all_passed { "Latest-wins probe PASSED" } else { "Latest-wins probe FAILED" };
+        self.query_message = format!("{v_replaced}\n{v_stale}\n{v_latest}\n{verdict_line}");
 
         tracing::info!(
             target: LOG,
@@ -976,7 +984,7 @@ impl HttpLabTestingPage {
             QueryFetchMode::Normal,
         );
 
-        let QueryBeginResult::Started { request_id, .. } = result else {
+        let QueryBeginResult::Started { request_id: _, .. } = result else {
             self.query_signal_message = format!("Signal setup did not start: {result:?}");
             cx.notify();
             return;
@@ -992,12 +1000,14 @@ impl HttpLabTestingPage {
             .cancel(QueryError::cancelled("signal test"));
         let after_cancel = signal.as_ref().map(|s| s.is_cancelled());
 
-        self.query_signal_message = format!(
-            "Signal probe: request={} signal_present={signal_present} before_cancel={:?} after_cancel={:?}",
-            request_id.label(),
-            before_cancel,
-            after_cancel,
-        );
+        let v_signal = Self::verdict("signal present", signal_present, &format!("signal_present={signal_present}"));
+        let before_ok = before_cancel == Some(false);
+        let v_before = Self::verdict("signal active before cancel", before_ok, &format!("before_cancel={:?}", before_cancel));
+        let after_ok = after_cancel == Some(true);
+        let v_after = Self::verdict("signal cancelled after resource cancel", after_ok, &format!("after_cancel={:?}", after_cancel));
+        let all_passed = signal_present && before_ok && after_ok;
+        let verdict_line = if all_passed { "Cancel signal probe PASSED" } else { "Cancel signal probe FAILED" };
+        self.query_signal_message = format!("{v_signal}\n{v_before}\n{v_after}\n{verdict_line}");
         cx.notify();
     }
 
@@ -1062,10 +1072,6 @@ impl HttpLabTestingPage {
             );
         }
 
-        let final_data = self
-            .query_placeholder_resource
-            .data()
-            .map(|r| r.preview.clone());
         let final_display = self
             .query_placeholder_resource
             .display_data()
@@ -1075,9 +1081,15 @@ impl HttpLabTestingPage {
             .previous_data()
             .map(|r| r.preview.clone());
 
-        self.query_placeholder_message = format!(
-            "Placeholder probe: loading_display={loading_display:?} final_data={final_data:?} final_display={final_display:?} previous={previous:?}"
-        );
+        let loading_ok = loading_display.as_deref() == Some("placeholder");
+        let v_loading = Self::verdict("placeholder shown during loading", loading_ok, &format!("loading_display={loading_display:?}"));
+        let final_ok = final_display.as_deref() == Some("real");
+        let v_final = Self::verdict("real data after completion", final_ok, &format!("final_display={final_display:?}"));
+        let previous_ok = previous.as_deref() == Some("original");
+        let v_previous = Self::verdict("previous tracked as original", previous_ok, &format!("previous={previous:?}"));
+        let all_passed = loading_ok && final_ok && previous_ok;
+        let verdict_line = if all_passed { "Placeholder data probe PASSED" } else { "Placeholder data probe FAILED" };
+        self.query_placeholder_message = format!("{v_loading}\n{v_final}\n{v_previous}\n{verdict_line}");
         cx.notify();
     }
 
@@ -1121,8 +1133,13 @@ impl HttpLabTestingPage {
             .previous_data()
             .map(|r| r.preview.clone());
 
-        self.query_placeholder_message =
-            format!("Previous data probe: data={data:?} previous={previous:?}");
+        let data_ok = data.as_deref() == Some("second");
+        let v_data = Self::verdict("current data is 'second'", data_ok, &format!("data={data:?}"));
+        let previous_ok = previous.as_deref() == Some("first");
+        let v_previous = Self::verdict("previous data is 'first'", previous_ok, &format!("previous={previous:?}"));
+        let all_passed = data_ok && previous_ok;
+        let verdict_line = if all_passed { "Previous data probe PASSED" } else { "Previous data probe FAILED" };
+        self.query_placeholder_message = format!("{v_data}\n{v_previous}\n{verdict_line}");
         cx.notify();
     }
 
@@ -1155,14 +1172,13 @@ impl HttpLabTestingPage {
             .query_placeholder_resource
             .data()
             .map(|r| r.preview.clone());
-        let previous = self
-            .query_placeholder_resource
-            .previous_data()
-            .map(|r| r.preview.clone());
 
-        self.query_placeholder_message = format!(
-            "Rollback probe: rolled_back={rolled_back} data={data:?} previous={previous:?}"
-        );
+        let data_ok = data.as_deref() == Some("original");
+        let v_rollback = Self::verdict("rollback succeeded", rolled_back, &format!("rolled_back={rolled_back}"));
+        let v_data = Self::verdict("data restored to 'original'", data_ok, &format!("data={data:?}"));
+        let all_passed = rolled_back && data_ok;
+        let verdict_line = if all_passed { "Rollback probe PASSED" } else { "Rollback probe FAILED" };
+        self.query_placeholder_message = format!("{v_rollback}\n{v_data}\n{verdict_line}");
         cx.notify();
     }
 
@@ -1200,8 +1216,15 @@ impl HttpLabTestingPage {
             .map(|r| r.preview.clone());
         let status = self.query_optimistic_resource.status().label().to_string();
 
-        self.query_optimistic_message =
-            format!("Optimistic set: data={data:?} previous={previous:?} status={status}");
+        let data_ok = data.as_deref() == Some("optimistic");
+        let previous_ok = previous.as_deref() == Some("original");
+        let status_ok = status == "Success";
+        let v_data = Self::verdict("data is 'optimistic'", data_ok, &format!("data={data:?}"));
+        let v_previous = Self::verdict("previous is 'original'", previous_ok, &format!("previous={previous:?}"));
+        let v_status = Self::verdict("status is Success", status_ok, &format!("status={status}"));
+        let all_passed = data_ok && previous_ok && status_ok;
+        let verdict_line = if all_passed { "Optimistic set probe PASSED" } else { "Optimistic set probe FAILED" };
+        self.query_optimistic_message = format!("{v_data}\n{v_previous}\n{v_status}\n{verdict_line}");
         cx.notify();
     }
 
@@ -1232,15 +1255,12 @@ impl HttpLabTestingPage {
             .query_optimistic_resource
             .data()
             .map(|r| r.preview.clone());
-        let previous = self
-            .query_optimistic_resource
-            .previous_data()
-            .map(|r| r.preview.clone());
-        let status = self.query_optimistic_resource.status().label().to_string();
-
-        self.query_optimistic_message = format!(
-            "Optimistic rollback: rolled_back={rolled_back} data={data:?} previous={previous:?} status={status}"
-        );
+        let data_ok = data.as_deref() == Some("original");
+        let v_rollback = Self::verdict("rollback succeeded", rolled_back, &format!("rolled_back={rolled_back}"));
+        let v_data = Self::verdict("data restored to 'original'", data_ok, &format!("data={data:?}"));
+        let all_passed = rolled_back && data_ok;
+        let verdict_line = if all_passed { "Optimistic rollback probe PASSED" } else { "Optimistic rollback probe FAILED" };
+        self.query_optimistic_message = format!("{v_rollback}\n{v_data}\n{verdict_line}");
         cx.notify();
     }
 
@@ -1288,10 +1308,14 @@ impl HttpLabTestingPage {
             .query_optimistic_resource
             .previous_data()
             .map(|r| r.preview.clone());
-        let status = self.query_optimistic_resource.status().label().to_string();
 
-        self.query_optimistic_message =
-            format!("Optimistic flow: data={data:?} previous={previous:?} status={status}");
+        let data_ok = data.as_deref() == Some("server confirmed");
+        let previous_ok = previous.as_deref() == Some("optimistic");
+        let v_data = Self::verdict("data is 'server confirmed'", data_ok, &format!("data={data:?}"));
+        let v_previous = Self::verdict("previous is 'optimistic'", previous_ok, &format!("previous={previous:?}"));
+        let all_passed = data_ok && previous_ok;
+        let verdict_line = if all_passed { "Optimistic flow probe PASSED" } else { "Optimistic flow probe FAILED" };
+        self.query_optimistic_message = format!("{v_data}\n{v_previous}\n{verdict_line}");
         cx.notify();
     }
 
@@ -1320,14 +1344,14 @@ impl HttpLabTestingPage {
 
         match result {
             Some((_entity, request_id)) => {
-                self.client_query_message = format!(
-                    "Client fetch: started request {} (entity created via QueryClient)",
-                    request_id.label()
-                );
+                let v_started = Self::verdict("request started", true, &format!("request_id={}", request_id.label()));
+                let verdict_line = "Client fetch PASSED";
+                self.client_query_message = format!("{v_started}\n{verdict_line}");
             }
             None => {
-                self.client_query_message =
-                    "Client fetch: cache hit or ignored (None returned)".to_string();
+                let v_started = Self::verdict("request started", false, "returned None (cache hit or ignored)");
+                let verdict_line = "Client fetch FAILED";
+                self.client_query_message = format!("{v_started}\n{verdict_line}");
             }
         }
         cx.notify();
@@ -1356,14 +1380,14 @@ impl HttpLabTestingPage {
 
         match result {
             Some((_entity, request_id)) => {
-                self.client_query_message = format!(
-                    "Client force fetch: started request {} (forced, bypasses cache)",
-                    request_id.label()
-                );
+                let v_started = Self::verdict("forced request started", true, &format!("request_id={}", request_id.label()));
+                let verdict_line = "Client force fetch PASSED";
+                self.client_query_message = format!("{v_started}\n{verdict_line}");
             }
             None => {
-                self.client_query_message =
-                    "Client force fetch: ignored (None returned)".to_string();
+                let v_started = Self::verdict("forced request started", false, "returned None (ignored)");
+                let verdict_line = "Client force fetch FAILED";
+                self.client_query_message = format!("{v_started}\n{verdict_line}");
             }
         }
         cx.notify();
