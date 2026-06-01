@@ -44,6 +44,26 @@ mod core_request;
 #[path = "tests/core_data_retention.rs"]
 mod core_data_retention;
 
+#[cfg(test)]
+#[path = "tests/core_retry.rs"]
+mod core_retry;
+
+#[cfg(test)]
+#[path = "tests/core_mutation.rs"]
+mod core_mutation;
+
+#[cfg(test)]
+#[path = "tests/core_infinite_query.rs"]
+mod core_infinite_query;
+
+#[cfg(test)]
+#[path = "tests/core_select.rs"]
+mod core_select;
+
+#[cfg(test)]
+#[path = "tests/core_network_mode.rs"]
+mod core_network_mode;
+
 // Integration tests (require GPUI test-support, available via dev-dep)
 #[cfg(test)]
 #[path = "tests/integration_client.rs"]

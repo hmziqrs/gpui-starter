@@ -1,5 +1,6 @@
 use crate::core::{
     CachePolicy, QueryKey, QuerySignal, QueryStatus, QueryTimestamp, RequestId, RequestPolicy,
+    RetryPolicy,
 };
 
 use super::QueryResource;
@@ -90,6 +91,14 @@ impl<T, E> QueryResource<T, E> {
         self.previous_data.as_ref()
     }
 
+    /// Returns the initial data, if set.
+    ///
+    /// Initial data is seeded via [`set_initial_data`](super::QueryResource::set_initial_data)
+    /// and serves as the default value before any fetch completes.
+    pub fn initial_data(&self) -> Option<&T> {
+        self.initial_data.as_ref()
+    }
+
     /// Returns the data for display, falling back to placeholder data.
     ///
     /// If actual data is present, it is returned. Otherwise, placeholder
@@ -97,5 +106,30 @@ impl<T, E> QueryResource<T, E> {
     /// UI rendering.
     pub fn display_data(&self) -> Option<&T> {
         self.data.as_ref().or(self.placeholder_data.as_ref())
+    }
+
+    /// How many retries have been attempted for the current request cycle.
+    pub fn retry_count(&self) -> u32 {
+        self.retry_count
+    }
+
+    /// A reference to the retry policy for this resource.
+    pub fn retry_policy(&self) -> &RetryPolicy {
+        &self.retry_policy
+    }
+
+    /// Increment the retry counter, typically called after a failed request.
+    pub fn increment_retry(&mut self) {
+        self.retry_count += 1;
+    }
+
+    /// Replace the retry policy for this resource.
+    pub fn set_retry_policy(&mut self, policy: RetryPolicy) {
+        self.retry_policy = policy;
+    }
+
+    /// Reset the retry counter to zero.
+    pub fn reset_retry_count(&mut self) {
+        self.retry_count = 0;
     }
 }

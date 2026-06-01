@@ -49,6 +49,17 @@ pub struct HttpRequestSnapshot {
     pub request_body_preview: String,
 }
 
+impl Default for HttpRequestSnapshot {
+    fn default() -> Self {
+        Self {
+            method: String::new(),
+            url: String::new(),
+            request_body_kind: HttpRequestBodyKind::None,
+            request_body_preview: String::new(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HttpResponseSnapshot {
     pub status: u16,
@@ -68,6 +79,17 @@ pub struct HttpExchange {
     pub request: HttpRequestSnapshot,
     pub response: Option<HttpResponseSnapshot>,
     pub error: Option<String>,
+}
+
+impl Default for HttpExchange {
+    fn default() -> Self {
+        Self {
+            label: String::new(),
+            request: HttpRequestSnapshot::default(),
+            response: None,
+            error: None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

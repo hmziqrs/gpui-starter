@@ -30,6 +30,9 @@
 //! ```
 
 mod bucket;
+pub mod devtools;
+mod mutation_bucket;
+pub mod observer;
 
 use std::any::TypeId;
 use std::collections::HashMap;
@@ -37,11 +40,12 @@ use std::collections::HashMap;
 use gpui::{App, Entity, Global};
 
 use crate::core::{
-    CachePolicy, QueryFetchMode, QueryKey, QueryKeyFilter, QueryResource, QuerySignal, RequestId,
-    RequestPolicy,
+    CachePolicy, MutationResource, QueryFetchMode, QueryKey, QueryKeyFilter, QueryResource,
+    QuerySignal, RequestId, RequestPolicy, RetryPolicy,
 };
 
 pub use bucket::{BucketDefaults, QueryBucket, QueryBucketTrait};
+pub use mutation_bucket::{MutationBucket, MutationBucketTrait, MutationDefaults};
 
 /// App-wide query registry. Implements [`Global`] so it's accessible from any GPUI context.
 ///
@@ -50,9 +54,11 @@ pub use bucket::{BucketDefaults, QueryBucket, QueryBucketTrait};
 /// for bulk operations.
 pub struct QueryClient {
     buckets: HashMap<TypeId, bucket::ErasedBucket>,
+    mutation_buckets: HashMap<TypeId, mutation_bucket::ErasedMutationBucket>,
     default_cache_policy: CachePolicy,
     default_request_policy: RequestPolicy,
     default_gc_time_ms: u64,
+    default_retry_policy: RetryPolicy,
 }
 
 impl Global for QueryClient {}
@@ -62,9 +68,11 @@ impl QueryClient {
     pub fn new(default_cache_policy: CachePolicy, default_request_policy: RequestPolicy) -> Self {
         Self {
             buckets: HashMap::new(),
+            mutation_buckets: HashMap::new(),
             default_cache_policy,
             default_request_policy,
             default_gc_time_ms: 5 * 60 * 1_000, // 5 minutes default
+            default_retry_policy: RetryPolicy::default(),
         }
     }
 
@@ -74,7 +82,13 @@ impl QueryClient {
         self
     }
 
-    // ── Typed access ───────────────────────────────────────────────────
+    /// Set the default retry policy for mutation resources.
+    pub fn with_retry_policy(mut self, retry_policy: RetryPolicy) -> Self {
+        self.default_retry_policy = retry_policy;
+        self
+    }
+
+    // ── Typed query access ─────────────────────────────────────────────
 
     /// Get or create a [`QueryResource<T, E>`] entity for the given key.
     ///
@@ -174,6 +188,36 @@ impl QueryClient {
         )
     }
 
+    /// Prefetch a query: creates the resource if needed, begins a request if
+    /// the resource is idle or its cache is stale.
+    ///
+    /// Unlike [`fetch_query`](Self::fetch_query), this is intended for
+    /// background prefetching and returns `true` when a new request was
+    /// started, `false` when the cache was fresh or the request was
+    /// short-circuited.
+    pub fn prefetch_query<T, E>(
+        &mut self,
+        key: &QueryKey,
+        cache_policy: CachePolicy,
+        request_policy: RequestPolicy,
+        now_ms: u128,
+        cx: &mut App,
+    ) -> bool
+    where
+        T: Clone + Send + Sync + 'static,
+        E: Clone + Send + Sync + 'static,
+    {
+        self.fetch_query_inner::<T, E>(
+            key.clone(),
+            cache_policy,
+            request_policy,
+            now_ms,
+            QueryFetchMode::Normal,
+            cx,
+        )
+        .is_some()
+    }
+
     /// Check if a resource exists for the given key and type.
     pub fn contains<T: Clone + Send + Sync + 'static, E: Clone + Send + Sync + 'static>(
         &self,
@@ -261,6 +305,79 @@ impl QueryClient {
         bucket.rollback_data_for(key, cx)
     }
 
+    // ── Mutation support ───────────────────────────────────────────────
+
+    /// Get or create a [`MutationResource<V, T, E>`] entity for the given key.
+    ///
+    /// Uses the client's default retry policy.
+    pub fn mutation_resource<
+        V: Clone + Send + Sync + 'static,
+        T: Clone + Send + Sync + 'static,
+        E: Clone + Send + Sync + 'static,
+    >(
+        &mut self,
+        key: &QueryKey,
+        cx: &mut App,
+    ) -> Entity<MutationResource<V, T, E>> {
+        self.mutation_resource_with_policy(key, self.default_retry_policy.clone(), cx)
+    }
+
+    /// Get or create a [`MutationResource<V, T, E>`] entity with an explicit
+    /// retry policy.
+    pub fn mutation_resource_with_policy<
+        V: Clone + Send + Sync + 'static,
+        T: Clone + Send + Sync + 'static,
+        E: Clone + Send + Sync + 'static,
+    >(
+        &mut self,
+        key: &QueryKey,
+        retry_policy: RetryPolicy,
+        cx: &mut App,
+    ) -> Entity<MutationResource<V, T, E>> {
+        let type_id = TypeId::of::<(V, T, E)>();
+        self.ensure_mutation_bucket::<V, T, E>(type_id);
+        self.mutation_buckets
+            .get_mut(&type_id)
+            .unwrap()
+            .downcast_mut::<V, T, E>()
+            .unwrap()
+            .resource_with_policy(key, retry_policy, cx)
+    }
+
+    /// Total number of mutation resources across all type buckets.
+    pub fn mutation_count(&self) -> usize {
+        self.mutation_buckets
+            .values()
+            .map(|b| b.bucket.count())
+            .sum()
+    }
+
+    /// Get all mutation resource entities for a specific `(V, T, E)` type triple.
+    ///
+    /// Returns an empty vec if no mutations of this type exist.
+    pub fn all_mutations<
+        V: Clone + Send + Sync + 'static,
+        T: Clone + Send + Sync + 'static,
+        E: Clone + Send + Sync + 'static,
+    >(
+        &self,
+    ) -> Vec<Entity<MutationResource<V, T, E>>> {
+        let type_id = TypeId::of::<(V, T, E)>();
+        self.mutation_buckets
+            .get(&type_id)
+            .and_then(|b| b.downcast_ref::<V, T, E>())
+            .map(|bucket| bucket.all_entities())
+            .unwrap_or_default()
+    }
+
+    /// Garbage-collect idle mutation resources across all type buckets.
+    pub fn gc_mutations(&mut self, cx: &mut App, now_ms: u128) {
+        let gc_time_ms = self.default_gc_time_ms;
+        for erased in self.mutation_buckets.values_mut() {
+            erased.bucket.gc(cx, now_ms, gc_time_ms);
+        }
+    }
+
     // ── Bulk operations (type-erased) ──────────────────────────────────
 
     /// Invalidate (expire cache) for all resources matching the filter.
@@ -280,6 +397,16 @@ impl QueryClient {
         }
     }
 
+    /// Remove resources matching the filter from the registry entirely.
+    ///
+    /// Unlike [`reset_queries`](Self::reset_queries), which clears state but
+    /// keeps the entities, this drops them along with their sequencers.
+    pub fn remove_queries(&mut self, filter: &QueryKeyFilter, cx: &mut App) {
+        for erased in self.buckets.values_mut() {
+            erased.bucket.remove_matching(filter, cx);
+        }
+    }
+
     /// Garbage-collect idle resources older than the GC time.
     pub fn gc(&mut self, cx: &mut App, now_ms: u128) {
         let gc_time_ms = self.default_gc_time_ms;
@@ -288,12 +415,18 @@ impl QueryClient {
         }
     }
 
-    /// Total number of resources across all type buckets.
+    /// Clear all resources from all buckets (query and mutation).
+    pub fn clear(&mut self) {
+        self.buckets.clear();
+        self.mutation_buckets.clear();
+    }
+
+    /// Total number of query resources across all type buckets.
     pub fn total_count(&self) -> usize {
         self.buckets.values().map(|b| b.bucket.count()).sum()
     }
 
-    /// Number of type buckets.
+    /// Number of type buckets (query only).
     pub fn bucket_count(&self) -> usize {
         self.buckets.len()
     }
@@ -333,6 +466,24 @@ impl QueryClient {
                 request_policy: self.default_request_policy,
                 gc_time_ms: self.default_gc_time_ms,
             }))
+        });
+    }
+
+    fn ensure_mutation_bucket<
+        V: Clone + Send + Sync + 'static,
+        T: Clone + Send + Sync + 'static,
+        E: Clone + Send + Sync + 'static,
+    >(
+        &mut self,
+        type_id: TypeId,
+    ) {
+        self.mutation_buckets.entry(type_id).or_insert_with(|| {
+            mutation_bucket::ErasedMutationBucket::new_typed::<V, T, E>(MutationBucket::new(
+                MutationDefaults {
+                    retry_policy: self.default_retry_policy.clone(),
+                    gc_time_ms: self.default_gc_time_ms,
+                },
+            ))
         });
     }
 }

@@ -7,6 +7,7 @@ use crate::core::{
     CachePolicy, QueryBeginResult, QueryFetchMode, QueryKey, QueryKeyFilter, QueryResource,
     QuerySignal, RequestId, RequestPolicy, RequestSequencer,
 };
+use crate::client::devtools::QueryDiagnostic;
 
 /// Type-erased trait for bulk operations that don't need to know `T` or `E`.
 ///
@@ -20,12 +21,18 @@ pub trait QueryBucketTrait: Send + Sync {
     /// Reset (clear all state for) all resources matching the filter.
     fn reset_matching(&mut self, filter: &QueryKeyFilter, cx: &mut App);
 
+    /// Remove resources matching the filter from the registry entirely.
+    fn remove_matching(&mut self, filter: &QueryKeyFilter, cx: &mut App);
+
     /// Remove resources that are idle and older than `gc_time_ms`.
     /// Resources with active requests are never collected.
     fn gc(&mut self, cx: &mut App, now_ms: u128, gc_time_ms: u64);
 
     /// Total number of resources in this bucket.
     fn count(&self) -> usize;
+
+    /// Collect diagnostics for all resources in this bucket.
+    fn collect_diagnostics(&self, cx: &App, out: &mut Vec<QueryDiagnostic>);
 }
 
 /// Default policies applied when creating new resources.
@@ -151,6 +158,24 @@ impl<T: 'static, E: 'static> QueryBucket<T, E> {
         true
     }
 
+    /// Remove resources matching the filter from this bucket entirely.
+    ///
+    /// Unlike [`reset_matching`](QueryBucket::reset_matching) which clears state
+    /// but keeps the entities, this drops them from the registry along with
+    /// their co-located sequencers.
+    pub fn remove_matching(&mut self, filter: &QueryKeyFilter, _cx: &mut App) {
+        let keys_to_remove: Vec<QueryKey> = self
+            .resources
+            .keys()
+            .filter(|k| filter.matches(k))
+            .cloned()
+            .collect();
+        for key in keys_to_remove {
+            self.resources.remove(&key);
+            self.sequencers.remove(&key);
+        }
+    }
+
     /// Roll back optimistically set data on the resource at `key`.
     ///
     /// Returns `true` if the resource was found and rollback succeeded
@@ -165,6 +190,10 @@ impl<T: 'static, E: 'static> QueryBucket<T, E> {
 }
 
 impl<T: 'static, E: 'static> QueryBucketTrait for QueryBucket<T, E> {
+    fn remove_matching(&mut self, filter: &QueryKeyFilter, cx: &mut App) {
+        QueryBucket::remove_matching(self, filter, cx);
+    }
+
     fn invalidate_matching(&mut self, filter: &QueryKeyFilter, cx: &mut App) {
         for (key, entity) in &self.resources {
             if filter.matches(key) {
@@ -205,6 +234,25 @@ impl<T: 'static, E: 'static> QueryBucketTrait for QueryBucket<T, E> {
 
     fn count(&self) -> usize {
         self.resources.len()
+    }
+
+    fn collect_diagnostics(&self, cx: &App, out: &mut Vec<QueryDiagnostic>) {
+        for entity in self.resources.values() {
+            let resource = entity.read(cx);
+            out.push(QueryDiagnostic {
+                key: resource.key().as_str().to_string(),
+                status: resource.status().label().to_string(),
+                has_data: resource.has_data(),
+                has_error: resource.error().is_some(),
+                cache_policy: resource.cache_policy().label(),
+                request_policy: resource.request_policy().label().to_string(),
+                cache_hits: resource.cache_hits(),
+                cancelled_count: resource.cancelled_count(),
+                ignored_results: resource.ignored_results(),
+                last_updated_at_ms: resource.last_updated_at_ms(),
+                started_at_ms: resource.started_at_ms(),
+            });
+        }
     }
 }
 

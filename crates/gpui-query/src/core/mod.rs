@@ -8,19 +8,31 @@
 //! This module depends only on `serde` — zero framework coupling.
 
 mod error;
+mod infinite_query;
 mod key;
 pub mod key_filter;
+mod mutation;
+mod network_mode;
 mod policy;
+mod refetch;
 mod request;
 mod resource;
+mod retry;
+mod select;
 mod signal;
 mod status;
 
 pub use error::{QueryError, QueryErrorKind};
+pub use infinite_query::InfiniteQueryResource;
 pub use key::QueryKey;
 pub use key_filter::QueryKeyFilter;
+pub use mutation::{MutationResource, MutationStatus};
+pub use network_mode::NetworkMode;
 pub use policy::{CachePolicy, QueryBeginResult, QueryFetchMode, RequestPolicy};
+pub use refetch::RefetchTrigger;
 pub use request::{QueryTimestamp, RequestGuard, RequestId, RequestSequencer};
 pub use resource::QueryResource;
+pub use retry::RetryPolicy;
+pub use select::{MappedQueryResource, SelectTransform};
 pub use signal::QuerySignal;
 pub use status::QueryStatus;

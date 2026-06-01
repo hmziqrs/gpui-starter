@@ -100,8 +100,10 @@ impl<T, E> QueryResource<T, E> {
         self.cache_hits = 0;
         self.cancelled_count = 0;
         self.ignored_results = 0;
+        self.retry_count = 0;
         self.placeholder_data = None;
         self.previous_data = None;
+        self.initial_data = None;
         self.signal = None;
     }
 
@@ -155,5 +157,30 @@ impl<T, E> QueryResource<T, E> {
     /// then sets data to `None`. Does **not** change the request status or active request.
     pub fn clear_data(&mut self) {
         self.previous_data = self.data.take();
+    }
+
+    /// Seed initial data into the resource.
+    ///
+    /// Only takes effect when the status is [`Idle`](QueryStatus::Idle) and
+    /// [`data()`](super::QueryResource::data) is `None`. Sets both
+    /// `initial_data` and `data` to `Some(data)`, and records `now_ms` as
+    /// `last_updated_at`.
+    pub fn set_initial_data(&mut self, data: T, now_ms: u128)
+    where
+        T: Clone,
+    {
+        if self.status == QueryStatus::Idle && self.data.is_none() {
+            self.initial_data = Some(data);
+            self.data = self.initial_data.clone();
+            self.last_updated_at = Some(QueryTimestamp::from(now_ms));
+        }
+    }
+
+    /// Clear the stored initial data.
+    ///
+    /// Does **not** touch `data` — only removes the retained `initial_data`
+    /// reference so it will not survive a [`reset`](super::QueryResource::reset).
+    pub fn clear_initial_data(&mut self) {
+        self.initial_data = None;
     }
 }
