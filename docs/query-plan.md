@@ -60,13 +60,14 @@
 
 | Metric | Value |
 |---|---|
-| Total lines of code | 2,477 |
-| Test lines of code | 955 |
-| Number of tests | 46 |
+| Total lines of code | 2,244 |
+| Test lines of code | 2,023 |
+| Number of tests (crate) | 82 |
+| Number of tests (consumer) | 36 |
 | Public types | 19 |
 | Public methods | 91 |
-| Feature completion (DONE) | 13 / 41 |
-| Feature completion (PARTIAL) | 4 / 41 |
+| Feature completion (DONE) | 17 / 41 |
+| Feature completion (PARTIAL) | 0 / 41 |
 | Feature completion (TODO) | 24 / 41 |
 
 ---
@@ -388,6 +389,84 @@ Inspired by TanStack's `queryOptions()`. Builder-pattern configuration struct.
 | `fetch_query` | `mod.rs:138` | Initiate a fetch on an existing entity (for refetch on click or timer) |
 | `current_time_ms` | `mod.rs:180` | Returns current time as milliseconds since UNIX epoch |
 
+#### QuerySignal — Cooperative Cancellation Signal
+
+`crates/gpui-query/src/core/signal.rs`
+
+An `Arc<AtomicBool>`-backed cancellation signal. Clones share the same flag, so cancelling any clone cancels all of them. Created fresh on `begin_request`, cancelled on `cancel()`.
+
+| Method | Line | Description |
+|---|---|---|
+| `QuerySignal::new` | `signal.rs` | Create a fresh un-cancelled signal |
+| `QuerySignal::cancel` | `signal.rs` | Set the cancelled flag (visible to all clones) |
+| `QuerySignal::is_cancelled` | `signal.rs` | Check if the signal has been cancelled |
+
+Integrated into `QueryResource`:
+- `signal() -> Option<&QuerySignal>` — accessor (created on begin_request, cleared on reset)
+- `signal_mut() -> Option<&mut QuerySignal>` — mutable accessor
+- `begin_request` creates a fresh signal; `cancel()` propagates to signal; `reset()` clears it
+
+Integrated into `QueryClient`:
+- `cancel_query<T,E>(key, error, cx) -> bool` — cancels resource + signal
+- `signal_for<T,E>(key, cx) -> Option<QuerySignal>` — returns a signal clone
+
+Hook-layer variants:
+- `use_query_with_signal(fetcher: FnOnce(QuerySignal) -> Fut)` — signal-aware fetcher
+- `fetch_query_with_signal(entity, fetcher: FnOnce(QuerySignal) -> Fut)` — signal-aware refetch
+
+**Tests:** 5 inline tests (signal.rs) + 7 lifecycle tests + 5 integration tests = 17 tests.
+
+#### Data Retention — placeholderData, previousData, displayData
+
+`crates/gpui-query/src/core/resource/accessors.rs` and `lifecycle.rs`
+
+Three new data accessors and lifecycle methods on `QueryResource`:
+
+| Method | Layer | Description |
+|---|---|---|
+| `placeholder_data()` | accessor | Returns placeholder data (shown when no real data) |
+| `previous_data()` | accessor | Returns the data held before the last success/optimistic write |
+| `display_data()` | accessor | Returns `data` if present, falls back to `placeholder_data` |
+| `set_placeholder_data(data: Option<T>)` | lifecycle | Set or clear placeholder data |
+| `rollback_to_previous() -> bool` | lifecycle | Restore `previous_data` as current data, sets status to Success |
+
+`apply_success` and `apply_success_optional` now store old data in `previous_data` before overwriting.
+
+`QueryOptions` has a new `keep_previous_data: bool` field with builder setter.
+
+**Tests:** 15 core unit tests + 2 integration tests = 17 tests.
+
+#### Optimistic Updates — set_data, clear_data, rollback
+
+`crates/gpui-query/src/core/resource/lifecycle.rs`
+
+Two new methods for optimistic writes that store previous data for rollback:
+
+| Method | Description |
+|---|---|
+| `set_data(data: T)` | Stores current data in `previous_data`, sets new data. Does NOT change status. |
+| `clear_data()` | Stores current data in `previous_data`, sets data to None. Does NOT change status. |
+
+Client-level methods on `QueryClient`:
+- `set_query_data<T,E>(key, data, cx) -> bool`
+- `rollback_query_data<T,E>(key, cx) -> bool`
+
+**Tests:** 12 core unit tests + 5 integration tests = 17 tests.
+
+#### Standalone fetchQuery — QueryClient imperative fetch
+
+`crates/gpui-query/src/client/mod.rs` and `bucket.rs`
+
+Imperative fetch methods on `QueryClient` that create resources and start requests without requiring a component subscription:
+
+| Method | Description |
+|---|---|
+| `QueryClient::fetch_query<T,E>(key, cache, policy, now_ms, cx)` | Creates resource if needed, begins request. Returns `Some((entity, request_id))` on Started, `None` on cache hit or ignored. |
+| `QueryClient::force_fetch_query<T,E>(...)` | Same as `fetch_query` but uses `QueryFetchMode::Force` to bypass cache. |
+| `QueryBucket::fetch(key, cache, policy, now_ms, fetch_mode, cx)` | Bucket-level combined create-and-begin. |
+
+**Tests:** 6 integration tests.
+
 ---
 
 ## What's Left
@@ -407,13 +486,11 @@ TanStack Query features not yet implemented, organized by priority tier.
 | Feature | TanStack Equivalent | Complexity | Notes |
 |---|---|---|---|
 | **Retry logic** | `retry`, `retryDelay` | Medium | No automatic retry on failure. No retry count, delay, or backoff configuration. Needs a retry policy struct and automatic re-dispatch in the hook layer. |
-| **Cancel signal / AbortController** | `signal` on `queryFn` | Medium | Cancellation is logical only (RequestSequencer rejects stale IDs). No mechanism to signal the async fetcher itself to abort. `QueryResource::cancel()` exists but only updates state. |
 | **useMutation hook** | `useMutation` | Large | Entire mutation subsystem is absent. Needs `MutationResource`, `MutationStatus`, `use_mutation` hook, and `QueryClient` integration for cache invalidation. |
 | **Mutation state machine** | `isPending`, `isError`, etc. | Medium | Depends on mutation subsystem. Needs Idle/Loading/Success/Error states for mutations. |
 | **Mutation callbacks** | `onSuccess`, `onError`, `onSettled` | Medium | Depends on mutation subsystem. |
 | **Mutation invalidation** | `invalidateQueries` in `onSuccess` | Medium | Wire mutation completion into `QueryClient::invalidate_queries()` with automatic key-based invalidation. |
 | **prefetchQuery** | `queryClient.prefetchQuery` | Medium | No prefetch mechanism. Needs a method on `QueryClient` that creates a resource, begins a request, and fetches without requiring a component subscription. |
-| **fetchQuery (standalone)** | `queryClient.fetchQuery` | Medium | `hook::fetch_query()` exists but is component-bound (requires `Context<C>`). No standalone imperative fetch on `QueryClient` that returns a result without a component subscription. |
 
 ### P1 — Important
 
@@ -424,16 +501,13 @@ TanStack Query features not yet implemented, organized by priority tier.
 | **QueryObserver** | `QueryObserver` class | Medium | GPUI's `cx.observe()` serves as the observer, but missing standalone `QueryObserver` with configurable callbacks (`onSuccess`, `onError`, etc.) decoupled from component render. |
 | **Refetch on mount / focus / reconnect** | `refetchOnMount`, `refetchOnWindowFocus`, `refetchOnReconnect` | Medium | No automatic refetch triggers. Would require integration with GPUI's focus system and connectivity service. |
 | **Select transform** | `select` option | Small | No `select()` transform to map cached data before returning. Needs a transform closure on `QueryOptions` or a mapped view. |
-| **Keep previous data** | `placeholderData` / `keepPreviousData` | Medium | `LoadingWithData` partially covers this, but no explicit cross-key data retention when the key changes. |
 | **useInfiniteQuery** | `useInfiniteQuery` | Large | Needs `InfiniteQueryResource` with page management, `getNextPageParam`/`getPreviousPageParam`, and a new `use_infinite_query` hook. |
 | **Pagination** | `getNextPageParam`, `getPreviousPageParam` | Large | Depends on `InfiniteQueryResource`. No pagination primitives exist. |
-| **Optimistic updates** | `onMutate` rollback | Large | Would need a rollback mechanism on mutation failure. `QueryResource` preserving previous data on failure is a prerequisite already met. |
 
 ### P2 — Nice-to-have
 
 | Feature | TanStack Equivalent | Complexity | Notes |
 |---|---|---|---|
-| **Placeholder data** | `placeholderData` | Small | No `placeholderData` concept. Could be added as a field on `QueryOptions` providing fallback data before the first fetch. |
 | **Initial data** | `initialData` | Small | Achievable by manually calling `apply_success` on a new resource, but not a first-class API. |
 | **Network mode** | `networkMode` | Medium | No online/offline/always mode awareness. Desktop apps may not need this in the same way web apps do. |
 | **maxPages** | `maxPages` on infinite query | Medium | Depends on infinite query subsystem. Would cap stored pages and evict oldest. |
@@ -448,9 +522,8 @@ TanStack Query features not yet implemented, organized by priority tier.
 ### Feature Completion Summary
 
 ```
-DONE    ████████████░░░░░░░░░░░░░░░░░░░░  13  (32%)
-PARTIAL ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░   4  (10%)
-TODO    ░░░░░░░░░░░░██████████████████████  24  (58%)
+DONE    ████████████████████░░░░░░░░░░░░░  17  (41%)
+TODO    ░░░░░░░░░░░░░░░░░░░████████████████  24  (59%)
                                     Total: 41 features
 ```
 
@@ -464,15 +537,18 @@ The HTTP Lab service is the primary consumer of gpui-query. The following files 
 
 ```
 http_lab/
-├── types.rs          Policy configuration hub
-├── state.rs          Central state container
-├── transitions.rs    Request lifecycle engine
-├── operations.rs     Orchestration layer
-├── task_tracking.rs  Cancellation token registry
-├── test_support.rs   Test helpers
-├── cache.test.rs     Cache behavior tests
-├── flow.test.rs      Full flow orchestration tests
-└── tasks.test.rs     Task tracking tests
+├── types.rs              Policy configuration hub
+├── state.rs              Central state container
+├── transitions.rs        Request lifecycle engine
+├── operations.rs         Orchestration layer
+├── task_tracking.rs      Cancellation token registry
+├── test_support.rs       Test helpers
+├── cache.test.rs         Cache behavior tests
+├── flow.test.rs          Full flow orchestration tests
+├── tasks.test.rs         Task tracking tests
+├── data_retention.test.rs  Placeholder, previousData, displayData, rollback tests
+├── optimistic.test.rs     Optimistic updates (set_data, clear_data, rollback) tests
+└── signal.test.rs         QuerySignal propagation tests
 ```
 
 ### Policy Configuration — types.rs
@@ -499,11 +575,24 @@ http_lab/
 
 `src/services/http_lab/state.rs`
 
-**Imports:** `QueryResource`, `RequestId`, `RequestSequencer`
+**Imports:** `QueryResource`, `QuerySignal`, `RequestId`, `RequestSequencer`
 
 Stores a `BTreeMap<HttpLabAction, QueryResource<HttpExchange>>` (one resource per action), a `RequestSequencer` for scope management, and exposes `resource()` / `selected_resource()` / `active_count()`.
 
 On `reset_for_user()`, calls `request_sequencer.advance_scope()` to invalidate all in-flight requests, then rebuilds all resources via `resource_for_action()`. The helper calls `QueryResource::new(action.query_key(), action.cache_policy(), action.request_policy())`.
+
+**Data retention methods:**
+- `display_resource(action) -> Option<&HttpExchange>` — delegates to `resource.display_data()`
+- `previous_resource_data(action) -> Option<&HttpExchange>` — delegates to `resource.previous_data()`
+- `set_placeholder_for_action(action, data: Option<HttpExchange>)` — sets placeholder data
+
+**Optimistic update methods:**
+- `set_action_data(action, data: HttpExchange)` — calls `resource.set_data(data)`
+- `clear_action_data(action)` — calls `resource.clear_data()`
+- `rollback_action_data(action) -> bool` — calls `resource.rollback_to_previous()`
+
+**Signal method:**
+- `signal_for_action(action) -> Option<QuerySignal>` — returns a clone of the resource's signal
 
 ### Request Lifecycle — transitions.rs
 
@@ -561,6 +650,20 @@ Reads `QueryResource<HttpExchange>` from global `HttpLabState` to drive renderin
 `src/features/pages/http_lab_testing.rs`
 
 **Imports:** `CachePolicy`, `QueryBeginResult`, `QueryError`, `QueryFetchMode`, `QueryResource`, `RequestPolicy`, `RequestSequencer`
+
+A comprehensive GPUI testing dashboard organized into 7 section cards, each validating a specific gpui-query feature area:
+
+| Section | Buttons | What it tests |
+|---|---|---|
+| **Query Lifecycle** | Send query GET, Query TTL, Query ignore, Query latest | Real HTTP fetch, TTL cache hit, IgnoreWhileLoading dedup, LatestWins stale rejection |
+| **Cancel Signal** | Query signal, Cancel active | QuerySignal creation, cancel propagation to clones |
+| **Cache & Data Retention** | Placeholder data, Previous data, Rollback | display_data fallback, previous_data tracking, rollback_to_previous |
+| **Optimistic Updates** | Optimistic set, Optimistic rollback, Full mutation | set_data, clear_data, rollback, full mutation lifecycle |
+| **Standalone Client Fetch** | Client fetch, Client force | QueryClient.fetch_query(), force_fetch_query() without component |
+| **Local Full Lab** | Per-action buttons, Local reset, Cancel | Real HTTP per action with proper policies, FullFlow orchestration |
+| **Raw Baseline** | Send raw GET | Plain reqwest with no QueryResource — comparison baseline |
+
+Each exercise button produces ✅/❌ verdicts per assertion and a final PASSED/FAILED bottom line.
 
 Owns 4 dedicated `QueryResource<RawResponse>` instances with distinct policy combinations:
 
@@ -667,9 +770,9 @@ complete_success(guard: RequestGuard, data: T, now_ms: u64)
 
 | Metric | Value |
 |---|---|
-| Total tests | 46 |
-| Test lines of code | 955 |
-| Test-to-code ratio | 0.39 (955 / 2477) |
+| Total tests (crate) | 82 |
+| Total tests (consumer) | 36 |
+| Test lines of code | 2,023 |
 
 ### Test Inventory by Type
 
@@ -678,9 +781,25 @@ complete_success(guard: RequestGuard, data: T, now_ms: u64)
 | **QueryKey** | 12 | `core/key.rs` | Construction, matching, equality, edge cases |
 | **QueryKeyFilter** | 6 | `core/key_filter.rs` | Exact, Prefix, All matching |
 | **RequestSequencer** | 3 | `core/request.rs` | Monotonic generation, scope advance, overflow |
+| **QuerySignal** | 5 | `core/signal.rs` | New/cancel, clone sharing, default |
 | **QueryResource** | 25 | `core/resource/*.rs` | Full state machine lifecycle: begin, complete, cancel, reset, cache |
-| **QueryClient** | 8 | `client/mod.rs` | Resource creation, invalidation, reset, GC, counting |
+| **QueryResource (signal)** | 7 | `core/resource/*.rs` | Signal creation, cancel propagation, fresh on new request |
+| **Data retention** | 15 | `core/resource/*.rs` | placeholder_data, previous_data, display_data, rollback |
+| **Optimistic updates** | 12 | `core/resource/*.rs` | set_data, clear_data, rollback, mutation flow |
+| **QueryClient** | 14 | `client/mod.rs` | Resource creation, invalidation, reset, GC, cancel_query, fetch_query, set_query_data, rollback |
 | **QueryBucket** | 8 | `client/bucket.rs` | Resource management, deduplication, bulk ops |
+
+### Consumer Integration Tests
+
+| File | Tests | Coverage |
+|---|---|---|
+| `http_lab/cache.test.rs` | 5 | TTL cache, stale-while-revalidate, LatestWins, IgnoreWhileLoading |
+| `http_lab/flow.test.rs` | 6 | FullFlow, reset, scope advance, cookies |
+| `http_lab/tasks.test.rs` | 5 | Stale results, task tracking, previous data preservation |
+| `http_lab/data_retention.test.rs` | 5 | display_data, placeholder, previous_data, rollback |
+| `http_lab/optimistic.test.rs` | 8 | set_data, clear_data, rollback, optimistic flow, failure rollback |
+| `http_lab/signal.test.rs` | 5 | Signal creation, cancel propagation, clone sharing |
+| `http_lab/response.test.rs` | 2 | UTF-8 truncation, parse helpers |
 
 ### Integration Test Coverage
 
@@ -749,4 +868,4 @@ This separation is intentional: the crate is a state management library, not a n
 
 ---
 
-*Generated from gpui-query source analysis. Last updated: 2026-06-01.*
+*Generated from gpui-query source analysis. Last updated: 2026-06-02.*
