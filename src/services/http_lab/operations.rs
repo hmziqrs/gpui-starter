@@ -9,12 +9,13 @@ use crate::services::{
         task_tracking::{cancel_request_flag, register_request_flag},
         transitions::{
             apply_result_to_state, begin_action, cancel_action_in_state, cancel_all_in_state,
+            prepare_retry, should_retry_action,
         },
         types::{ActionExchange, HttpLabAction},
     },
     tokio_runtime::TokioRuntimeGlobal,
 };
-use gpui_query::RequestId;
+use gpui_query::{QueryBeginResult, QueryFetchMode, RequestId};
 
 const LOG: &str = "gpui_starter::http_lab";
 
@@ -215,6 +216,83 @@ pub fn cancel_all(cx: &mut App) {
     });
 }
 
+/// Prefetch a query: starts a background request without user interaction.
+/// Returns `true` if the prefetch was started (a new request was issued),
+/// `false` if it was a cache hit or already loading.
+pub fn prefetch_action(action: HttpLabAction, cx: &mut App) -> bool {
+    let now_ms = now_ms();
+    cx.update_global::<HttpLabState, _>(|state, _cx| {
+        // Simple prefetch: begin a request on the resource
+        let resource = state.resources.get_mut(&action)?;
+        match resource.begin_request(&mut state.request_sequencer, now_ms, QueryFetchMode::Normal) {
+            QueryBeginResult::Started { request_id, .. } => {
+                tracing::info!(target: LOG, action = action.id(), request_id = %request_id.label(), "HTTP Lab prefetch started");
+                Some(request_id)
+            }
+            QueryBeginResult::CacheHit => {
+                tracing::info!(target: LOG, action = action.id(), "HTTP Lab prefetch cache hit");
+                None
+            }
+            QueryBeginResult::IgnoredWhileLoading { .. } => {
+                tracing::info!(target: LOG, action = action.id(), "HTTP Lab prefetch ignored (already loading)");
+                None
+            }
+        }
+    }).is_some()
+}
+
+/// Build an `ActionHandle` for a retry attempt, mirroring the setup in
+/// `prepare_action` but without the full action-selection side effects.
+fn prepare_retry_handle(
+    action: HttpLabAction,
+    request_id: RequestId,
+    cx: &mut App,
+) -> Option<ActionHandle> {
+    let cancellation = register_request_flag(request_id);
+    let rt = cx.global::<TokioRuntimeGlobal>().0.runtime.clone();
+    let client = cx.global::<TokioRuntimeGlobal>().0.http_client.clone();
+    let request_cancellation = cancellation.clone();
+    tracing::info!(
+        target: LOG,
+        action = action.id(),
+        request_id = %request_id.label(),
+        "HTTP Lab spawning Tokio retry task"
+    );
+    let http_handle = rt.spawn(async move {
+        tracing::info!(
+            target: LOG,
+            action = action.id(),
+            request_id = %request_id.label(),
+            "HTTP Lab Tokio retry task started"
+        );
+        let result = run_http_action(&client, action, request_cancellation).await;
+        match &result {
+            Ok(exchanges) => tracing::info!(
+                target: LOG,
+                action = action.id(),
+                request_id = %request_id.label(),
+                exchange_count = exchanges.len(),
+                "HTTP Lab Tokio retry task completed"
+            ),
+            Err(error) => tracing::warn!(
+                target: LOG,
+                action = action.id(),
+                request_id = %request_id.label(),
+                error = %error,
+                "HTTP Lab Tokio retry task failed"
+            ),
+        }
+        result
+    });
+
+    Some(ActionHandle {
+        action,
+        request_id,
+        cancellation,
+        http_handle,
+    })
+}
+
 fn apply_result(
     action: HttpLabAction,
     request_id: RequestId,
@@ -231,6 +309,32 @@ fn apply_result(
     cx.update_global::<HttpLabState, _>(|state, _cx| {
         apply_result_to_state(state, action, request_id, result, now_ms)
     });
+
+    // Check for retry on failure
+    if let Some(retry_count) = cx.update_global::<HttpLabState, _>(|state, _cx| {
+        should_retry_action(state, action)
+    }) {
+        let delay_ms = cx.update_global::<HttpLabState, _>(|state, _cx| {
+            state.resource(action).retry_policy().delay_for_attempt(retry_count)
+        });
+        tracing::info!(
+            target: LOG,
+            action = action.id(),
+            retry_count,
+            delay_ms,
+            "HTTP Lab scheduling retry"
+        );
+        let retry_request_id = cx.update_global::<HttpLabState, _>(|state, _cx| {
+            prepare_retry(state, action, now_ms)
+        });
+        if let Some(retry_request_id) = retry_request_id {
+            if let Some(handle) = prepare_retry_handle(action, retry_request_id, cx) {
+                // Fire and forget the retry — the result comes back through
+                // the normal apply_result path via the entity task.
+                let _ = handle;
+            }
+        }
+    }
 }
 
 fn now_ms() -> u128 {

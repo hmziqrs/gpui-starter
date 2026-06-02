@@ -7,8 +7,8 @@ mod transitions;
 mod types;
 
 pub use operations::{
-    ActionHandle, cancel_action, cancel_all, execute_action, initialize, prepare_action,
-    read_state, reset, select_action, snapshot,
+    ActionHandle, cancel_action, cancel_all, execute_action, initialize, prefetch_action,
+    prepare_action, read_state, reset, select_action, snapshot,
 };
 pub use response::response_fields;
 pub use state::HttpLabState;
@@ -47,3 +47,11 @@ mod http_lab_optimistic_test;
 #[cfg(test)]
 #[path = "http_lab/signal.test.rs"]
 mod http_lab_signal_test;
+
+#[cfg(test)]
+#[path = "http_lab/retry.test.rs"]
+mod http_lab_retry_test;
+
+#[cfg(test)]
+#[path = "http_lab/client_features.test.rs"]
+mod http_lab_client_features_test;

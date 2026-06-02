@@ -75,7 +75,7 @@
 | Total lines of code | 5,638 |
 | Test lines of code | 3,127 |
 | Number of tests (crate) | 222 |
-| Number of tests (consumer) | 36 |
+| Number of tests (consumer) | 44 |
 | Public types | 36 |
 | Public methods | 248 |
 | Feature completion (DONE) | 41 / 41 |
@@ -1004,7 +1004,7 @@ RequestSequencer {
 
 advance_scope() -> {
     scope_id += 1;
-    sequence = 0;
+    sequence = 1;
 }
 ```
 
@@ -1091,6 +1091,8 @@ complete_success(guard: RequestGuard, data: T, now_ms: u64)
 | `http_lab/optimistic.test.rs` | 8 | set_data, clear_data, rollback, optimistic flow, failure rollback |
 | `http_lab/signal.test.rs` | 5 | Signal creation, cancel propagation, clone sharing |
 | `http_lab/response.test.rs` | 2 | UTF-8 truncation, parse helpers |
+| `http_lab/retry.test.rs` | 4 | Retry policies per action, exponential backoff, retry count on failure |
+| `http_lab/client_features.test.rs` | 4 | Key construction, all actions have policies, retry integration, reset preserves policies |
 
 ### Integration Test Coverage
 

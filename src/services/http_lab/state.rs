@@ -138,9 +138,11 @@ pub(super) struct ResetRequests {
 }
 
 fn resource_for_action(action: HttpLabAction) -> QueryResource<HttpExchange> {
-    QueryResource::new(
+    let mut resource = QueryResource::new(
         action.query_key(),
         action.cache_policy(),
         action.request_policy(),
-    )
+    );
+    resource.set_retry_policy(action.retry_policy());
+    resource
 }

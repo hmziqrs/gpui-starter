@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use gpui_query::{CachePolicy, QueryKey, RequestPolicy};
+use gpui_query::{CachePolicy, QueryKey, RequestPolicy, RetryPolicy};
 
 const GET_CACHE_TTL_MS: u64 = 60_000;
 const REVALIDATE_TTL_MS: u64 = 30_000;
@@ -187,6 +187,14 @@ impl HttpLabAction {
         match self {
             Self::PostMultipart | Self::FullFlow => RequestPolicy::IgnoreWhileLoading,
             _ => RequestPolicy::LatestWins,
+        }
+    }
+
+    pub(super) fn retry_policy(self) -> RetryPolicy {
+        match self {
+            Self::GetText | Self::GetJson | Self::GetXml => RetryPolicy::new(3).with_delay(1000).with_exponential_backoff().with_max_delay(10_000),
+            Self::Failure => RetryPolicy::new(2).with_delay(500).with_exponential_backoff().with_max_delay(5_000),
+            _ => RetryPolicy::no_retries(), // POST actions, cookies, full flow: no retry
         }
     }
 }

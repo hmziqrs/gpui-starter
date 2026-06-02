@@ -1,5 +1,6 @@
 use gpui_query::{
-    CachePolicy, QueryBeginResult, QueryError, QueryFetchMode, QueryStatus, RequestGuard, RequestId,
+    CachePolicy, QueryBeginResult, QueryError, QueryFetchMode, QueryStatus, RequestGuard,
+    RequestId,
 };
 
 use crate::services::http_lab::{
@@ -180,6 +181,64 @@ pub(super) fn apply_result_to_state(
             );
             fail_resource(state, action, &request_guard, error.clone());
         }
+    }
+}
+
+/// Check if the action should be retried after a failure.
+/// Returns the current retry count if a retry is allowed, `None` otherwise.
+pub(super) fn should_retry_action(state: &HttpLabState, action: HttpLabAction) -> Option<u32> {
+    let resource = state.resource(action);
+    if resource.retry_policy().should_retry(resource.retry_count()) {
+        Some(resource.retry_count())
+    } else {
+        None
+    }
+}
+
+/// Prepare a resource for retry by incrementing its retry counter and starting
+/// a new request in `Force` mode (bypassing cache). Returns the new `RequestId`
+/// if the retry was started, or `None` if retries are exhausted.
+pub(super) fn prepare_retry(
+    state: &mut HttpLabState,
+    action: HttpLabAction,
+    now_ms: u128,
+) -> Option<RequestId> {
+    let resource = state.resources.get_mut(&action)?;
+    if !resource.retry_policy().should_retry(resource.retry_count()) {
+        return None;
+    }
+    resource.increment_retry();
+
+    let begin_result = {
+        let HttpLabState {
+            resources,
+            request_sequencer,
+            ..
+        } = state;
+        let resource = resources.get_mut(&action)?;
+        resource.begin_request(request_sequencer, now_ms, QueryFetchMode::Force)
+    };
+
+    match begin_result {
+        QueryBeginResult::Started { request_id, .. } => {
+            let resource = state.resource(action);
+            let retry_count = resource.retry_count();
+            let delay_ms = resource.retry_policy().delay_for_attempt(retry_count - 1);
+            record_transition(
+                state,
+                QueryStatus::LoadingWithData,
+                action.label(),
+                &format!("retry attempt {} (delay {}ms)", retry_count, delay_ms),
+            );
+            tracing::info!(
+                target: LOG,
+                action = action.id(),
+                retry_count,
+                "HTTP Lab retry request started"
+            );
+            Some(request_id)
+        }
+        _ => None,
     }
 }
 
