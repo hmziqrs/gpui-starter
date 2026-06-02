@@ -11,7 +11,7 @@ pub use operations::{
     prepare_action, read_state, reset, select_action, snapshot,
 };
 pub use response::response_fields;
-pub use state::HttpLabState;
+pub use state::{HttpLabDiagnostic, HttpLabState};
 pub use types::{
     HttpBodyKind, HttpCookieSnapshot, HttpExchange, HttpLabAction, HttpRequestBodyKind,
     HttpRequestSnapshot, HttpResponseSnapshot,

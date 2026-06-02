@@ -306,11 +306,15 @@ fn apply_result(
         request_id = %request_id.label(),
         "HTTP Lab reducing result into state"
     );
+    let is_failure = result.is_err();
     cx.update_global::<HttpLabState, _>(|state, _cx| {
         apply_result_to_state(state, action, request_id, result, now_ms)
     });
 
-    // Check for retry on failure
+    // Check for retry — only on failure, not on success.
+    if !is_failure {
+        return;
+    }
     if let Some(retry_count) = cx.update_global::<HttpLabState, _>(|state, _cx| {
         should_retry_action(state, action)
     }) {

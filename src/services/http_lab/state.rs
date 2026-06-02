@@ -132,6 +132,41 @@ impl HttpLabState {
 
 impl Global for HttpLabState {}
 
+impl HttpLabState {
+    /// Returns diagnostics for all HTTP Lab resources, suitable for
+    /// rendering in the Query DevTools page.
+    pub fn diagnostics(&self) -> Vec<HttpLabDiagnostic> {
+        self.resources
+            .iter()
+            .map(|(action, resource)| HttpLabDiagnostic {
+                action: action.id().to_string(),
+                key: action.query_key().as_str().to_string(),
+                status: resource.status().label().to_string(),
+                has_data: resource.has_data(),
+                has_error: resource.error().is_some(),
+                cache_policy: format!("{:?}", resource.cache_policy()),
+                request_policy: format!("{:?}", resource.request_policy()),
+                cache_hits: resource.cache_hits(),
+                active_request: resource.active_request_id().map(|id| id.label().to_string()),
+            })
+            .collect()
+    }
+}
+
+/// A diagnostic snapshot of a single HTTP Lab resource.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct HttpLabDiagnostic {
+    pub action: String,
+    pub key: String,
+    pub status: String,
+    pub has_data: bool,
+    pub has_error: bool,
+    pub cache_policy: String,
+    pub request_policy: String,
+    pub cache_hits: u64,
+    pub active_request: Option<String>,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(super) struct ResetRequests {
     pub(super) request_ids: Vec<RequestId>,

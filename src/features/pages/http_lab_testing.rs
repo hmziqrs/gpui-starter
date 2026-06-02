@@ -1342,11 +1342,29 @@ impl HttpLabTestingPage {
             )
         });
 
+        let now_ms_for_complete = now_ms;
         match result {
-            Some((_entity, request_id)) => {
-                let v_started = Self::verdict("request started", true, &format!("request_id={}", request_id.label()));
+            Some((entity, request_id)) => {
+                let rid_label = request_id.label();
+                // Complete the request immediately so the resource transitions
+                // from LoadingEmpty → Success (otherwise DevTools shows "Loading").
+                let completed = entity.update(cx, |resource, _| {
+                    resource.complete_current_success(
+                        request_id,
+                        RawResponse {
+                            status: 200,
+                            final_url: "https://httpbin.org/json".to_string(),
+                            header_count: 0,
+                            bytes: 0,
+                            preview: "client_fetch probe".to_string(),
+                        },
+                        now_ms_for_complete,
+                    )
+                });
+                let v_started = Self::verdict("request started", true, &format!("request_id={}", rid_label));
+                let v_completed = Self::verdict("request completed", completed, "complete_current_success");
                 let verdict_line = "Client fetch PASSED";
-                self.client_query_message = format!("{v_started}\n{verdict_line}");
+                self.client_query_message = format!("{v_started}\n{v_completed}\n{verdict_line}");
             }
             None => {
                 let v_started = Self::verdict("request started", false, "returned None (cache hit or ignored)");
@@ -1378,11 +1396,29 @@ impl HttpLabTestingPage {
             )
         });
 
+        let now_ms_for_complete = now_ms;
         match result {
-            Some((_entity, request_id)) => {
-                let v_started = Self::verdict("forced request started", true, &format!("request_id={}", request_id.label()));
+            Some((entity, request_id)) => {
+                let rid_label = request_id.label();
+                // Complete the request immediately so the resource transitions
+                // from LoadingEmpty → Success (otherwise DevTools shows "Loading").
+                let completed = entity.update(cx, |resource, _| {
+                    resource.complete_current_success(
+                        request_id,
+                        RawResponse {
+                            status: 200,
+                            final_url: "https://httpbin.org/json".to_string(),
+                            header_count: 0,
+                            bytes: 0,
+                            preview: "client_force_fetch probe".to_string(),
+                        },
+                        now_ms_for_complete,
+                    )
+                });
+                let v_started = Self::verdict("forced request started", true, &format!("request_id={}", rid_label));
+                let v_completed = Self::verdict("request completed", completed, "complete_current_success");
                 let verdict_line = "Client force fetch PASSED";
-                self.client_query_message = format!("{v_started}\n{verdict_line}");
+                self.client_query_message = format!("{v_started}\n{v_completed}\n{verdict_line}");
             }
             None => {
                 let v_started = Self::verdict("forced request started", false, "returned None (ignored)");

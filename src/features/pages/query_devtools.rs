@@ -6,8 +6,9 @@ use gpui_component::{
     h_flex, v_flex,
 };
 use gpui_query::client::QueryClient;
-use gpui_query::client::devtools::{ClientDiagnostic, QueryDiagnostic};
 use gpui_query::QueryKeyFilter;
+
+use crate::services::http_lab::{HttpLabDiagnostic, HttpLabState};
 
 // ---------------------------------------------------------------------------
 // Sort mode
@@ -39,6 +40,11 @@ impl QueryDevToolsPage {
                 cx.notify();
             }),
         );
+        subscriptions.push(
+            cx.observe_global_in::<HttpLabState>(window, |_, _, cx| {
+                cx.notify();
+            }),
+        );
         Self {
             _subscriptions: subscriptions,
             expanded_key: None,
@@ -50,11 +56,12 @@ impl QueryDevToolsPage {
 
 impl Render for QueryDevToolsPage {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let client = cx.try_global::<QueryClient>();
+        let client_diag = cx.try_global::<QueryClient>().map(|c| c.diagnostics(cx));
+        let lab_diag = cx.try_global::<HttpLabState>()
+            .map(|s| s.diagnostics());
 
-        let content = if let Some(client) = client {
-            let diag = client.diagnostics(cx);
-            render_dashboard(&diag, &self.expanded_key, self.sort_by, &self.status_filter, cx)
+        let content = if client_diag.is_some() || lab_diag.is_some() {
+            render_dashboard(&client_diag, &lab_diag, &self.expanded_key, self.sort_by, &self.status_filter, cx)
         } else {
             render_empty_state(cx)
         };
@@ -98,7 +105,8 @@ fn render_empty_state(cx: &mut Context<QueryDevToolsPage>) -> Div {
 // ---------------------------------------------------------------------------
 
 fn render_dashboard(
-    diag: &ClientDiagnostic,
+    client_diag: &Option<gpui_query::client::devtools::ClientDiagnostic>,
+    lab_diag: &Option<Vec<HttpLabDiagnostic>>,
     expanded_key: &Option<String>,
     sort_by: QuerySort,
     status_filter: &Option<String>,
@@ -112,6 +120,13 @@ fn render_dashboard(
     let muted = theme.muted;
     let muted_foreground = theme.muted_foreground;
     let _ = theme;
+
+    // Compute totals across both sources
+    let client_resources = client_diag.as_ref().map(|d| d.total_resources).unwrap_or(0);
+    let lab_resources = lab_diag.as_ref().map(|d| d.len()).unwrap_or(0);
+    let total_resources = client_resources + lab_resources;
+    let bucket_count = client_diag.as_ref().map(|d| d.bucket_count).unwrap_or(0);
+    let mutation_count = client_diag.as_ref().map(|d| d.mutation_count).unwrap_or(0);
 
     // Hero banner
     let hero = div()
@@ -127,21 +142,22 @@ fn render_dashboard(
             div()
                 .text_sm()
                 .text_color(muted_foreground)
-                .child("Live diagnostics dashboard for the QueryClient registry."),
+                .child("Live diagnostics dashboard for query resources."),
         );
 
     // Overview cards
     let overview = h_flex().gap_4().children(vec![
-        stat_card("Total Resources", diag.total_resources.to_string(), radius_lg, border, muted, muted_foreground),
-        stat_card("Type Buckets", diag.bucket_count.to_string(), radius_lg, border, muted, muted_foreground),
-        stat_card("Mutations", diag.mutation_count.to_string(), radius_lg, border, muted, muted_foreground),
+        stat_card("Total Resources", total_resources.to_string(), radius_lg, border, muted, muted_foreground),
+        stat_card("Type Buckets", bucket_count.to_string(), radius_lg, border, muted, muted_foreground),
+        stat_card("HTTP Lab Actions", lab_resources.to_string(), radius_lg, border, muted, muted_foreground),
+        stat_card("Mutations", mutation_count.to_string(), radius_lg, border, muted, muted_foreground),
     ]);
 
     // Action bar
     let actions = render_action_bar(cx);
 
     // Query registry
-    let registry = render_registry(diag, expanded_key, sort_by, status_filter, cx);
+    let registry = render_registry(client_diag, lab_diag, expanded_key, sort_by, status_filter, cx);
 
     div().gap_5().flex().flex_col().child(hero).child(overview).child(actions).child(registry)
 }
@@ -274,7 +290,8 @@ fn render_action_bar(cx: &mut Context<QueryDevToolsPage>) -> Div {
 // ---------------------------------------------------------------------------
 
 fn render_registry(
-    diag: &ClientDiagnostic,
+    client_diag: &Option<gpui_query::client::devtools::ClientDiagnostic>,
+    lab_diag: &Option<Vec<HttpLabDiagnostic>>,
     expanded_key: &Option<String>,
     sort_by: QuerySort,
     status_filter: &Option<String>,
@@ -309,25 +326,57 @@ fn render_registry(
             .map(|opt| filter_button(opt, status_filter, cx)),
     );
 
-    // Apply sort + filter
-    let mut queries = diag.queries.clone();
-    if let Some(filter) = status_filter {
-        queries.retain(|q| &q.status == filter);
-    }
-    match sort_by {
-        QuerySort::ByKey => queries.sort_by(|a, b| a.key.cmp(&b.key)),
-        QuerySort::ByStatus => queries.sort_by(|a, b| a.status.cmp(&b.status)),
-        QuerySort::ByCacheHits => queries.sort_by(|a, b| b.cache_hits.cmp(&a.cache_hits)),
+    // Merge rows from both data sources into a unified display format.
+    let mut rows: Vec<UnifiedRow> = Vec::new();
+
+    if let Some(diag) = client_diag {
+        for q in &diag.queries {
+            rows.push(UnifiedRow {
+                key: q.key.clone(),
+                source: "QueryClient".to_string(),
+                status: q.status.clone(),
+                has_data: q.has_data,
+                has_error: q.has_error,
+                cache_policy: q.cache_policy.clone(),
+                request_policy: q.request_policy.clone(),
+                cache_hits: q.cache_hits,
+            });
+        }
     }
 
-    // Table rows
-    let rows: Vec<_> = queries
+    if let Some(lab) = lab_diag {
+        for d in lab {
+            rows.push(UnifiedRow {
+                key: format!("http_lab/{}", d.action),
+                source: "HTTP Lab".to_string(),
+                status: d.status.clone(),
+                has_data: d.has_data,
+                has_error: d.has_error,
+                cache_policy: d.cache_policy.clone(),
+                request_policy: d.request_policy.clone(),
+                cache_hits: d.cache_hits,
+            });
+        }
+    }
+
+    // Apply sort + filter
+    if let Some(filter) = status_filter {
+        rows.retain(|r| r.status == *filter);
+    }
+    match sort_by {
+        QuerySort::ByKey => rows.sort_by(|a, b| a.key.cmp(&b.key)),
+        QuerySort::ByStatus => rows.sort_by(|a, b| a.status.cmp(&b.status)),
+        QuerySort::ByCacheHits => rows.sort_by(|a, b| b.cache_hits.cmp(&a.cache_hits)),
+    }
+
+    // Build table
+    let table_rows: Vec<_> = rows
         .iter()
-        .map(|q| {
-            let is_expanded = expanded_key.as_deref() == Some(q.key.as_str());
-            let row = query_row(q, is_expanded, cx).into_any_element();
+        .map(|r| {
+            let is_expanded = expanded_key.as_deref() == Some(r.key.as_str());
+            let row = unified_row(r, is_expanded, cx).into_any_element();
             let detail = if is_expanded {
-                Some(expanded_detail(q).into_any_element())
+                Some(expanded_detail_for(r).into_any_element())
             } else {
                 None
             };
@@ -336,7 +385,7 @@ fn render_registry(
         .collect();
 
     let table = v_flex().gap_0p5().children(
-        rows.into_iter().flat_map(|(row, detail)| {
+        table_rows.into_iter().flat_map(|(row, detail)| {
             let mut children = vec![row];
             if let Some(d) = detail {
                 children.push(d);
@@ -423,16 +472,25 @@ fn filter_button(
 }
 
 // ---------------------------------------------------------------------------
-// Query Row
+// Unified Row
 // ---------------------------------------------------------------------------
 
-fn query_row(
-    q: &QueryDiagnostic,
+struct UnifiedRow {
+    key: String,
+    source: String,
+    status: String,
+    has_data: bool,
+    has_error: bool,
+    cache_policy: String,
+    request_policy: String,
+    cache_hits: u64,
+}
+
+fn unified_row(
+    r: &UnifiedRow,
     is_expanded: bool,
     cx: &mut Context<QueryDevToolsPage>,
 ) -> Stateful<Div> {
-    // Extract theme colors upfront to avoid holding a borrow on cx across the
-    // mutable borrow required by cx.listener().
     let theme = cx.theme();
     let muted_foreground = theme.muted_foreground;
     let primary = theme.primary;
@@ -441,41 +499,38 @@ fn query_row(
     let secondary = theme.secondary;
     let _ = theme;
 
-    let key = q.key.clone();
+    let key = r.key.clone();
 
-    let status_color = match q.status.as_str() {
+    let status_color = match r.status.as_str() {
         "Idle" | "Cancelled" => muted_foreground,
         "Success" | "LoadingEmpty" | "LoadingWithData" => primary,
         "Failure" => danger,
         _ => muted_foreground,
     };
 
-    let data_dot = if q.has_data {
-        div()
-            .text_xs()
-            .text_color(primary)
-            .child("[data]")
+    let data_dot = if r.has_data {
+        div().text_xs().text_color(primary).child("[data]")
     } else {
         div()
     };
 
-    let error_dot = if q.has_error {
-        div()
-            .text_xs()
-            .text_color(danger)
-            .child("[error]")
+    let error_dot = if r.has_error {
+        div().text_xs().text_color(danger).child("[error]")
     } else {
         div()
     };
 
-    let chevron = if is_expanded {
-        "▾"
-    } else {
-        "▸"
-    };
+    let chevron = if is_expanded { "▾" } else { "▸" };
+
+    let source_label = div()
+        .text_xs()
+        .px_1()
+        .rounded(radius)
+        .bg(secondary)
+        .child(r.source.clone());
 
     div()
-        .id(SharedString::from(format!("query-row-{}", q.key)))
+        .id(SharedString::from(format!("query-row-{}", r.key)))
         .cursor_pointer()
         .rounded(radius)
         .px_3()
@@ -492,12 +547,13 @@ fn query_row(
         .child(
             h_flex().gap_3().items_center().children(vec![
                 div().text_xs().text_color(muted_foreground).child(chevron.to_string()),
+                source_label,
                 div()
                     .text_xs()
                     .font_weight(FontWeight::SEMIBOLD)
                     .text_color(status_color)
-                    .child(q.status.clone()),
-                div().text_sm().font_family("monospace").child(q.key.clone()),
+                    .child(r.status.clone()),
+                div().text_sm().font_family("monospace").child(r.key.clone()),
                 data_dot,
                 error_dot,
                 div()
@@ -505,48 +561,29 @@ fn query_row(
                     .px_1()
                     .rounded(radius)
                     .bg(secondary)
-                    .child(q.cache_policy.clone()),
-                div()
-                    .text_xs()
-                    .px_1()
-                    .rounded(radius)
-                    .bg(secondary)
-                    .child(q.request_policy.clone()),
+                    .child(r.cache_policy.clone()),
                 div()
                     .text_xs()
                     .text_color(muted_foreground)
-                    .child(format!("hits:{}", q.cache_hits)),
+                    .child(format!("hits:{}", r.cache_hits)),
             ]),
         )
 }
 
 // ---------------------------------------------------------------------------
-// Expanded Detail
+// Expanded Detail (unified)
 // ---------------------------------------------------------------------------
 
-fn expanded_detail(q: &QueryDiagnostic) -> Div {
+fn expanded_detail_for(r: &UnifiedRow) -> Div {
     let fields: Vec<(&str, String)> = vec![
-        ("Key", q.key.clone()),
-        ("Status", q.status.clone()),
-        ("Has Data", q.has_data.to_string()),
-        ("Has Error", q.has_error.to_string()),
-        ("Cache Policy", q.cache_policy.clone()),
-        ("Request Policy", q.request_policy.clone()),
-        ("Cache Hits", q.cache_hits.to_string()),
-        ("Cancelled Count", q.cancelled_count.to_string()),
-        ("Ignored Results", q.ignored_results.to_string()),
-        (
-            "Last Updated",
-            q.last_updated_at_ms
-                .map(|ms| format!("{}ms", ms))
-                .unwrap_or_else(|| "N/A".to_string()),
-        ),
-        (
-            "Started At",
-            q.started_at_ms
-                .map(|ms| format!("{}ms", ms))
-                .unwrap_or_else(|| "N/A".to_string()),
-        ),
+        ("Key", r.key.clone()),
+        ("Source", r.source.clone()),
+        ("Status", r.status.clone()),
+        ("Has Data", r.has_data.to_string()),
+        ("Has Error", r.has_error.to_string()),
+        ("Cache Policy", r.cache_policy.clone()),
+        ("Request Policy", r.request_policy.clone()),
+        ("Cache Hits", r.cache_hits.to_string()),
     ];
 
     div()
