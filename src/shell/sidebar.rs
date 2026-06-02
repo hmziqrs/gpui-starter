@@ -10,6 +10,7 @@ pub enum Page {
     Settings,
     Notifications,
     Diagnostics,
+    QueryDevTools,
     About,
 }
 
@@ -23,6 +24,7 @@ impl Page {
             Page::Settings => "Settings",
             Page::Notifications => "Notifications",
             Page::Diagnostics => "Diagnostics",
+            Page::QueryDevTools => "Query DevTools",
             Page::About => "About",
         }
     }
@@ -36,6 +38,7 @@ impl Page {
             Page::Settings => IconName::Settings2,
             Page::Notifications => IconName::Bell,
             Page::Diagnostics => IconName::Info,
+            Page::QueryDevTools => IconName::Search,
             Page::About => IconName::Info,
         }
     }
@@ -49,6 +52,7 @@ impl Page {
             Page::Settings,
             Page::Notifications,
             Page::Diagnostics,
+            Page::QueryDevTools,
             Page::About,
         ]
     }

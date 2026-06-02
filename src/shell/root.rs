@@ -10,7 +10,7 @@ use crate::sidebar::Page;
 use crate::title_bar::AppTitleBar;
 use crate::views::{
     AboutPage, DiagnosticsPage, FormPage, HomePage, HttpLabPage, HttpLabTestingPage,
-    NotificationsPage, SettingsPage,
+    NotificationsPage, QueryDevToolsPage, SettingsPage,
 };
 use crate::{
     app::ToggleSearch,
@@ -59,6 +59,7 @@ pub struct AppRoot {
     settings_page: Entity<SettingsPage>,
     notifications_page: Entity<NotificationsPage>,
     diagnostics_page: Entity<DiagnosticsPage>,
+    query_devtools_page: Entity<QueryDevToolsPage>,
     about_page: Entity<AboutPage>,
 }
 
@@ -76,7 +77,16 @@ impl AppRoot {
         let settings_page = cx.new(|cx| SettingsPage::new(window, cx));
         let notifications_page = cx.new(|cx| NotificationsPage::new(window, cx));
         let diagnostics_page = cx.new(|cx| DiagnosticsPage::new(window, cx));
+        let query_devtools_page = cx.new(|cx| QueryDevToolsPage::new(window, cx));
         let about_page = cx.new(|_| AboutPage::new());
+
+        // Eagerly register QueryClient global so DevTools page can observe it.
+        if !cx.has_global::<gpui_query::client::QueryClient>() {
+            cx.set_global(gpui_query::client::QueryClient::new(
+                gpui_query::CachePolicy::default(),
+                gpui_query::RequestPolicy::default(),
+            ));
+        }
 
         // React to app-wide events coming from launcher/deep links.
         cx.observe_global::<events::AppEventQueue>(|this, cx| {
@@ -176,6 +186,7 @@ impl AppRoot {
             settings_page,
             notifications_page,
             diagnostics_page,
+            query_devtools_page,
             about_page,
         }
     }
@@ -189,6 +200,7 @@ impl AppRoot {
             Page::Settings => self.settings_page.clone().into(),
             Page::Notifications => self.notifications_page.clone().into(),
             Page::Diagnostics => self.diagnostics_page.clone().into(),
+            Page::QueryDevTools => self.query_devtools_page.clone().into(),
             Page::About => self.about_page.clone().into(),
         }
     }
