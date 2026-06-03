@@ -12,6 +12,31 @@
 use crate::core::*;
 use crate::tests::test_support::*;
 
+// ── Named time constants ────────────────────────────────────────────────
+//
+// All TTL/SWR tests seed data at STORED_AT_MS and reason about boundary
+// offsets from there.  Naming these values makes the age arithmetic
+// self-documenting rather than forcing the reader to reverse-engineer
+// magic numbers.
+
+/// The `stored_at` timestamp used by every seeded cache entry (ms).
+const STORED_AT_MS: u128 = 1_000;
+
+/// TTL duration shared by both the default TTL resource and the SWR resource.
+const TTL_MS: u64 = 1_000;
+
+/// Stale-window duration used by the SWR resource.
+const STALE_MS: u64 = 2_000;
+
+/// Total validity window for the SWR resource (TTL + stale).
+const SWR_TOTAL_MS: u64 = TTL_MS + STALE_MS; // 3_000
+
+// Derived boundary offsets from STORED_AT_MS:
+const AT_TTL_BOUNDARY: u128 = STORED_AT_MS + TTL_MS as u128; // 2_000 — exactly at TTL edge
+const ONE_MS_PAST_TTL: u128 = AT_TTL_BOUNDARY + 1; // 2_001 — just past TTL
+const AT_SWR_BOUNDARY: u128 = STORED_AT_MS + SWR_TOTAL_MS as u128; // 4_000 — exactly at total edge
+const ONE_MS_PAST_SWR: u128 = AT_SWR_BOUNDARY + 1; // 4_001 — fully expired
+
 // ── Helpers ──────────────────────────────────────────────────────────────
 
 fn ttl_resource() -> QueryResource<&'static str> {
@@ -22,8 +47,8 @@ fn swr_resource() -> QueryResource<&'static str> {
     QueryResource::new(
         "swr-test",
         CachePolicy::StaleWhileRevalidate {
-            ttl_ms: 1_000,
-            stale_ms: 2_000,
+            ttl_ms: TTL_MS,
+            stale_ms: STALE_MS,
         },
         RequestPolicy::LatestWins,
     )
@@ -44,23 +69,23 @@ fn seed_data(resource: &mut QueryResource<&'static str>, data: &'static str, sto
 #[test]
 fn ttl_cache_is_fresh_at_exact_boundary() {
     let mut r = ttl_resource();
-    seed_data(&mut r, "cached", 1_000);
-    assert!(r.is_cache_fresh(2_000));
+    seed_data(&mut r, "cached", STORED_AT_MS);
+    assert!(r.is_cache_fresh(AT_TTL_BOUNDARY));
 }
 
 #[test]
 fn ttl_cache_is_stale_one_ms_past_boundary() {
     let mut r = ttl_resource();
-    seed_data(&mut r, "cached", 1_000);
-    assert!(!r.is_cache_fresh(2_001));
+    seed_data(&mut r, "cached", STORED_AT_MS);
+    assert!(!r.is_cache_fresh(ONE_MS_PAST_TTL));
 }
 
 #[test]
 fn ttl_cache_is_fresh_well_within_window() {
     let mut r = ttl_resource();
-    seed_data(&mut r, "cached", 1_000);
-    assert!(r.is_cache_fresh(1_500));
-    assert!(r.is_cache_fresh(1_999));
+    seed_data(&mut r, "cached", STORED_AT_MS);
+    assert!(r.is_cache_fresh(STORED_AT_MS + 500));
+    assert!(r.is_cache_fresh(AT_TTL_BOUNDARY - 1));
 }
 
 #[test]
@@ -73,19 +98,20 @@ fn ttl_cache_is_not_fresh_for_future_timestamp() {
 #[test]
 fn ttl_expired_check_after_ttl_window() {
     let mut r = ttl_resource();
-    seed_data(&mut r, "cached", 1_000);
-    assert!(!r.is_cache_expired(1_500), "within TTL, not expired");
-    assert!(!r.is_cache_expired(2_000), "at TTL boundary, not expired");
-    assert!(r.is_cache_expired(2_001), "past TTL, expired");
+    seed_data(&mut r, "cached", STORED_AT_MS);
+    assert!(!r.is_cache_expired(STORED_AT_MS + 500), "within TTL, not expired");
+    assert!(!r.is_cache_expired(AT_TTL_BOUNDARY), "at TTL boundary, not expired");
+    assert!(r.is_cache_expired(ONE_MS_PAST_TTL), "past TTL, expired");
 }
 
 #[test]
 fn ttl_renewal_resets_freshness() {
     let mut r = ttl_resource();
-    seed_data(&mut r, "v1", 1_000);
-    assert!(!r.is_cache_fresh(2_500));
-    seed_data(&mut r, "v2", 2_000);
-    assert!(r.is_cache_fresh(2_500));
+    seed_data(&mut r, "v1", STORED_AT_MS);
+    assert!(!r.is_cache_fresh(STORED_AT_MS + 1_500));
+    let renewed_at: u128 = AT_TTL_BOUNDARY;
+    seed_data(&mut r, "v2", renewed_at);
+    assert!(r.is_cache_fresh(renewed_at + 500));
     assert_eq!(r.data(), Some(&"v2"));
     assert_eq!(r.previous_data(), Some(&"v1"));
 }
@@ -93,21 +119,21 @@ fn ttl_renewal_resets_freshness() {
 #[test]
 fn ttl_short_circuit_when_fresh() {
     let mut r = ttl_resource();
-    seed_data(&mut r, "cached", 1_000);
-    assert!(r.should_short_circuit_cache(1_500));
+    seed_data(&mut r, "cached", STORED_AT_MS);
+    assert!(r.should_short_circuit_cache(STORED_AT_MS + 500));
 }
 
 #[test]
 fn ttl_no_short_circuit_when_stale() {
     let mut r = ttl_resource();
-    seed_data(&mut r, "cached", 1_000);
-    assert!(!r.should_short_circuit_cache(2_001));
+    seed_data(&mut r, "cached", STORED_AT_MS);
+    assert!(!r.should_short_circuit_cache(ONE_MS_PAST_TTL));
 }
 
 #[test]
 fn ttl_no_short_circuit_without_data() {
     let r = ttl_resource();
-    assert!(!r.should_short_circuit_cache(1_000));
+    assert!(!r.should_short_circuit_cache(STORED_AT_MS));
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -117,52 +143,57 @@ fn ttl_no_short_circuit_without_data() {
 #[test]
 fn swr_fresh_within_ttl() {
     let mut r = swr_resource();
-    seed_data(&mut r, "cached", 1_000);
-    assert!(r.is_cache_fresh(1_500));
-    assert!(r.is_cache_fresh(2_000));
+    seed_data(&mut r, "cached", STORED_AT_MS);
+    // stored_at=1000, TTL=1000. Fresh while age < TTL.
+    assert!(r.is_cache_fresh(STORED_AT_MS + 500));
+    assert!(r.is_cache_fresh(AT_TTL_BOUNDARY));
 }
 
 #[test]
 fn swr_stale_but_serveable_in_stale_window() {
     let mut r = swr_resource();
-    seed_data(&mut r, "cached", 1_000);
-    assert!(!r.is_cache_fresh(2_001), "past TTL, not fresh");
-    assert!(r.is_stale_but_serveable(2_001));
-    assert!(r.is_stale_but_serveable(3_000), "at stale boundary, serveable");
+    seed_data(&mut r, "cached", STORED_AT_MS);
+    // stored_at=1000, TTL=1000, stale=2000. Past TTL but within stale window.
+    assert!(!r.is_cache_fresh(ONE_MS_PAST_TTL), "past TTL, not fresh");
+    assert!(r.is_stale_but_serveable(ONE_MS_PAST_TTL));
+    assert!(r.is_stale_but_serveable(STORED_AT_MS + 2_000), "mid stale window, serveable");
 }
 
 #[test]
 fn swr_fully_expired_past_stale_window() {
     let mut r = swr_resource();
-    seed_data(&mut r, "cached", 1_000);
-    // TTL=1000, stale=2000, total=3000. Age at now=4001 is 3001 > total(3000) => expired
-    assert!(r.is_cache_expired(4_001));
-    assert!(!r.is_cache_fresh(4_001));
-    assert!(!r.is_stale_but_serveable(4_001));
+    seed_data(&mut r, "cached", STORED_AT_MS);
+    // stored_at=1000, total=3000. age at ONE_MS_PAST_SWR = 3001 > total => expired
+    assert!(r.is_cache_expired(ONE_MS_PAST_SWR));
+    assert!(!r.is_cache_fresh(ONE_MS_PAST_SWR));
+    assert!(!r.is_stale_but_serveable(ONE_MS_PAST_SWR));
 }
 
 #[test]
 fn swr_should_serve_stale_and_revalidate_in_stale_window() {
     let mut r = swr_resource();
-    seed_data(&mut r, "cached", 1_000);
-    assert!(r.should_serve_stale_and_revalidate(2_001));
-    assert!(r.should_serve_stale_and_revalidate(3_000));
+    seed_data(&mut r, "cached", STORED_AT_MS);
+    // Between TTL boundary and stale boundary => should revalidate.
+    assert!(r.should_serve_stale_and_revalidate(ONE_MS_PAST_TTL));
+    assert!(r.should_serve_stale_and_revalidate(STORED_AT_MS + 2_000));
 }
 
 #[test]
 fn swr_should_not_serve_stale_within_ttl() {
     let mut r = swr_resource();
-    seed_data(&mut r, "cached", 1_000);
-    assert!(!r.should_serve_stale_and_revalidate(1_500));
+    seed_data(&mut r, "cached", STORED_AT_MS);
+    // Still fresh => no need for stale-serve.
+    assert!(!r.should_serve_stale_and_revalidate(STORED_AT_MS + 500));
 }
 
 #[test]
 fn swr_begin_request_stale_cache_hit_triggers_background_refetch() {
     let mut r = swr_resource();
     let mut seq = test_sequencer();
-    seed_data(&mut r, "cached", 1_000);
+    seed_data(&mut r, "cached", STORED_AT_MS);
 
-    let result = r.begin_request(&mut seq, 2_001, QueryFetchMode::Normal);
+    // One ms past TTL => stale but serveable, triggers background refetch.
+    let result = r.begin_request(&mut seq, ONE_MS_PAST_TTL, QueryFetchMode::Normal);
     assert!(matches!(result, QueryBeginResult::StaleCacheHit { .. }));
     assert_eq!(r.cache_hits(), 1, "stale cache hit should increment cache_hits");
     assert_eq!(r.data(), Some(&"cached"), "stale data still accessible");
@@ -172,10 +203,10 @@ fn swr_begin_request_stale_cache_hit_triggers_background_refetch() {
 fn swr_begin_request_expired_starts_normal_fetch() {
     let mut r = swr_resource();
     let mut seq = test_sequencer();
-    seed_data(&mut r, "cached", 1_000);
+    seed_data(&mut r, "cached", STORED_AT_MS);
 
-    // TTL=1000, stale=2000, total=3000. At now=5000, age=4000 > total => expired
-    let result = r.begin_request(&mut seq, 5_000, QueryFetchMode::Normal);
+    // stored_at=1000, total=3000. age at now=5000 is 4000 > total => expired
+    let result = r.begin_request(&mut seq, STORED_AT_MS + 4_000, QueryFetchMode::Normal);
     assert!(matches!(result, QueryBeginResult::Started { .. }));
     assert_eq!(r.cache_hits(), 0, "no cache hit when expired");
 }
@@ -183,13 +214,12 @@ fn swr_begin_request_expired_starts_normal_fetch() {
 #[test]
 fn swr_stale_boundary_exact() {
     let mut r = swr_resource();
-    seed_data(&mut r, "cached", 1_000);
-    // TTL=1000, stale=2000, total=3000. stored_at=1000
-    // At now=4000, age=3000 == total => still serveable (inclusive boundary)
-    assert!(r.is_stale_but_serveable(4_000));
-    // At now=4001, age=3001 > total => expired
-    assert!(!r.is_stale_but_serveable(4_001));
-    assert!(r.is_cache_expired(4_001));
+    seed_data(&mut r, "cached", STORED_AT_MS);
+    // stored_at=1000, total=3000. age at AT_SWR_BOUNDARY = 3000 == total => serveable (inclusive)
+    assert!(r.is_stale_but_serveable(AT_SWR_BOUNDARY));
+    // age at ONE_MS_PAST_SWR = 3001 > total => expired
+    assert!(!r.is_stale_but_serveable(ONE_MS_PAST_SWR));
+    assert!(r.is_cache_expired(ONE_MS_PAST_SWR));
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -199,24 +229,24 @@ fn swr_stale_boundary_exact() {
 #[test]
 fn nocache_never_fresh() {
     let mut r = nocache_resource();
-    seed_data(&mut r, "data", 1_000);
-    assert!(!r.is_cache_fresh(1_000));
-    assert!(!r.is_cache_fresh(1_001));
+    seed_data(&mut r, "data", STORED_AT_MS);
+    assert!(!r.is_cache_fresh(STORED_AT_MS));
+    assert!(!r.is_cache_fresh(STORED_AT_MS + 1));
 }
 
 #[test]
 fn nocache_always_expired() {
     let mut r = nocache_resource();
-    seed_data(&mut r, "data", 1_000);
-    assert!(r.is_cache_expired(1_000));
+    seed_data(&mut r, "data", STORED_AT_MS);
+    assert!(r.is_cache_expired(STORED_AT_MS));
     assert!(r.is_cache_expired(500));
 }
 
 #[test]
 fn nocache_no_short_circuit() {
     let mut r = nocache_resource();
-    seed_data(&mut r, "data", 1_000);
-    assert!(!r.should_short_circuit_cache(1_000));
+    seed_data(&mut r, "data", STORED_AT_MS);
+    assert!(!r.should_short_circuit_cache(STORED_AT_MS));
 }
 
 #[test]
@@ -228,8 +258,8 @@ fn nocache_cannot_short_circuit_policy() {
 fn nocache_begin_request_always_starts() {
     let mut r = nocache_resource();
     let mut seq = test_sequencer();
-    seed_data(&mut r, "data", 1_000);
-    let result = r.begin_request(&mut seq, 1_000, QueryFetchMode::Normal);
+    seed_data(&mut r, "data", STORED_AT_MS);
+    let result = r.begin_request(&mut seq, STORED_AT_MS, QueryFetchMode::Normal);
     assert!(matches!(result, QueryBeginResult::Started { .. }));
     assert_eq!(r.cache_hits(), 0);
 }
@@ -247,21 +277,21 @@ fn nocache_should_clear_data_on_complete() {
 #[test]
 fn invalidate_clears_last_updated_but_retains_data() {
     let mut r = ttl_resource();
-    seed_data(&mut r, "cached", 1_000);
+    seed_data(&mut r, "cached", STORED_AT_MS);
     r.invalidate();
     assert_eq!(r.data(), Some(&"cached"), "data is retained after invalidate");
     assert_eq!(r.last_updated_at_ms(), None, "last_updated_at cleared by invalidate");
-    assert!(!r.is_cache_fresh(1_001), "after invalidate, data is not fresh even within TTL");
+    assert!(!r.is_cache_fresh(STORED_AT_MS + 1), "after invalidate, data is not fresh even within TTL");
 }
 
 #[test]
 fn invalidate_then_begin_request_starts_fetch() {
     let mut r = ttl_resource();
     let mut seq = test_sequencer();
-    seed_data(&mut r, "cached", 1_000);
-    assert!(r.should_short_circuit_cache(1_500));
+    seed_data(&mut r, "cached", STORED_AT_MS);
+    assert!(r.should_short_circuit_cache(STORED_AT_MS + 500));
     r.invalidate();
-    let result = r.begin_request(&mut seq, 1_500, QueryFetchMode::Normal);
+    let result = r.begin_request(&mut seq, STORED_AT_MS + 500, QueryFetchMode::Normal);
     assert!(matches!(result, QueryBeginResult::Started { .. }));
 }
 
@@ -277,17 +307,18 @@ fn invalidate_on_no_data_is_noop() {
 fn invalidate_then_refetch_refreshes_cache() {
     let mut r = ttl_resource();
     let mut seq = test_sequencer();
-    seed_data(&mut r, "v1", 1_000);
+    seed_data(&mut r, "v1", STORED_AT_MS);
     r.invalidate();
-    let result = r.begin_request(&mut seq, 1_500, QueryFetchMode::Normal);
+    let result = r.begin_request(&mut seq, STORED_AT_MS + 500, QueryFetchMode::Normal);
     let request_id = match result {
         QueryBeginResult::Started { request_id, .. } => request_id,
         _ => panic!("expected Started after invalidate"),
     };
-    r.complete_current_success(request_id, "v2", 1_600);
+    let completed_at = STORED_AT_MS + 600;
+    r.complete_current_success(request_id, "v2", completed_at);
     assert_eq!(r.data(), Some(&"v2"));
-    assert_eq!(r.last_updated_at_ms(), Some(1_600));
-    assert!(r.is_cache_fresh(1_800));
+    assert_eq!(r.last_updated_at_ms(), Some(completed_at));
+    assert!(r.is_cache_fresh(completed_at + 200));
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -297,8 +328,8 @@ fn invalidate_then_refetch_refreshes_cache() {
 #[test]
 fn reset_clears_data_and_error() {
     let mut r = ttl_resource();
-    seed_data(&mut r, "data", 1_000);
-    r.apply_failure("something broke", 1_100);
+    seed_data(&mut r, "data", STORED_AT_MS);
+    r.apply_failure("something broke", STORED_AT_MS + 100);
     assert!(r.data().is_some());
     assert!(r.error().is_some());
     r.reset();
@@ -311,9 +342,9 @@ fn reset_clears_data_and_error() {
 #[test]
 fn reset_clears_cache_hits_counter() {
     let mut r = ttl_resource();
-    seed_data(&mut r, "data", 1_000);
+    seed_data(&mut r, "data", STORED_AT_MS);
     let mut seq = test_sequencer();
-    let result = r.begin_request(&mut seq, 1_500, QueryFetchMode::Normal);
+    let result = r.begin_request(&mut seq, STORED_AT_MS + 500, QueryFetchMode::Normal);
     assert_eq!(result, QueryBeginResult::CacheHit);
     assert_eq!(r.cache_hits(), 1);
     r.reset();
@@ -323,10 +354,10 @@ fn reset_clears_cache_hits_counter() {
 #[test]
 fn reset_clears_all_counters() {
     let mut r = ttl_resource();
-    seed_data(&mut r, "data", 1_000);
+    seed_data(&mut r, "data", STORED_AT_MS);
     let mut seq = test_sequencer();
-    r.begin_request(&mut seq, 1_500, QueryFetchMode::Force);
-    r.begin_request(&mut seq, 1_600, QueryFetchMode::Force);
+    r.begin_request(&mut seq, STORED_AT_MS + 500, QueryFetchMode::Force);
+    r.begin_request(&mut seq, STORED_AT_MS + 600, QueryFetchMode::Force);
     assert_eq!(r.cancelled_count(), 1);
     r.reset();
     assert_eq!(r.cache_hits(), 0);
@@ -342,7 +373,7 @@ fn reset_preserves_policies_and_key() {
         CachePolicy::Ttl { ttl_ms: 5_000 },
         RequestPolicy::IgnoreWhileLoading,
     );
-    seed_data(&mut r, "data", 1_000);
+    seed_data(&mut r, "data", STORED_AT_MS);
     r.reset();
     assert_eq!(r.key().as_str(), "my-key");
     assert_eq!(r.cache_policy(), CachePolicy::Ttl { ttl_ms: 5_000 });
@@ -367,7 +398,7 @@ fn placeholder_data_set_and_clear() {
 fn display_data_prefers_real_data_over_placeholder() {
     let mut r = ttl_resource();
     r.set_placeholder_data(Some("placeholder"));
-    seed_data(&mut r, "real", 1_000);
+    seed_data(&mut r, "real", STORED_AT_MS);
     assert_eq!(r.display_data(), Some(&"real"));
 }
 
@@ -476,8 +507,8 @@ fn reset_clears_placeholder_and_previous() {
 fn begin_request_short_circuits_fresh_ttl_cache() {
     let mut r = ttl_resource();
     let mut seq = test_sequencer();
-    seed_data(&mut r, "cached", 1_000);
-    let result = r.begin_request(&mut seq, 1_500, QueryFetchMode::Normal);
+    seed_data(&mut r, "cached", STORED_AT_MS);
+    let result = r.begin_request(&mut seq, STORED_AT_MS + 500, QueryFetchMode::Normal);
     assert_eq!(result, QueryBeginResult::CacheHit);
     assert_eq!(r.cache_hits(), 1);
     assert_eq!(r.active_request_id(), None);
@@ -487,8 +518,8 @@ fn begin_request_short_circuits_fresh_ttl_cache() {
 fn forced_begin_request_bypasses_fresh_ttl_cache() {
     let mut r = ttl_resource();
     let mut seq = test_sequencer();
-    seed_data(&mut r, "cached", 1_000);
-    let result = r.begin_request(&mut seq, 1_500, QueryFetchMode::Force);
+    seed_data(&mut r, "cached", STORED_AT_MS);
+    let result = r.begin_request(&mut seq, STORED_AT_MS + 500, QueryFetchMode::Force);
     assert!(matches!(
         result,
         QueryBeginResult::Started {
@@ -534,16 +565,16 @@ fn ignore_while_loading_with_swr_still_serves_stale() {
     let mut r = QueryResource::new(
         "swr-ignore",
         CachePolicy::StaleWhileRevalidate {
-            ttl_ms: 1_000,
-            stale_ms: 2_000,
+            ttl_ms: TTL_MS,
+            stale_ms: STALE_MS,
         },
         RequestPolicy::IgnoreWhileLoading,
     );
     let mut seq = test_sequencer();
-    seed_data(&mut r, "cached", 1_000);
-    r.begin_request(&mut seq, 2_500, QueryFetchMode::Force);
+    seed_data(&mut r, "cached", STORED_AT_MS);
+    r.begin_request(&mut seq, STORED_AT_MS + 1_500, QueryFetchMode::Force);
     assert!(r.is_loading());
-    let result = r.begin_request(&mut seq, 2_600, QueryFetchMode::Normal);
+    let result = r.begin_request(&mut seq, STORED_AT_MS + 1_600, QueryFetchMode::Normal);
     assert!(matches!(
         result,
         QueryBeginResult::StaleCacheHit {
@@ -556,9 +587,9 @@ fn ignore_while_loading_with_swr_still_serves_stale() {
 #[test]
 fn record_cache_hit_transitions_to_success() {
     let mut r = ttl_resource();
-    seed_data(&mut r, "data", 1_000);
+    seed_data(&mut r, "data", STORED_AT_MS);
     assert_eq!(r.status(), QueryStatus::Success);
-    r.begin_loading(RequestId::scoped(1, 1), 1_100);
+    r.begin_loading(RequestId::scoped(1, 1), STORED_AT_MS + 100);
     assert_eq!(r.status(), QueryStatus::LoadingWithData);
     r.record_cache_hit();
     assert_eq!(r.status(), QueryStatus::Success);
@@ -568,17 +599,18 @@ fn record_cache_hit_transitions_to_success() {
 #[test]
 fn record_cache_hit_does_not_clear_failure_status() {
     let mut r = ttl_resource();
-    seed_data(&mut r, "data", 1_000);
-    r.apply_failure("error", 1_100);
+    seed_data(&mut r, "data", STORED_AT_MS);
+    r.apply_failure("error", STORED_AT_MS + 100);
     assert_eq!(r.status(), QueryStatus::Failure);
     r.record_cache_hit();
     assert_eq!(r.status(), QueryStatus::Failure, "cache hit should not clear Failure status");
+    assert_eq!(r.cache_hits(), 1, "cache_hits increments even when status is Failure (terminal state preserved)");
 }
 
 #[test]
 fn cache_policy_accessor_roundtrip() {
     let mut r = ttl_resource();
-    assert_eq!(r.cache_policy(), CachePolicy::Ttl { ttl_ms: 1_000 });
+    assert_eq!(r.cache_policy(), CachePolicy::Ttl { ttl_ms: TTL_MS });
     r.set_cache_policy(CachePolicy::StaleWhileRevalidate {
         ttl_ms: 5_000,
         stale_ms: 10_000,
@@ -594,10 +626,10 @@ fn cache_policy_accessor_roundtrip() {
 
 #[test]
 fn swr_policy_accessors() {
-    let policy = CachePolicy::StaleWhileRevalidate { ttl_ms: 1_000, stale_ms: 2_000 };
-    assert_eq!(policy.ttl_ms(), Some(1_000));
-    assert_eq!(policy.stale_ms(), Some(2_000));
-    assert_eq!(policy.total_valid_ms(), Some(3_000));
+    let policy = CachePolicy::StaleWhileRevalidate { ttl_ms: TTL_MS, stale_ms: STALE_MS };
+    assert_eq!(policy.ttl_ms(), Some(TTL_MS));
+    assert_eq!(policy.stale_ms(), Some(STALE_MS));
+    assert_eq!(policy.total_valid_ms(), Some(SWR_TOTAL_MS));
     assert!(policy.can_short_circuit());
     assert!(policy.can_serve_stale());
 }

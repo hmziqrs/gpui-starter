@@ -16,9 +16,13 @@
 //!
 //! # Usage
 //!
-//! ```ignore
+//! ```no_run
 //! use gpui_query_v2::hook::{use_query_select, QueryOptions};
 //! use gpui_query_v2::core::SelectTransform;
+//! # #[derive(Clone)]
+//! # struct User;
+//! # #[derive(Clone, Debug)]
+//! # struct MyError;
 //!
 //! struct UserCountView {
 //!     mapped: gpui::Entity<gpui_query_v2::core::MappedQueryResource<Vec<User>, usize, MyError>>,
@@ -32,9 +36,8 @@
 //!             QueryOptions::new("users"),
 //!             count_transform,
 //!             |signal| async move {
-//!                 let resp = reqwest::get("/api/users").await?;
-//!                 let users: Vec<User> = resp.json().await?;
-//!                 Ok(users)
+//!                 // Your async fetcher here
+//!                 Ok(vec![])
 //!             },
 //!             cx,
 //!         );
@@ -76,9 +79,13 @@ use super::{use_query, QueryOptions};
 /// The transform closure runs every time `mapped.data()` is called (no output
 /// cache). For expensive transforms, cache the result:
 ///
-/// ```ignore
+/// ```no_run
+/// use gpui_query_v2::core::{MappedQueryResource, SelectTransform};
+/// # fn _doc(mapped: &gpui::Entity<MappedQueryResource<Vec<String>, usize, ()>>, cx: &gpui::App) {
+///
 /// let count = mapped.read(cx).data(); // transform runs once
 /// // reuse `count` below
+/// # }
 /// ```
 pub fn use_query_select<T, U, E, C, F, Fut>(
     options: impl Into<QueryOptions>,

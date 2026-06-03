@@ -321,10 +321,8 @@ fn prop_serde_roundtrip_query_resource_multiple_states() {
     let mut s = test_sequencer();
 
     // Test roundtrip in Success state.
-    let rid = match r.begin_request(&mut s, 100, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid = begin_request_id(&mut r, &mut s, 100, QueryFetchMode::Normal);
+
     r.complete_current_success(rid, "hello".to_string(), 200);
 
     let json = serde_json::to_string(&r).unwrap();
@@ -337,10 +335,7 @@ fn prop_serde_roundtrip_query_resource_multiple_states() {
     assert!(back.initial_data().is_none(), "initial_data is #[serde(skip)]");
 
     // Test roundtrip in Failure state.
-    let rid2 = match r.begin_request(&mut s, 300, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid2 = begin_request_id(&mut r, &mut s, 300, QueryFetchMode::Normal);
     r.complete_current_failure(rid2, QueryError::transport("fail"), 400);
     let json2 = serde_json::to_string(&r).unwrap();
     let back2: QueryResource<String, QueryError> = serde_json::from_str(&json2).unwrap();
@@ -458,11 +453,6 @@ fn prop_request_sequencer_double_overflow_wraps_correctly() {
 // 2. State-transition invariant tests
 // ═══════════════════════════════════════════════════════════════════════════
 
-/// Helper: create a fresh resource with NoCache (every begin_request starts a fetch).
-fn fresh_resource() -> QueryResource<&'static str> {
-    QueryResource::new("invariant-test", CachePolicy::NoCache, RequestPolicy::LatestWins)
-}
-
 #[test]
 fn invariant_initial_state_is_consistent() {
     let r = fresh_resource();
@@ -489,17 +479,11 @@ fn invariant_after_begin_loading_with_data() {
     let mut r = fresh_resource();
     let mut s = test_sequencer();
     // First fetch succeeds to get data.
-    let rid1 = match r.begin_request(&mut s, 100, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid1 = begin_request_id(&mut r, &mut s, 100, QueryFetchMode::Normal);
     r.complete_current_success(rid1, "data1", 200);
 
     // Second fetch: resource has data, so status should be LoadingWithData.
-    let rid2 = match r.begin_request(&mut s, 300, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid2 = begin_request_id(&mut r, &mut s, 300, QueryFetchMode::Normal);
     assert_eq!(r.status(), QueryStatus::LoadingWithData);
     // Data should still be present during refetch (optimistic).
     assert!(r.data().is_some(), "LoadingWithData => data should still be present");
@@ -518,10 +502,7 @@ fn invariant_after_begin_loading_with_data() {
 fn invariant_after_complete_success() {
     let mut r = fresh_resource();
     let mut s = test_sequencer();
-    let rid = match r.begin_request(&mut s, 100, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid = begin_request_id(&mut r, &mut s, 100, QueryFetchMode::Normal);
     r.complete_current_success(rid, "result", 200);
 
     assert_eq!(r.status(), QueryStatus::Success);
@@ -535,10 +516,7 @@ fn invariant_after_complete_success() {
 fn invariant_after_complete_failure() {
     let mut r = fresh_resource();
     let mut s = test_sequencer();
-    let rid = match r.begin_request(&mut s, 100, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid = begin_request_id(&mut r, &mut s, 100, QueryFetchMode::Normal);
     r.complete_current_failure(rid, QueryError::response("fail"), 200);
 
     assert_eq!(r.status(), QueryStatus::Failure);
@@ -556,17 +534,11 @@ fn invariant_after_complete_failure_from_loading_with_data() {
     let mut s = test_sequencer();
 
     // First fetch succeeds.
-    let rid1 = match r.begin_request(&mut s, 100, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid1 = begin_request_id(&mut r, &mut s, 100, QueryFetchMode::Normal);
     r.complete_current_success(rid1, "original", 200);
 
     // Second fetch fails (refetch).
-    let rid2 = match r.begin_request(&mut s, 300, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid2 = begin_request_id(&mut r, &mut s, 300, QueryFetchMode::Normal);
     r.complete_current_failure(rid2, QueryError::transport("timeout"), 400);
 
     assert_eq!(r.status(), QueryStatus::Failure);
@@ -598,10 +570,7 @@ fn invariant_after_cancel_from_loading_with_data() {
     let mut s = test_sequencer();
 
     // First fetch succeeds.
-    let rid1 = match r.begin_request(&mut s, 100, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid1 = begin_request_id(&mut r, &mut s, 100, QueryFetchMode::Normal);
     r.complete_current_success(rid1, "data", 200);
 
     // Start a refetch, then cancel.
@@ -628,10 +597,7 @@ fn invariant_cancel_returns_false_when_no_active_request() {
 fn invariant_after_reset() {
     let mut r = fresh_resource();
     let mut s = test_sequencer();
-    let rid = match r.begin_request(&mut s, 100, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid = begin_request_id(&mut r, &mut s, 100, QueryFetchMode::Normal);
     r.complete_current_success(rid, "data", 200);
     r.set_placeholder_data(Some("placeholder"));
     r.increment_retry();
@@ -659,10 +625,7 @@ fn invariant_after_reset() {
 fn invariant_complete_success_optional_none_yields_idle() {
     let mut r = fresh_resource();
     let mut s = test_sequencer();
-    let rid = match r.begin_request(&mut s, 100, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid = begin_request_id(&mut r, &mut s, 100, QueryFetchMode::Normal);
     // complete_success_optional with None should yield Idle, not Success.
     let guard = r.accept_current_request(rid).unwrap();
     r.complete_success_optional(guard, None, 200);
@@ -676,10 +639,7 @@ fn invariant_complete_success_optional_none_yields_idle() {
 fn invariant_complete_success_optional_some_yields_success() {
     let mut r = fresh_resource();
     let mut s = test_sequencer();
-    let rid = match r.begin_request(&mut s, 100, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid = begin_request_id(&mut r, &mut s, 100, QueryFetchMode::Normal);
     let guard = r.accept_current_request(rid).unwrap();
     r.complete_success_optional(guard, Some("data"), 200);
 
@@ -691,10 +651,7 @@ fn invariant_complete_success_optional_some_yields_success() {
 fn invariant_complete_failure_with_data() {
     let mut r = fresh_resource();
     let mut s = test_sequencer();
-    let rid = match r.begin_request(&mut s, 100, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid = begin_request_id(&mut r, &mut s, 100, QueryFetchMode::Normal);
     let guard = r.accept_current_request(rid).unwrap();
     r.complete_failure_with_data(guard, "fallback", QueryError::response("partial"), 200);
 
@@ -707,15 +664,9 @@ fn invariant_complete_failure_with_data() {
 fn invariant_stale_accept_rejected() {
     let mut r = fresh_resource();
     let mut s = test_sequencer();
-    let rid1 = match r.begin_request(&mut s, 100, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid1 = begin_request_id(&mut r, &mut s, 100, QueryFetchMode::Normal);
     // Start a second request (replaces the first under LatestWins).
-    let rid2 = match r.begin_request(&mut s, 200, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid2 = begin_request_id(&mut r, &mut s, 200, QueryFetchMode::Normal);
     // rid1 is now stale. accept_current_request should return None.
     assert!(r.accept_current_request(rid1).is_none(), "stale request should be rejected");
     assert_eq!(r.ignored_results(), 1);
@@ -734,10 +685,7 @@ fn table_driven_all_transitions_from_idle() {
 
     // Transition: Idle -> LoadingEmpty (begin_request)
     let mut s = test_sequencer();
-    let rid = match r.begin_request(&mut s, 100, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid = begin_request_id(&mut r, &mut s, 100, QueryFetchMode::Normal);
     assert_eq!(r.status(), QueryStatus::LoadingEmpty);
     assert!(r.data().is_none());
 
@@ -748,10 +696,7 @@ fn table_driven_all_transitions_from_idle() {
     assert!(r.error().is_none());
 
     // Transition: Success -> LoadingWithData (begin_request again)
-    let rid2 = match r.begin_request(&mut s, 300, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid2 = begin_request_id(&mut r, &mut s, 300, QueryFetchMode::Normal);
     assert_eq!(r.status(), QueryStatus::LoadingWithData);
     assert_eq!(r.data(), Some(&"data"), "LoadingWithData preserves data");
 
@@ -762,10 +707,7 @@ fn table_driven_all_transitions_from_idle() {
     assert!(r.previous_data().is_none(), "apply_failure does NOT set previous_data");
 
     // Transition: Failure -> LoadingWithData (begin_request when data is present)
-    let _rid3 = match r.begin_request(&mut s, 500, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let _rid3 = begin_request_id(&mut r, &mut s, 500, QueryFetchMode::Normal);
     assert_eq!(r.status(), QueryStatus::LoadingWithData, "data present => LoadingWithData even after Failure");
     assert!(r.error().is_none(), "begin_request clears error");
 
@@ -800,10 +742,7 @@ fn table_driven_cancel_from_every_loading_state() {
     {
         let mut r = fresh_resource();
         let mut s = test_sequencer();
-        let rid = match r.begin_request(&mut s, 100, QueryFetchMode::Normal) {
-            QueryBeginResult::Started { request_id, .. } => request_id,
-            _ => panic!("expected Started"),
-        };
+        let rid = begin_request_id(&mut r, &mut s, 100, QueryFetchMode::Normal);
         r.complete_current_success(rid, "data", 200);
         r.begin_request(&mut s, 300, QueryFetchMode::Normal);
         assert_eq!(r.status(), QueryStatus::LoadingWithData);
@@ -823,15 +762,9 @@ fn table_driven_rollback_from_every_state() {
     {
         let mut r = fresh_resource();
         let mut s = test_sequencer();
-        let rid1 = match r.begin_request(&mut s, 100, QueryFetchMode::Normal) {
-            QueryBeginResult::Started { request_id, .. } => request_id,
-            _ => panic!("expected Started"),
-        };
+        let rid1 = begin_request_id(&mut r, &mut s, 100, QueryFetchMode::Normal);
         r.complete_current_success(rid1, "v1", 200);
-        let rid2 = match r.begin_request(&mut s, 300, QueryFetchMode::Normal) {
-            QueryBeginResult::Started { request_id, .. } => request_id,
-            _ => panic!("expected Started"),
-        };
+        let rid2 = begin_request_id(&mut r, &mut s, 300, QueryFetchMode::Normal);
         r.complete_current_success(rid2, "v2", 400);
         assert_eq!(r.previous_data(), Some(&"v1"));
 
@@ -845,10 +778,7 @@ fn table_driven_rollback_from_every_state() {
     {
         let mut r = fresh_resource();
         let mut s = test_sequencer();
-        let rid1 = match r.begin_request(&mut s, 100, QueryFetchMode::Normal) {
-            QueryBeginResult::Started { request_id, .. } => request_id,
-            _ => panic!("expected Started"),
-        };
+        let rid1 = begin_request_id(&mut r, &mut s, 100, QueryFetchMode::Normal);
         r.complete_current_success(rid1, "v1", 200);
         r.begin_request(&mut s, 300, QueryFetchMode::Normal);
         r.cancel(QueryError::cancelled("abort"));
@@ -865,10 +795,7 @@ fn table_driven_rollback_from_every_state() {
     {
         let mut r = fresh_resource();
         let mut s = test_sequencer();
-        let rid1 = match r.begin_request(&mut s, 100, QueryFetchMode::Normal) {
-            QueryBeginResult::Started { request_id, .. } => request_id,
-            _ => panic!("expected Started"),
-        };
+        let rid1 = begin_request_id(&mut r, &mut s, 100, QueryFetchMode::Normal);
         r.complete_current_success(rid1, "v1", 200);
         // Optimistic update sets previous_data.
         r.set_data("v2_optimistic");
@@ -895,9 +822,8 @@ fn table_driven_rollback_from_every_state() {
 // ═══════════════════════════════════════════════════════════════════════════
 //
 // These tests use #[gpui::test] because they exercise QueryClient, which
-// requires a GPUI AppContext.
+// requires a GPUI AppContext. They only need the client layer, not hooks.
 
-#[cfg(feature = "hook")]
 mod gc_tests {
     use gpui::{BorrowAppContext as _, TestAppContext};
     use crate::client::QueryClient;
@@ -1121,39 +1047,21 @@ mod gc_tests {
         // Test the exact boundary: age == success_threshold.
         // gc_time=1000 => success_threshold=2000.
         // Snapshot at t=1000, GC at t=3000 => age=2000 == success_threshold.
-        // age > total is false (2000 > 2000 is false), so resource should survive.
+        //
+        // GC uses `age_ms < success_threshold` to retain (line ~437 in bucket.rs).
+        // When age == threshold, the condition is false → evicted (>= semantics).
         setup_query_client_with_gc(cx, 1_000);
         cx.update(|cx| {
             cx.update_global::<QueryClient, _>(|client, cx| {
                 let key = QueryKey::from("boundary");
                 create_success_with_snapshot(client, cx, "boundary", "data", 1_000, 1_000);
 
-                // GC at t=3000: age=3000-1000=2000 == success_threshold.
-                // The GC checks age > success_threshold, so age==threshold should survive.
+                // GC at t=3000: age=3000-1000=2000 == success_threshold => evicted.
                 client.gc_with_time(3_000, cx);
-
-                // The exact boundary behavior depends on whether GC uses > or >=.
-                // Based on the SWR/boundary pattern, we expect >= for eviction
-                // (matching how is_expired works). Let's verify what actually happens:
-                let entity = client.query::<String, QueryError>(&key);
-                // Document the behavior. The GC implementation should use >= for eviction,
-                // so age == threshold means evicted. But let's verify the actual behavior.
-                if let Some(e) = entity.as_ref() {
-                    // If the implementation uses strict >, the resource survives at boundary.
-                    // This is acceptable as long as it's consistent.
-                    assert!(
-                        e.read(cx).data().is_some(),
-                        "surviving resource should still have data"
-                    );
-                }
-                // Either way, GC at t=3001 should evict (age=2001 > 2000).
-                if entity.is_some() {
-                    client.gc_with_time(3_001, cx);
-                    assert!(
-                        client.query::<String, QueryError>(&key).is_none(),
-                        "age=2001ms > success_threshold=2000ms => must be evicted"
-                    );
-                }
+                assert!(
+                    client.query::<String, QueryError>(&key).is_none(),
+                    "age=2000ms == success_threshold=2000ms => must be evicted (>= boundary)"
+                );
             });
         });
     }
@@ -1168,10 +1076,7 @@ fn two_phase_protocol_accept_then_complete_is_consistent() {
     let mut r = fresh_resource();
     let mut s = test_sequencer();
 
-    let rid = match r.begin_request(&mut s, 100, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid = begin_request_id(&mut r, &mut s, 100, QueryFetchMode::Normal);
 
     // Phase 1: accept
     let guard = r.accept_current_request(rid).expect("should accept current request");
@@ -1190,14 +1095,8 @@ fn two_phase_stale_accept_then_complete_does_not_corrupt() {
     let mut r = fresh_resource();
     let mut s = test_sequencer();
 
-    let rid1 = match r.begin_request(&mut s, 100, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
-    let rid2 = match r.begin_request(&mut s, 200, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid1 = begin_request_id(&mut r, &mut s, 100, QueryFetchMode::Normal);
+    let rid2 = begin_request_id(&mut r, &mut s, 200, QueryFetchMode::Normal);
 
     // rid1 is stale. complete_current_success should return false.
     assert!(!r.complete_current_success(rid1, "stale_data", 300));
@@ -1235,10 +1134,7 @@ fn ignore_while_loading_rejects_concurrent_requests() {
     let mut s = test_sequencer();
 
     // First request starts.
-    let rid1 = match r.begin_request(&mut s, 100, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid1 = begin_request_id(&mut r, &mut s, 100, QueryFetchMode::Normal);
     assert_eq!(r.active_request_id(), Some(rid1));
 
     // Second request is ignored.
@@ -1312,10 +1208,7 @@ fn display_data_falls_back_to_placeholder() {
 
     // When data is present, data takes priority.
     let mut s = test_sequencer();
-    let rid = match r.begin_request(&mut s, 100, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid = begin_request_id(&mut r, &mut s, 100, QueryFetchMode::Normal);
     r.complete_current_success(rid, "real_data", 200);
     assert_eq!(r.display_data(), Some(&"real_data"), "data takes priority over placeholder");
 }
@@ -1349,10 +1242,7 @@ fn is_data_stale_heuristic() {
     assert!(!r.is_data_stale(), "no data => not stale");
 
     let mut s = test_sequencer();
-    let rid = match r.begin_request(&mut s, 100, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid = begin_request_id(&mut r, &mut s, 100, QueryFetchMode::Normal);
     r.complete_current_success(rid, "data", 200);
     assert!(!r.is_data_stale(), "Success with data => not stale");
 
@@ -1362,10 +1252,7 @@ fn is_data_stale_heuristic() {
     assert!(r.is_data_stale(), "LoadingWithData with data => stale");
 
     // Complete with failure — data still stale.
-    let rid2 = match r.begin_request(&mut s, 400, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid2 = begin_request_id(&mut r, &mut s, 400, QueryFetchMode::Normal);
     r.complete_current_failure_with_data(rid2, "fallback", QueryError::response("err"), 500);
     assert_eq!(r.status(), QueryStatus::Failure);
     assert!(r.is_data_stale(), "Failure with data => stale");
@@ -1433,14 +1320,8 @@ fn complete_current_optional_success_rejects_stale_id() {
     let mut r = test_resource();
     let mut s = test_sequencer();
 
-    let (rid1, _) = match r.begin_request(&mut s, 100, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => (request_id, ()),
-        _ => panic!("expected Started"),
-    };
-    let (rid2, _) = match r.begin_request(&mut s, 200, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => (request_id, ()),
-        _ => panic!("expected Started"),
-    };
+    let rid1 = begin_request_id(&mut r, &mut s, 100, QueryFetchMode::Normal);
+    let rid2 = begin_request_id(&mut r, &mut s, 200, QueryFetchMode::Normal);
 
     // rid1 is stale
     assert!(
@@ -1466,14 +1347,8 @@ fn complete_current_failure_with_data_rejects_stale_id() {
     let mut r = test_resource();
     let mut s = test_sequencer();
 
-    let (rid1, _) = match r.begin_request(&mut s, 100, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => (request_id, ()),
-        _ => panic!("expected Started"),
-    };
-    let _rid2 = match r.begin_request(&mut s, 200, QueryFetchMode::Normal) {
-        QueryBeginResult::Started { request_id, .. } => request_id,
-        _ => panic!("expected Started"),
-    };
+    let rid1 = begin_request_id(&mut r, &mut s, 100, QueryFetchMode::Normal);
+    let _rid2 = begin_request_id(&mut r, &mut s, 200, QueryFetchMode::Normal);
 
     assert!(
         !r.complete_current_failure_with_data(

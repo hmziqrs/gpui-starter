@@ -39,11 +39,17 @@ pub mod client;
 #[cfg(feature = "hook")]
 pub mod hook;
 
-// Convenience re-exports (star-export each enabled layer at crate root)
+// Convenience re-exports (star-export each enabled layer at crate root).
+//
+// `current_time_ms` is defined in both `client` and `hook` modules with
+// identical implementations. Both glob re-exports are intentional so that
+// users can import from either layer. Suppress the ambiguous_glob_reexports
+// lint since the duplicate is harmless and both are public API.
 #[cfg(feature = "core")]
 pub use core::*;
 
 #[cfg(feature = "client")]
+#[allow(ambiguous_glob_reexports)]
 pub use client::*;
 
 #[cfg(feature = "hook")]

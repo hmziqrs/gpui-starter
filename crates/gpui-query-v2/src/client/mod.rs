@@ -107,12 +107,15 @@ trait ErasedMutationBucket {
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
+/// use std::path::PathBuf;
+/// use gpui_query_v2::client::{QueryPersister, DehydratedEntry};
+///
 /// struct FilePersister { path: PathBuf }
 ///
 /// impl QueryPersister for FilePersister {
-///     fn load(&self) -> Vec<DehydratedEntry> { /* read from disk */ }
-///     fn save(&self, entries: Vec<DehydratedEntry>) { /* write to disk */ }
+///     fn load(&self) -> Vec<DehydratedEntry> { Vec::new() }
+///     fn save(&self, _entries: Vec<DehydratedEntry>) {}
 /// }
 /// ```
 pub trait QueryPersister: Send + Sync {
@@ -569,6 +572,109 @@ impl QueryClient {
         }
     }
 
+    // ── Test helpers (pub(crate) for deterministic GC tests) ────────────
+
+    /// Update the cached `StatusSnapshot` for a bucket entry.
+    ///
+    /// This is the test-only counterpart to the hook layer's snapshot update.
+    /// In production, the hook layer calls `bucket.update_status_snapshot()`
+    /// after each request completion. In tests that bypass the hook layer
+    /// (using `PreparedFetch` or direct entity manipulation), this method
+    /// allows controlling the snapshot so GC behavior is deterministic.
+    ///
+    /// Without this, GC reads a stale snapshot (status=Idle, last_updated_ms=None)
+    /// and may evict resources that the test expects to survive.
+    #[allow(dead_code)]
+    pub(crate) fn update_query_snapshot<
+        T: Clone + Send + Sync + 'static,
+        E: Clone + Send + Sync + 'static,
+    >(
+        &mut self,
+        key: &QueryKey,
+        status: QueryStatus,
+        last_updated_ms: Option<u128>,
+        cache_policy: CachePolicy,
+    ) {
+        let type_id = TypeId::of::<(T, E)>();
+        if let Some(bucket) = self.buckets.get_mut(&type_id) {
+            if let Some(typed) = bucket.as_any_mut().downcast_mut::<QueryBucket<T, E>>() {
+                typed.update_status_snapshot(key, status, last_updated_ms, cache_policy);
+            }
+        }
+    }
+
+    /// Increment the observer count for a query bucket entry.
+    ///
+    /// Test helper to simulate the hook layer's `bucket.retain()` call so
+    /// that GC protection for observed resources can be tested without the
+    /// full hook pipeline.
+    #[allow(dead_code)]
+    pub(crate) fn retain_query<
+        T: Clone + Send + Sync + 'static,
+        E: Clone + Send + Sync + 'static,
+    >(
+        &mut self,
+        key: &QueryKey,
+    ) {
+        let type_id = TypeId::of::<(T, E)>();
+        if let Some(bucket) = self.buckets.get_mut(&type_id) {
+            if let Some(typed) = bucket.as_any_mut().downcast_mut::<QueryBucket<T, E>>() {
+                typed.retain(key);
+            }
+        }
+    }
+
+    /// Decrement the observer count for a query bucket entry.
+    #[allow(dead_code)]
+    pub(crate) fn release_query<
+        T: Clone + Send + Sync + 'static,
+        E: Clone + Send + Sync + 'static,
+    >(
+        &mut self,
+        key: &QueryKey,
+    ) {
+        let type_id = TypeId::of::<(T, E)>();
+        if let Some(bucket) = self.buckets.get_mut(&type_id) {
+            if let Some(typed) = bucket.as_any_mut().downcast_mut::<QueryBucket<T, E>>() {
+                typed.release(key);
+            }
+        }
+    }
+
+    /// Increment the observer count for an infinite query bucket entry.
+    #[allow(dead_code)]
+    pub(crate) fn retain_infinite_query<
+        T: Clone + Send + Sync + 'static,
+        E: Clone + Send + Sync + 'static,
+    >(
+        &mut self,
+        key: &QueryKey,
+    ) {
+        let type_id = TypeId::of::<(T, E)>();
+        if let Some(bucket) = self.infinite_buckets.get_mut(&type_id) {
+            if let Some(typed) = bucket.as_any_mut().downcast_mut::<InfiniteQueryBucket<T, E>>() {
+                typed.retain(key);
+            }
+        }
+    }
+
+    /// Decrement the observer count for an infinite query bucket entry.
+    #[allow(dead_code)]
+    pub(crate) fn release_infinite_query<
+        T: Clone + Send + Sync + 'static,
+        E: Clone + Send + Sync + 'static,
+    >(
+        &mut self,
+        key: &QueryKey,
+    ) {
+        let type_id = TypeId::of::<(T, E)>();
+        if let Some(bucket) = self.infinite_buckets.get_mut(&type_id) {
+            if let Some(typed) = bucket.as_any_mut().downcast_mut::<InfiniteQueryBucket<T, E>>() {
+                typed.release(key);
+            }
+        }
+    }
+
     // ── Diagnostics (Audit 3, Finding 7) ────────────────────────────────
 
     /// Get diagnostics for all queries and mutations.
@@ -715,17 +821,24 @@ impl QueryClient {
     ///
     /// # Example
     ///
-    /// ```ignore
-    /// // In a component context (cx: &mut Context<W>):
+    /// ```no_run
+    /// use gpui_query_v2::client::QueryClient;
+    /// use gpui_query_v2::core::QueryKey;
+    /// # #[derive(Clone)]
+    /// # struct UserData;
+    /// # #[derive(Clone, Debug)]
+    /// # struct QueryError;
+    /// # fn _doc(client: &mut QueryClient, cx: &mut gpui::App) {
+    ///
     /// if let Some(prepared) = client.prepare_fetch_query::<UserData, QueryError>(
     ///     QueryKey::from("user/42"),
     ///     cx,
     /// ) {
-    ///     cx.spawn(async move |_this, cx| {
-    ///         let result = fetch_user("/api/user/42", prepared.signal).await;
-    ///         prepared.complete(result, cx);
-    ///     }).detach();
+    ///     // prepared.entity, prepared.signal, and prepared.request_id are now available.
+    ///     // Use cx.spawn() to run your async fetcher, then call
+    ///     // prepared.complete_success(data, cx) or prepared.complete_failure(e, cx).
     /// }
+    /// # }
     /// ```
     pub fn prepare_fetch_query<
         T: Clone + Send + Sync + 'static,
@@ -865,15 +978,21 @@ impl QueryClient {
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```no_run
+/// use gpui_query_v2::client::QueryClient;
+/// use gpui_query_v2::core::QueryKey;
+/// # #[derive(Clone)]
+/// # struct Data;
+/// # #[derive(Clone, Debug)]
+/// # struct Error;
+/// # fn _doc(client: &mut QueryClient, cx: &mut gpui::App) {
+/// # let key = QueryKey::from("data");
+///
 /// let prepared = client.prepare_fetch_query::<Data, Error>(key, cx).unwrap();
 /// let signal = prepared.signal.clone();
-/// cx.spawn(async move |_this, cx| {
-///     match my_fetcher(signal).await {
-///         Ok(data) => prepared.complete_success(data, cx),
-///         Err(e) => prepared.complete_failure(e, cx),
-///     }
-/// }).detach();
+/// // Use cx.spawn() to run your async fetcher with the signal, then call
+/// // prepared.complete_success(data, cx) or prepared.complete_failure(e, cx).
+/// # }
 /// ```
 pub struct PreparedFetch<T, E> {
     /// The query resource entity.

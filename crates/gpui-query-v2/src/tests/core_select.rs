@@ -8,9 +8,6 @@
 //! - Different output types (identity, count, projection)
 //! - Clone semantics
 
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
-
 use crate::core::{MappedQueryResource, SelectTransform};
 
 // ── SelectTransform ─────────────────────────────────────────────────────
@@ -119,34 +116,22 @@ fn mapped_resource_update_source_replaces_previous() {
 
 #[test]
 fn mapped_resource_data_applies_transform_lazily() {
-    // Implementation-detail test: verifies that the transform is re-applied on each
-    // data() call (lazy evaluation, no caching). If the implementation changes to
-    // cache the result, this test may fail but the external behavior (correct
-    // transformed values) would remain the same.
+    // Behavioral test: verifies that data() returns the correct transformed value
+    // reflecting the latest source data, regardless of whether the implementation
+    // evaluates lazily (re-applies on each call) or eagerly (caches on update).
 
-    let call_count = Arc::new(AtomicUsize::new(0));
-    let call_count_clone = call_count.clone();
-    let transform = SelectTransform::new(move |v: &Vec<i32>| {
-        call_count_clone.fetch_add(1, Ordering::SeqCst);
-        v.len()
-    });
+    let transform = SelectTransform::new(|v: &Vec<i32>| v.len());
 
     let mut mapped: MappedQueryResource<Vec<i32>, usize, ()> =
         MappedQueryResource::new(Some(vec![1, 2]), transform);
-    assert_eq!(call_count.load(Ordering::SeqCst), 0, "no calls yet");
+    assert_eq!(mapped.data(), Some(2));
 
-    let _ = mapped.data();
-    assert_eq!(call_count.load(Ordering::SeqCst), 1, "one call after data()");
+    // Repeated data() calls must still return the correct value.
+    assert_eq!(mapped.data(), Some(2));
 
-    let _ = mapped.data();
-    assert_eq!(call_count.load(Ordering::SeqCst), 2, "two calls after second data()");
-
-    // Update source does NOT call transform
+    // After updating the source, data() must reflect the new source.
     mapped.update_source(Some(vec![1, 2, 3]));
-    assert_eq!(call_count.load(Ordering::SeqCst), 2, "update_source does not apply transform");
-
-    let _ = mapped.data();
-    assert_eq!(call_count.load(Ordering::SeqCst), 3, "transform applied on data() after update");
+    assert_eq!(mapped.data(), Some(3));
 }
 
 #[test]

@@ -10,6 +10,18 @@
 //! All tests use `cx.update_global::<QueryClient, _>(|client, cx| ...)` to
 //! get `(&mut QueryClient, &mut App)`. Methods like `resource()` require
 //! `&mut self` and `&mut App`, so `cx.global()` (immutable) cannot be used.
+//!
+//! # GC test design
+//!
+//! The bucket's GC reads a cached `StatusSnapshot` (not the live entity).
+//! Direct entity manipulation (`apply_success`, etc.) and `PreparedFetch`
+//! completions update the entity but do NOT update the bucket snapshot.
+//! The snapshot is only updated by the hook layer in production.
+//!
+//! For deterministic GC tests, we use `client.update_query_snapshot()` to
+//! simulate what the hook layer would do: set the snapshot status and
+//! `last_updated_ms` to known values. This lets us assert exact eviction
+//! and preservation behavior without the hook layer.
 
 use std::sync::Mutex;
 
@@ -363,12 +375,22 @@ fn test_reset_queries_prefix_preserves_non_matching(cx: &mut TestAppContext) {
 
 // ── 6. GC evicts stale Idle/Failure/Success resources ───────────────────
 //
-// Note: The bucket's GC uses a cached StatusSnapshot (not the live entity).
-// Direct entity manipulation (apply_success, etc.) does NOT update the snapshot.
-// The snapshot is updated by the hook layer. For integration tests, we use
-// prepare_fetch_query + complete_success/failure which goes through the full
-// public API path. Resources with no snapshot update have last_updated_ms=None,
-// which GC treats as expired (age >= gc_threshold).
+// GC uses a cached StatusSnapshot (not the live entity). The snapshot is
+// updated by the hook layer in production. For deterministic tests, we use
+// `client.update_query_snapshot()` to set the snapshot to a known state
+// before calling `gc_with_time()`, then assert the expected outcome
+// unconditionally.
+//
+// gc_time_ms=1000 means: MIN_GC_TIME_MS=1000 (enforced floor), so
+//   - Idle/Failure: evicted when age >= gc_threshold (1000ms)
+//   - Success: evicted when age >= success_threshold (2 * 1000 = 2000ms)
+//   - Loading: never evicted (regardless of age)
+//   - No snapshot (last_updated_ms=None): age defaults to gc_threshold, evicted
+//
+// NOTE: The tests below cover the basic eviction paths (idle with no snapshot,
+// Failure/Success with snapshots, Loading preserved). For more comprehensive
+// GC coverage including snapshot-bearing resources in all statuses with varied
+// cache policies and edge-case timing, see `coverage_gaps.rs`.
 
 #[gpui::test]
 fn test_gc_evicts_idle_resources_with_no_snapshot(cx: &mut TestAppContext) {
@@ -393,61 +415,191 @@ fn test_gc_evicts_idle_resources_with_no_snapshot(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
-fn test_gc_evicts_resources_after_fetch_failure(cx: &mut TestAppContext) {
+fn test_gc_evicts_failure_resources_after_gc_time(cx: &mut TestAppContext) {
+    // A Failure resource whose snapshot age exceeds gc_time_ms MUST be evicted.
     setup_query_client_with_gc(cx, 1_000);
     cx.update(|cx| {
         cx.update_global::<QueryClient, _>(|client, cx| {
-            // Start and fail a fetch
+            let key = QueryKey::from("fail_key");
+
+            // Create resource, fail a fetch, then update the snapshot to Failure
             let prepared = client
-                .prepare_fetch_query::<String, QueryError>("fail_key", cx)
+                .prepare_fetch_query::<String, QueryError>(key.clone(), cx)
                 .expect("should start");
             prepared.complete_failure(QueryError::response("broken"), cx);
 
-            let entity = client.query::<String, QueryError>(&QueryKey::from("fail_key"));
-            assert!(entity.is_some(), "entity should exist after failure");
+            // Simulate hook-layer snapshot update: Failure at t=1000
+            client.update_query_snapshot::<String, QueryError>(
+                &key,
+                QueryStatus::Failure,
+                Some(1_000),
+                CachePolicy::Ttl { ttl_ms: 5_000 },
+            );
 
-            // GC far in the future — the entity was completed so the bucket
-            // can decide based on entity state. However since the snapshot
-            // may not be updated, we verify the GC is safe to call.
-            client.gc_with_time(1_000_000, cx);
+            // GC at t=2500: age = 2500 - 1000 = 1500 > gc_threshold(1000) -> evicted
+            client.gc_with_time(2_500, cx);
 
-            // Whether the entity is evicted depends on the snapshot state.
-            // The key assertion: GC does not panic and the system is consistent.
-            let entity2 = client.query::<String, QueryError>(&QueryKey::from("fail_key"));
-            // Entity may or may not be there, but the system should be consistent.
-            if let Some(e) = entity2 {
-                assert_eq!(e.read(cx).status(), QueryStatus::Failure);
-            }
+            assert!(
+                client.query::<String, QueryError>(&key).is_none(),
+                "failure resource should be evicted when age (1500ms) exceeds gc_time (1000ms)"
+            );
         });
     });
 }
 
 #[gpui::test]
-fn test_gc_preserves_resources_with_active_fetch(cx: &mut TestAppContext) {
+fn test_gc_preserves_failure_resources_before_gc_time(cx: &mut TestAppContext) {
+    // A Failure resource whose snapshot age is within gc_time_ms MUST survive GC.
     setup_query_client_with_gc(cx, 1_000);
     cx.update(|cx| {
         cx.update_global::<QueryClient, _>(|client, cx| {
-            // Start a fetch but don't complete it
-            let entity = client
-                .prepare_fetch_query::<String, QueryError>("loading_key", cx)
-                .expect("should start")
-                .entity;
-            assert!(entity.read(cx).is_loading());
+            let key = QueryKey::from("fail_key_early");
 
-            // GC at far future time — the bucket entry may be evicted since
-            // the snapshot doesn't reflect loading state. This test verifies
-            // GC is safe to call mid-flight.
+            // Create resource, fail a fetch, then update the snapshot to Failure
+            let prepared = client
+                .prepare_fetch_query::<String, QueryError>(key.clone(), cx)
+                .expect("should start");
+            prepared.complete_failure(QueryError::response("broken"), cx);
+
+            // Simulate hook-layer snapshot update: Failure at t=2000
+            client.update_query_snapshot::<String, QueryError>(
+                &key,
+                QueryStatus::Failure,
+                Some(2_000),
+                CachePolicy::Ttl { ttl_ms: 5_000 },
+            );
+
+            // GC at t=2500: age = 2500 - 2000 = 500 < gc_threshold(1000) -> preserved
+            client.gc_with_time(2_500, cx);
+
+            let entity = client
+                .query::<String, QueryError>(&key)
+                .expect("failure resource should survive when age (500ms) < gc_time (1000ms)");
+            assert_eq!(
+                entity.read(cx).status(),
+                QueryStatus::Failure,
+                "entity should still be in Failure state"
+            );
+        });
+    });
+}
+
+#[gpui::test]
+fn test_gc_preserves_loading_resources_regardless_of_age(cx: &mut TestAppContext) {
+    // A Loading resource MUST survive GC even when its age far exceeds gc_time.
+    // This tests the GC's "never evict loading" invariant through the public API.
+    setup_query_client_with_gc(cx, 1_000);
+    cx.update(|cx| {
+        cx.update_global::<QueryClient, _>(|client, cx| {
+            let key = QueryKey::from("loading_key");
+
+            // Start a fetch via the public API but don't complete it
+            let prepared = client
+                .prepare_fetch_query::<String, QueryError>(key.clone(), cx)
+                .expect("should start");
+
+            // Simulate hook-layer snapshot update: LoadingEmpty at t=0
+            client.update_query_snapshot::<String, QueryError>(
+                &key,
+                QueryStatus::LoadingEmpty,
+                Some(0),
+                CachePolicy::Ttl { ttl_ms: 5_000 },
+            );
+
+            // GC at t=1_000_000 — age is enormous, but Loading resources are never evicted
             client.gc_with_time(1_000_000, cx);
 
-            // The entity is still alive because we hold a strong reference.
-            // Complete via direct entity manipulation.
-            let request_id = entity.read(cx).active_request_id().unwrap();
-            let accepted = entity.update(cx, |r, _| {
-                r.complete_current_success(request_id, "data".to_string(), 1_200)
-            });
-            assert!(accepted, "completion should succeed on the held entity");
-            assert_eq!(entity.read(cx).status(), QueryStatus::Success);
-            assert_eq!(entity.read(cx).data().unwrap(), "data");
+            assert!(
+                client.query::<String, QueryError>(&key).is_some(),
+                "loading resource must survive GC regardless of age"
+            );
+
+            // Complete the fetch via the public API to verify it still works
+            prepared.complete_success("data".to_string(), cx);
+
+            let entity = client
+                .query::<String, QueryError>(&key)
+                .expect("entity should still exist after completion");
+            assert_eq!(
+                entity.read(cx).status(),
+                QueryStatus::Success,
+                "entity should be Success after completing the fetch"
+            );
+            assert_eq!(
+                entity.read(cx).data().unwrap(),
+                "data",
+                "data should match what was completed"
+            );
+        });
+    });
+}
+
+#[gpui::test]
+fn test_gc_evicts_success_resources_after_success_threshold(cx: &mut TestAppContext) {
+    // A Success resource whose snapshot age exceeds SUCCESS_GC_MULTIPLIER * gc_time
+    // (2 * 1000 = 2000ms) MUST be evicted.
+    setup_query_client_with_gc(cx, 1_000);
+    cx.update(|cx| {
+        cx.update_global::<QueryClient, _>(|client, cx| {
+            let key = QueryKey::from("success_old");
+
+            let prepared = client
+                .prepare_fetch_query::<String, QueryError>(key.clone(), cx)
+                .expect("should start");
+            prepared.complete_success("data".to_string(), cx);
+
+            // Simulate hook-layer snapshot update: Success at t=1000
+            client.update_query_snapshot::<String, QueryError>(
+                &key,
+                QueryStatus::Success,
+                Some(1_000),
+                CachePolicy::Ttl { ttl_ms: 5_000 },
+            );
+
+            // GC at t=3500: age = 3500 - 1000 = 2500 > success_threshold(2000) -> evicted
+            client.gc_with_time(3_500, cx);
+
+            assert!(
+                client.query::<String, QueryError>(&key).is_none(),
+                "success resource should be evicted when age (2500ms) exceeds success_threshold (2000ms)"
+            );
+        });
+    });
+}
+
+#[gpui::test]
+fn test_gc_preserves_success_resources_within_success_threshold(cx: &mut TestAppContext) {
+    // A Success resource whose snapshot age is within SUCCESS_GC_MULTIPLIER * gc_time
+    // (2 * 1000 = 2000ms) MUST survive GC.
+    setup_query_client_with_gc(cx, 1_000);
+    cx.update(|cx| {
+        cx.update_global::<QueryClient, _>(|client, cx| {
+            let key = QueryKey::from("success_fresh");
+
+            let prepared = client
+                .prepare_fetch_query::<String, QueryError>(key.clone(), cx)
+                .expect("should start");
+            prepared.complete_success("data".to_string(), cx);
+
+            // Simulate hook-layer snapshot update: Success at t=2000
+            client.update_query_snapshot::<String, QueryError>(
+                &key,
+                QueryStatus::Success,
+                Some(2_000),
+                CachePolicy::Ttl { ttl_ms: 5_000 },
+            );
+
+            // GC at t=3500: age = 3500 - 2000 = 1500 < success_threshold(2000) -> preserved
+            client.gc_with_time(3_500, cx);
+
+            let entity = client
+                .query::<String, QueryError>(&key)
+                .expect("success resource should survive when age (1500ms) < success_threshold (2000ms)");
+            assert_eq!(
+                entity.read(cx).data().unwrap(),
+                "data",
+                "data should be intact after GC"
+            );
         });
     });
 }
@@ -464,10 +616,10 @@ fn test_gc_across_multiple_type_buckets(cx: &mut TestAppContext) {
             assert_eq!(client.all_queries::<String, QueryError>().len(), 1);
             assert_eq!(client.all_queries::<u32, QueryError>().len(), 1);
 
-            // GC — idle resources with no snapshot may be evicted
+            // GC — idle resources with no snapshot will be evicted
+            // (last_updated_ms=None is treated as age >= gc_threshold)
             client.gc_with_time(3_000, cx);
 
-            // Both should be evicted since they have no snapshot updates
             assert!(
                 client.all_queries::<String, QueryError>().is_empty(),
                 "idle String resource evicted"
@@ -592,7 +744,7 @@ fn test_diagnostics_with_resources(cx: &mut TestAppContext) {
     setup_query_client(cx);
     cx.update(|cx| {
         cx.update_global::<QueryClient, _>(|client, cx| {
-            let e1 = client.resource::<String, QueryError>(
+            let _e1 = client.resource::<String, QueryError>(
                 QueryKey::from(["users", "1"]),
                 cx,
             );
@@ -929,10 +1081,13 @@ fn test_observer_config_custom_settings(cx: &mut TestAppContext) {
 
 #[gpui::test]
 fn test_full_lifecycle_idle_to_loading_to_success_to_gc(cx: &mut TestAppContext) {
+    // Uses gc_time=5000ms. After completing a fetch and updating the snapshot
+    // to Success at t=1000, GC at t=2800 produces age=1800 which is within
+    // success_threshold (2*5000=10000ms), so the resource MUST survive.
     setup_query_client_with_gc(cx, 5_000);
     cx.update(|cx| {
         cx.update_global::<QueryClient, _>(|client, cx| {
-            // 1. Use prepare_fetch_query for the full lifecycle
+            // 1. Start fetch via the public API
             let key = QueryKey::from(["users", "42"]);
             let prepared = client
                 .prepare_fetch_query::<String, QueryError>(key.clone(), cx)
@@ -948,16 +1103,26 @@ fn test_full_lifecycle_idle_to_loading_to_success_to_gc(cx: &mut TestAppContext)
             assert_eq!(entity.read(cx).status(), QueryStatus::Success);
             assert_eq!(entity.read(cx).data().unwrap(), "Carol");
 
-            // 3. GC — entity has success data but snapshot may not reflect it.
-            // GC is safe to call at any time.
+            // 3. Simulate hook-layer snapshot update: Success at t=1000
+            client.update_query_snapshot::<String, QueryError>(
+                &key,
+                QueryStatus::Success,
+                Some(1_000),
+                CachePolicy::Ttl { ttl_ms: 5_000 },
+            );
+
+            // 4. GC at t=2800: age = 2800 - 1000 = 1800 < success_threshold(10000) -> preserved
             client.gc_with_time(2_800, cx);
 
-            // 4. The entity may or may not survive GC depending on snapshot state.
-            // The key assertion: the full lifecycle works end-to-end without panic.
-            // Verify the entity is still usable if it survived.
-            if let Some(e) = client.query::<String, QueryError>(&key) {
-                assert_eq!(e.read(cx).data().unwrap(), "Carol");
-            }
+            // 5. Unconditional assertion: the resource MUST survive GC
+            let surviving = client
+                .query::<String, QueryError>(&key)
+                .expect("success resource should survive GC (age 1800ms < success_threshold 10000ms)");
+            assert_eq!(
+                surviving.read(cx).data().unwrap(),
+                "Carol",
+                "data should be intact after GC"
+            );
         });
     });
 }

@@ -3,8 +3,7 @@
 //!
 //! Covers untested scenarios across all core policy/value types.
 //!
-//! Note: NetworkMode exists in core/network_mode.rs but is not exported from
-//! the core module, so it cannot be tested from here.
+//! Note: NetworkMode is tested inline in core/network_mode.rs.
 
 use crate::core::*;
 

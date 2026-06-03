@@ -31,12 +31,16 @@
 //!
 //! # Usage
 //!
-//! ```ignore
+//! ```no_run
 //! use gpui_query_v2::hook::{use_infinite_query, fetch_next_page_infinite, InfiniteQueryOptions};
 //! use gpui_query_v2::QueryKey;
+//! # #[derive(Clone)]
+//! # struct Post { id: u64 }
+//! # #[derive(Clone, Debug)]
+//! # struct MyError;
 //!
 //! struct FeedView {
-//!     feed: gpui::Entity<gpui_query_v2::InfiniteQueryResource<Vec<Post>>>,
+//!     feed: gpui::Entity<gpui_query_v2::InfiniteQueryResource<Vec<Post>, MyError>>,
 //!     _subscription: gpui::Subscription,
 //! }
 //!
@@ -45,10 +49,8 @@
 //!         let (entity, _subscription) = use_infinite_query(
 //!             InfiniteQueryOptions::new(QueryKey::from(["feed"])),
 //!             |last_page| async move {
-//!                 let cursor = last_page.and_then(|p| p.last().map(|i| i.id));
-//!                 let resp = api::fetch_feed(cursor).await?;
-//!                 let has_more = resp.has_next;
-//!                 Ok((resp.items, has_more))
+//!                 // Your async fetcher here
+//!                 Ok((vec![], false))
 //!             },
 //!             cx,
 //!         );
@@ -59,9 +61,8 @@
 //!         fetch_next_page_infinite(
 //!             &self.feed,
 //!             |last_page| async move {
-//!                 let cursor = last_page.and_then(|p| p.last().map(|i| i.id));
-//!                 let resp = api::fetch_feed(cursor).await?;
-//!                 Ok((resp.items, resp.has_more))
+//!                 // Your async fetcher here
+//!                 Ok((vec![], false))
 //!             },
 //!             cx,
 //!         );
@@ -211,7 +212,7 @@ where
 
         // If the bucket didn't have a pre-allocated ID, generate one via
         // begin_fetch_next with a transient sequencer (last resort).
-        let request_id = if let Some(pre_allocated_id) = maybe_request_id {
+        let request_id = if let Some(_pre_allocated_id) = maybe_request_id {
             // Use the pre-allocated ID with begin_fetch_next via a one-shot sequencer
             // that produces the same ID.
             let mut seq = RequestSequencer::new();
@@ -271,12 +272,18 @@ where
 ///
 /// # Example
 ///
-/// ```ignore
-/// fetch_next_page_infinite(&entity, |last_page| async move {
-///     let cursor = last_page.and_then(|p| p.last().map(|item| item.cursor()));
-///     let resp = api::fetch_page(cursor).await?;
-///     Ok((resp.items, resp.has_more))
+/// ```no_run
+/// use gpui_query_v2::hook::fetch_next_page_infinite;
+/// # #[derive(Clone)]
+/// # struct Item;
+/// # #[derive(Clone, Debug)]
+/// # struct MyError;
+/// # fn _doc(entity: &gpui::Entity<gpui_query_v2::InfiniteQueryResource<Vec<Item>, MyError>>, cx: &mut gpui::Context<()>) {
+///
+/// fetch_next_page_infinite(entity, |last_page| async move {
+///     Ok((vec![], false))
 /// }, cx);
+/// # }
 /// ```
 pub fn fetch_next_page_infinite<T, E, C, FNext, Fut>(
     entity: &Entity<InfiniteQueryResource<T, E>>,

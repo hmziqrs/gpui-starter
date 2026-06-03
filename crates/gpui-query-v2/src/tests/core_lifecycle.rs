@@ -33,23 +33,51 @@ fn err_str(r: &QueryResource<&'static str>) -> Option<String> {
 }
 
 /// Begin a request, returning (request_id, status).
+///
+/// Panics with a descriptive message if the result is not `Started` or
+/// `StaleCacheHit`. This includes `CacheHit` (which means the cache was
+/// still fresh at `now_ms` -- likely a TTL miscalculation in the test)
+/// and `IgnoredWhileLoading` (which means a request was already active).
 fn begin(
     r: &mut QueryResource<&'static str>,
     seq: &mut RequestSequencer,
     now_ms: u128,
 ) -> (RequestId, QueryStatus) {
-    match r.begin_request(seq, now_ms, QueryFetchMode::Normal) {
+    let result = r.begin_request(seq, now_ms, QueryFetchMode::Normal);
+    match &result {
         QueryBeginResult::Started {
             request_id,
             status,
             ..
-        } => (request_id, status),
+        } => (*request_id, *status),
         QueryBeginResult::StaleCacheHit {
             request_id,
             status,
             ..
-        } => (request_id, status),
-        other => panic!("expected Started or StaleCacheHit, got {:?}", other),
+        } => (*request_id, *status),
+        QueryBeginResult::CacheHit => {
+            panic!(
+                "begin() got CacheHit at now_ms={} -- the cache is still fresh. \
+                 Adjust now_ms to be past the TTL (or use a longer gap between \
+                 completion and the next begin_request call). \
+                 Resource state: status={:?}, data={:?}, last_updated_at_ms={:?}",
+                now_ms,
+                r.status(),
+                r.data(),
+                r.last_updated_at_ms(),
+            );
+        }
+        QueryBeginResult::IgnoredWhileLoading { .. } => {
+            panic!(
+                "begin() got IgnoredWhileLoading at now_ms={} -- there is already \
+                 an active request (active_request_id={:?}). \
+                 This helper is intended for LatestWins resources where begin \
+                 should always succeed. Check that the resource uses the \
+                 correct RequestPolicy.",
+                now_ms,
+                r.active_request_id(),
+            );
+        }
     }
 }
 
@@ -396,6 +424,27 @@ fn new_request_cancels_old_signal() {
     );
 }
 
+/// Design rationale: completing a request deliberately does NOT cancel the
+/// signal. This is a conscious design choice with three motivations:
+///
+/// 1. **Subscription hand-off**: Consumers that subscribed to the signal
+///    during the loading phase may still need to read the signal's state
+///    (e.g. to distinguish normal completion from cancellation). Cancelling
+///    on completion would conflate the two cases.
+///
+/// 2. **Refetch within the same signal**: If a refetch is triggered soon
+///    after completion (e.g. stale-while-revalidate), reusing the same
+///    signal avoids a cancel-then-recreate race window where subscribers
+///    could miss the transition.
+///
+/// 3. **What would break**: If completion cancelled the signal, any
+///    subscriber that checked `is_cancelled()` to decide whether to
+///    discard buffered data would incorrectly discard a successful result.
+///    The signal's cancellation would be ambiguous -- it could mean
+///    "aborted" or "finished successfully".
+///
+/// Only explicit `cancel()` or `reset()` cancel the signal, because those
+/// represent true interruptions where subscribers should stop work.
 #[test]
 fn completion_does_not_cancel_signal() {
     let mut r = resource();

@@ -16,7 +16,7 @@
 //!
 //! # Example
 //!
-//! ```ignore
+//! ```
 //! use gpui_query_v2::core::{SelectTransform, MappedQueryResource};
 //!
 //! // Raw query data: a list of users.
@@ -25,15 +25,19 @@
 //! // Transform: extract just the count.
 //! let transform = SelectTransform::new(|users: &Vec<&str>| users.len());
 //!
-//! let mapped = MappedQueryResource::new(Some(users), transform);
+//! let mapped = MappedQueryResource::<_, usize, ()>::new(Some(users), transform);
 //! assert_eq!(mapped.data(), Some(3));
 //! ```
 //!
 //! ## Example with the hook
 //!
-//! ```ignore
+//! ```no_run
 //! use gpui_query_v2::hook::{use_query_select, QueryOptions};
 //! use gpui_query_v2::core::SelectTransform;
+//! # #[derive(Clone)]
+//! # struct User;
+//! # #[derive(Clone, Debug)]
+//! # struct MyError;
 //!
 //! struct UserCountView {
 //!     mapped: gpui::Entity<gpui_query_v2::core::MappedQueryResource<Vec<User>, usize, MyError>>,
@@ -47,9 +51,8 @@
 //!             QueryOptions::new("users"),
 //!             count_transform,
 //!             |signal| async move {
-//!                 let resp = reqwest::get("/api/users").await?;
-//!                 let users: Vec<User> = resp.json().await?;
-//!                 Ok(users)
+//!                 // Your async fetcher here
+//!                 Ok(vec![])
 //!             },
 //!             cx,
 //!         );
@@ -68,7 +71,9 @@ use std::sync::Arc;
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
+/// use gpui_query_v2::core::SelectTransform;
+///
 /// let uppercase = SelectTransform::new(|name: &String| name.to_uppercase());
 /// assert_eq!(uppercase.apply(&"hello".to_string()), "HELLO");
 /// ```
@@ -145,8 +150,13 @@ impl<T, U, E> MappedQueryResource<T, U, E> {
     /// (e.g., once for display and once for an equality check), cache the result
     /// in a local variable:
     ///
-    /// ```ignore
+    /// ```
+    /// use gpui_query_v2::core::{MappedQueryResource, SelectTransform};
+    ///
+    /// let transform = SelectTransform::new(|v: &Vec<i32>| v.len());
+    /// let mapped = MappedQueryResource::<_, usize, ()>::new(Some(vec![1, 2, 3]), transform);
     /// let data = mapped.data(); // transform runs once
+    /// assert_eq!(data, Some(3));
     /// // use `data` freely below
     /// ```
     ///

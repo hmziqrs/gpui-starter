@@ -21,13 +21,17 @@
 //! }
 //! ```
 
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
-use gpui::TestAppContext;
+use gpui::{BackgroundExecutor, TestAppContext};
 
 use crate::client::QueryClient;
 use crate::core::{
-    CachePolicy, QueryError, QueryKey, QueryResource, QueryStatus, RequestPolicy, RequestSequencer,
+    CachePolicy, QueryBeginResult, QueryError, QueryFetchMode, QueryKey, QueryResource, QueryStatus,
+    RequestId, RequestPolicy, RequestSequencer,
 };
 
 // ── TestAppContext setup ───────────────────────────────────────────────
@@ -82,6 +86,7 @@ pub fn test_resource_with_policies(
 }
 
 /// Create a typed test resource (for testing with non-string data).
+#[allow(dead_code)]
 pub fn typed_test_resource<T: Clone + Send + Sync + 'static>(
     key: impl Into<QueryKey>,
 ) -> QueryResource<T> {
@@ -98,6 +103,7 @@ pub fn test_sequencer() -> RequestSequencer {
 /// A fetcher that immediately returns the given value.
 ///
 /// Use in tests where you want a deterministic, instant result.
+#[allow(dead_code)]
 pub fn immediate_fetcher<T: Clone + Send + 'static>(
     value: T,
 ) -> impl Fn() -> std::future::Ready<Result<T, QueryError>> + Send + 'static {
@@ -106,24 +112,36 @@ pub fn immediate_fetcher<T: Clone + Send + 'static>(
 
 /// A fetcher that returns a value after the given delay (ms).
 ///
-/// Uses a thread sleep rather than an async timer, since the GPUI
-/// executor may not be available in all test contexts.
+/// Uses the GPUI [`BackgroundExecutor::timer`] for an async-compatible delay
+/// instead of blocking with `thread::sleep`. Callers must provide an
+/// [`BackgroundExecutor`] reference (obtainable from `cx.background_executor()`
+/// on any GPUI context).
+///
+/// In tests, pair this with `cx.executor().advance_clock(duration)` to
+/// fast-forward through the delay without wall-clock waiting.
+#[allow(dead_code)]
 pub fn delayed_fetcher<T: Clone + Send + 'static>(
     value: T,
     delay_ms: u64,
-) -> Box<dyn Fn() -> Box<dyn std::future::Future<Output = Result<T, QueryError>> + Unpin + Send> + Send + 'static>
+    executor: BackgroundExecutor,
+) -> Box<dyn Fn() -> Pin<Box<dyn Future<Output = Result<T, QueryError>> + Send>> + Send + 'static>
 {
     Box::new(move || {
         let value = value.clone();
-        if delay_ms > 0 {
-            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
-        }
-        Box::new(std::future::ready(Ok(value)))
-            as Box<dyn std::future::Future<Output = Result<T, QueryError>> + Unpin + Send>
+        let executor = executor.clone();
+        let delay = Duration::from_millis(delay_ms);
+        Box::pin(async move {
+            if !delay.is_zero() {
+                executor.timer(delay).await;
+            }
+            Ok(value)
+        })
+            as Pin<Box<dyn Future<Output = Result<T, QueryError>> + Send>>
     })
 }
 
 /// A fetcher that always returns the given error.
+#[allow(dead_code)]
 pub fn failing_fetcher(
     message: impl Into<String>,
 ) -> impl Fn() -> std::future::Ready<Result<(), QueryError>> + Send + 'static {
@@ -134,6 +152,7 @@ pub fn failing_fetcher(
 /// A fetcher that succeeds on the Nth call and fails before that.
 ///
 /// Uses an `Arc<Mutex<>>` counter so the state is observable across calls.
+#[allow(dead_code)]
 pub fn flaky_fetcher(
     succeed_after: u32,
 ) -> (
@@ -157,6 +176,7 @@ pub fn flaky_fetcher(
 /// A fetcher that records how many times it was called.
 ///
 /// Returns `Ok("called")` on each invocation. Inspect `call_count` to verify.
+#[allow(dead_code)]
 pub fn counting_fetcher() -> (
     Arc<Mutex<u32>>,
     impl Fn() -> std::future::Ready<Result<&'static str, QueryError>> + Send + 'static,
@@ -177,6 +197,7 @@ pub fn counting_fetcher() -> (
 ///
 /// Checks `signal.is_cancelled()` before returning. If cancelled, returns
 /// a cancellation error.
+#[allow(dead_code)]
 pub fn signal_aware_fetcher<T: Clone + Send + 'static>(
     value: T,
 ) -> impl Fn(crate::core::QuerySignal) -> std::future::Ready<Result<T, QueryError>> + Send + 'static
@@ -191,6 +212,7 @@ pub fn signal_aware_fetcher<T: Clone + Send + 'static>(
 }
 
 /// A signal-aware fetcher that fails, allowing retry tests.
+#[allow(dead_code)]
 pub fn signal_aware_failing_fetcher(
     message: impl Into<String>,
 ) -> impl Fn(crate::core::QuerySignal) -> std::future::Ready<Result<(), QueryError>> + Send + 'static
@@ -202,6 +224,7 @@ pub fn signal_aware_failing_fetcher(
 // ── Assertion helpers ──────────────────────────────────────────────────
 
 /// Assert that a resource has the expected status.
+#[allow(dead_code)]
 pub fn assert_status(resource: &QueryResource<impl Clone, impl Clone>, expected: QueryStatus) {
     let actual = resource.status();
     assert_eq!(
@@ -212,6 +235,7 @@ pub fn assert_status(resource: &QueryResource<impl Clone, impl Clone>, expected:
 }
 
 /// Assert that a resource's data matches the expected value.
+#[allow(dead_code)]
 pub fn assert_data<T: PartialEq + std::fmt::Debug>(
     resource: &QueryResource<T, impl Clone>,
     expected: Option<&T>,
@@ -225,6 +249,7 @@ pub fn assert_data<T: PartialEq + std::fmt::Debug>(
 }
 
 /// Extract the error message from a resource, if it has an error.
+#[allow(dead_code)]
 pub fn error_message<E: Clone>(resource: &QueryResource<impl Clone, E>) -> Option<String>
 where
     E: std::fmt::Display,
@@ -233,6 +258,7 @@ where
 }
 
 /// Assert that a resource's error message matches the expected string.
+#[allow(dead_code)]
 pub fn assert_error_message<E: Clone + std::fmt::Display>(
     resource: &QueryResource<impl Clone, E>,
     expected: &str,
@@ -245,6 +271,49 @@ pub fn assert_error_message<E: Clone + std::fmt::Display>(
         expected,
         msg
     );
+}
+
+// ── Resource factories for state-transition tests ──────────────────────
+
+/// Create a resource with `NoCache` + `LatestWins`.
+///
+/// Every `begin_request` on this resource will return `Started` (never `CacheHit`),
+/// making it ideal for state-transition tests that want deterministic control
+/// over every fetch lifecycle step without worrying about TTL freshness windows.
+pub fn nocache_resource(key: impl Into<QueryKey>) -> QueryResource<&'static str> {
+    QueryResource::new(key, CachePolicy::NoCache, RequestPolicy::LatestWins)
+}
+
+/// Create a fresh resource with a fixed key for state-transition invariant tests.
+///
+/// Convenience alias for [`nocache_resource`] with key `"invariant-test"`.
+/// Every `begin_request` on this resource will return `Started` (never `CacheHit`).
+#[allow(dead_code)]
+pub fn fresh_resource() -> QueryResource<&'static str> {
+    nocache_resource("invariant-test")
+}
+
+/// Begin a request on the resource and extract the `RequestId`.
+///
+/// Panics with a descriptive message if the result is anything other than `Started`.
+/// Use this in tests that need the `request_id` for subsequent `complete_*` calls
+/// but don't care about the full `QueryBeginResult`.
+pub fn begin_request_id(
+    r: &mut QueryResource<impl Clone, impl Clone>,
+    seq: &mut RequestSequencer,
+    now_ms: u128,
+    mode: QueryFetchMode,
+) -> RequestId {
+    match r.begin_request(seq, now_ms, mode) {
+        QueryBeginResult::Started { request_id, .. } => request_id,
+        other => panic!(
+            "begin_request_id() expected Started, got {:?} \
+             (status={:?}, active_request_id={:?})",
+            other,
+            r.status(),
+            r.active_request_id(),
+        ),
+    }
 }
 
 // ── Test fixture types ─────────────────────────────────────────────────
@@ -278,6 +347,7 @@ pub struct Post {
 }
 
 impl Post {
+    #[allow(dead_code)]
     pub fn new(id: u32, title: &str) -> Self {
         Self {
             id,
@@ -286,6 +356,7 @@ impl Post {
     }
 
     /// A default test post (id: 1, title: "Hello World").
+    #[allow(dead_code)]
     pub fn default() -> Self {
         Self::new(1, "Hello World")
     }
@@ -294,9 +365,11 @@ impl Post {
 // ── Time helpers ───────────────────────────────────────────────────────
 
 /// A fixed "now" timestamp for deterministic cache tests (ms since UNIX epoch).
+#[allow(dead_code)]
 pub const TEST_NOW_MS: u128 = 1_000_000;
 
 /// Advance test time by the given number of milliseconds.
+#[allow(dead_code)]
 pub fn test_time_after(base_ms: u128, delta_ms: u64) -> u128 {
     base_ms + delta_ms as u128
 }

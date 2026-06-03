@@ -90,6 +90,7 @@ impl<T: Clone + Send + Sync + 'static, E: Clone + Send + Sync + 'static> Infinit
     }
 
     /// Get the sequencer for a given key, if it exists.
+    #[allow(dead_code)]
     pub(crate) fn sequencer(&self, key: &QueryKey) -> Option<&RequestSequencer> {
         self.entries.get(key).map(|e| &e.sequencer)
     }
@@ -110,6 +111,7 @@ impl<T: Clone + Send + Sync + 'static, E: Clone + Send + Sync + 'static> Infinit
     }
 
     /// Increment the observer count for an entry.
+    #[allow(dead_code)]
     pub(crate) fn retain(&mut self, key: &QueryKey) {
         if let Some(entry) = self.entries.get_mut(key) {
             entry.observer_count = entry.observer_count.saturating_add(1);
@@ -117,6 +119,7 @@ impl<T: Clone + Send + Sync + 'static, E: Clone + Send + Sync + 'static> Infinit
     }
 
     /// Decrement the observer count for an entry.
+    #[allow(dead_code)]
     pub(crate) fn release(&mut self, key: &QueryKey) {
         if let Some(entry) = self.entries.get_mut(key) {
             entry.observer_count = entry.observer_count.saturating_sub(1);

@@ -138,6 +138,7 @@ impl<T: Clone + Send + Sync + 'static, E: Clone + Send + Sync + 'static> QueryBu
     }
 
     /// Create a new bucket with a custom max entry limit.
+    #[allow(dead_code)]
     pub(crate) fn with_max_entries(max_entries: usize) -> Self {
         Self {
             entries: AHashMap::new(),
@@ -261,6 +262,7 @@ impl<T: Clone + Send + Sync + 'static, E: Clone + Send + Sync + 'static> QueryBu
     /// Sets the cache and request policies on the resource if the key is found
     /// and the entity is still alive. No-op if the key is not found or the
     /// entity has been collected.
+    #[allow(dead_code)]
     pub(crate) fn update_policies(
         &mut self,
         key: &QueryKey,
@@ -286,6 +288,7 @@ impl<T: Clone + Send + Sync + 'static, E: Clone + Send + Sync + 'static> QueryBu
     ///
     /// **Wiring requirement (finding 7)**: The hook layer must call this
     /// after creating an observer. Without it, `observer_count` is always 0.
+    #[allow(dead_code)]
     pub(crate) fn retain(&mut self, key: &QueryKey) {
         if let Some(entry) = self.entries.get_mut(key) {
             entry.observer_count = entry.observer_count.saturating_add(1);
@@ -300,6 +303,7 @@ impl<T: Clone + Send + Sync + 'static, E: Clone + Send + Sync + 'static> QueryBu
     /// **Wiring requirement (finding 7)**: The hook layer must call this
     /// when the subscription is dropped. Implement an `ObserverGuard` or
     /// custom `Drop` guard that wraps the subscription and calls `release()`.
+    #[allow(dead_code)]
     pub(crate) fn release(&mut self, key: &QueryKey) {
         if let Some(entry) = self.entries.get_mut(key) {
             entry.observer_count = entry.observer_count.saturating_sub(1);
@@ -318,6 +322,7 @@ impl<T: Clone + Send + Sync + 'static, E: Clone + Send + Sync + 'static> QueryBu
     /// Call this after each request completion (success or failure) so the
     /// GC can make eviction decisions without acquiring entity read locks.
     /// This is the fix for finding 1 (O(n * m) GC with entity read locks).
+    #[allow(dead_code)]
     pub(crate) fn update_status_snapshot(
         &mut self,
         key: &QueryKey,

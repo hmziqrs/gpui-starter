@@ -15,26 +15,28 @@
 //! The primary API is **options-first** with sensible defaults. The fetcher
 //! always receives a [`QuerySignal`] for cooperative cancellation:
 //!
-//! ```ignore
+//! ```no_run
 //! use gpui_query_v2::hook::use_query;
 //! use gpui_query_v2::{QueryOptions, CachePolicy, RequestPolicy};
+//! # #[derive(Clone)]
+//! # struct User;
+//! # #[derive(Clone, Debug)]
+//! # struct MyError;
 //!
 //! struct MyView {
-//!     users: gpui::Entity<gpui_query_v2::QueryResource<Vec<User>>>,
+//!     users: gpui::Entity<gpui_query_v2::QueryResource<Vec<User>, MyError>>,
 //!     _subscription: gpui::Subscription,
 //! }
 //!
 //! impl MyView {
 //!     fn new(cx: &mut gpui::Context<Self>) -> Self {
-//!         // Options-first: pass QueryOptions, signal-accepting fetcher
 //!         let (users, _subscription) = use_query(
 //!             QueryOptions::new("users")
 //!                 .cache_policy(CachePolicy::Ttl { ttl_ms: 60_000 })
 //!                 .request_policy(RequestPolicy::LatestWins),
 //!             |signal| async move {
-//!                 let resp = reqwest::get("/api/users").await?;
-//!                 let users: Vec<User> = resp.json().await?;
-//!                 Ok(users)
+//!                 // Your async fetcher here
+//!                 Ok(vec![])
 //!             },
 //!             cx,
 //!         );
@@ -49,22 +51,29 @@
 //!
 //! # Mutation Usage
 //!
-//! ```ignore
+//! ```no_run
 //! use gpui_query_v2::hook::{use_mutation, mutate};
+//! # #[derive(Clone)]
+//! # struct NewUser { name: String }
+//! # #[derive(Clone)]
+//! # struct User;
+//! # #[derive(Clone, Debug)]
+//! # struct MyError;
 //!
 //! struct MyView {
-//!     create_user: gpui::Entity<gpui_query_v2::MutationResource<NewUser, User>>,
+//!     create_user: gpui::Entity<gpui_query_v2::MutationResource<NewUser, User, MyError>>,
+//!     _subscription: gpui::Subscription,
 //! }
 //!
 //! impl MyView {
 //!     fn new(cx: &mut gpui::Context<Self>) -> Self {
-//!         let entity = use_mutation(cx);
-//!         Self { create_user: entity }
+//!         let (entity, sub) = use_mutation((), cx);
+//!         Self { create_user: entity, _subscription: sub }
 //!     }
 //!
 //!     fn handle_submit(&mut self, name: String, cx: &mut gpui::Context<Self>) {
 //!         mutate(&self.create_user, NewUser { name }, |vars| async move {
-//!             api::create_user(&vars).await
+//!             Ok(User)
 //!         }, cx);
 //!     }
 //! }
@@ -794,9 +803,19 @@ async fn fetch_signal_with_retry<T, E, F, Fut>(
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```no_run
+/// use gpui::{Entity, Subscription, Context};
+/// use gpui_query_v2::hook::{use_mutation, mutate};
+/// use gpui_query_v2::MutationResource;
+/// # #[derive(Clone)]
+/// # struct NewUser { name: String }
+/// # #[derive(Clone)]
+/// # struct User;
+/// # #[derive(Clone, Debug)]
+/// # struct MyError;
+///
 /// struct MyView {
-///     create_user: Entity<MutationResource<NewUser, User>>,
+///     create_user: Entity<MutationResource<NewUser, User, MyError>>,
 ///     _mutation_sub: Subscription,
 /// }
 ///
@@ -808,7 +827,7 @@ async fn fetch_signal_with_retry<T, E, F, Fut>(
 ///
 ///     fn handle_submit(&mut self, name: String, cx: &mut Context<Self>) {
 ///         mutate(&self.create_user, NewUser { name }, |vars| async move {
-///             api::create_user(&vars).await
+///             Ok(User)
 ///         }, cx);
 ///     }
 /// }
@@ -884,12 +903,23 @@ where
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```no_run
+/// use gpui_query_v2::hook::use_mutation_state;
+/// use gpui_query_v2::MutationResource;
+/// # #[derive(Clone)]
+/// # struct NewUser;
+/// # #[derive(Clone)]
+/// # struct User;
+/// # #[derive(Clone, Debug)]
+/// # struct QueryError;
+/// # fn _doc<C: 'static>(cx: &mut gpui::Context<C>) {
+///
 /// let mutations = use_mutation_state::<NewUser, User, QueryError, _>(cx);
 /// for entity in &mutations {
 ///     let status = entity.read(cx).status();
 ///     // ...
 /// }
+/// # }
 /// ```
 pub fn use_mutation_state<V, T, E, C>(cx: &mut Context<C>) -> Vec<Entity<MutationResource<V, T, E>>>
 where
@@ -924,8 +954,18 @@ where
 ///
 /// # Example
 ///
-/// ```ignore
-/// mutate(&entity, variables, |v| async move { Ok(v) }, cx);
+/// ```no_run
+/// use gpui_query_v2::hook::mutate;
+/// # #[derive(Clone)]
+/// # struct Vars;
+/// # #[derive(Clone)]
+/// # struct Data;
+/// # #[derive(Clone, Debug)]
+/// # struct Err;
+/// # fn _doc(entity: &gpui::Entity<gpui_query_v2::MutationResource<Vars, Data, Err>>, cx: &mut gpui::Context<()>) {
+///
+/// mutate(entity, Vars, |v| async move { Ok(Data) }, cx);
+/// # }
 /// ```
 pub fn mutate<V, T, E, C, F, Fut>(
     entity: &Entity<MutationResource<V, T, E>>,

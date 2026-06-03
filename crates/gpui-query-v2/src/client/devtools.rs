@@ -99,13 +99,23 @@ pub struct DehydratedEntry {
 ///
 /// # Example
 ///
-/// ```ignore
-/// let state = client.dehydrate(cx);
-/// let json = serde_json::to_string(&state.entries)?;
-/// // ... persist json to disk ...
-/// let entries: Vec<DehydratedEntry> = serde_json::from_str(&json)?;
+/// ```
+/// use gpui_query_v2::client::{DehydratedState, DehydratedEntry};
+/// use std::any::TypeId;
+///
+/// // DehydratedState can be constructed directly
+/// let state = DehydratedState::default();
+/// assert!(state.entries.is_empty());
+///
+/// // Entries can be created and added
+/// let entries = vec![DehydratedEntry {
+///     key: "users".to_string(),
+///     type_id: TypeId::of::<(String, String)>(),
+///     kind: "query",
+///     data_json: None,
+/// }];
 /// let state = DehydratedState { entries };
-/// client.hydrate(state, cx);
+/// assert_eq!(state.entries.len(), 1);
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct DehydratedState {

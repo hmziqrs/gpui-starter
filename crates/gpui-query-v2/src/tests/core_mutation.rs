@@ -528,10 +528,10 @@ fn retry_count_increments_saturating_on_complete_failure() {
     assert_eq!(m.retry_count(), 10);
 }
 
-// ── 26. Cancel then retry is not allowed ──────────────────────────────
+// ── 26. Retry is allowed after cancel sets Failure state ──────────────
 
 #[test]
-fn cancel_then_retry_is_rejected() {
+fn retry_allowed_after_cancel_sets_failure() {
     let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::new(3));
     m.begin("vars".to_string());
     m.cancel(QueryError::cancelled("abort"));

@@ -28,6 +28,7 @@ use super::ErasedMutationBucket;
 use super::devtools::MutationDiagnostic;
 
 /// Default garbage-collection time for idle mutations (5 minutes).
+#[allow(dead_code)]
 pub const DEFAULT_MUTATION_GC_TIME_MS: u64 = 300_000;
 
 /// Minimum GC time in milliseconds (mirrors `bucket::MIN_GC_TIME_MS`).
@@ -120,6 +121,7 @@ impl<
     /// The hook layer should call this whenever the mutation completes
     /// (transitions to `Success` or `Failure`) so that the GC timer
     /// restarts from the completion moment rather than from insertion.
+    #[allow(dead_code)]
     pub(crate) fn touch(&mut self, id: u64) {
         if let Some(entry) = self.resources.get_mut(&id) {
             entry.updated_at = now_ms();
@@ -132,6 +134,7 @@ impl<
     /// `begin()` is called on the mutation resource. This sets a `loading`
     /// flag on the entry that the GC checks without needing `cx` to read
     /// entity state, preventing mid-flight eviction of long-running mutations.
+    #[allow(dead_code)]
     pub(crate) fn set_loading(&mut self, id: u64) {
         if let Some(entry) = self.resources.get_mut(&id) {
             entry.loading = true;
@@ -142,6 +145,7 @@ impl<
     ///
     /// The hook layer should call this when the mutation reaches a terminal
     /// state (`Success`, `Failure`, or `Idle` via `reset()`).
+    #[allow(dead_code)]
     pub(crate) fn set_not_loading(&mut self, id: u64) {
         if let Some(entry) = self.resources.get_mut(&id) {
             entry.loading = false;
@@ -153,6 +157,7 @@ impl<
     /// Call this when a component mounts and holds a strong reference to
     /// the mutation entity. Prevents GC from evicting the entry while
     /// components are actively using it.
+    #[allow(dead_code)]
     pub(crate) fn retain(&mut self, id: u64) {
         if let Some(entry) = self.resources.get_mut(&id) {
             entry.observer_count = entry.observer_count.saturating_add(1);
@@ -163,6 +168,7 @@ impl<
     ///
     /// Call this when the component unmounts and releases its strong
     /// reference to the mutation entity.
+    #[allow(dead_code)]
     pub(crate) fn release(&mut self, id: u64) {
         if let Some(entry) = self.resources.get_mut(&id) {
             entry.observer_count = entry.observer_count.saturating_sub(1);

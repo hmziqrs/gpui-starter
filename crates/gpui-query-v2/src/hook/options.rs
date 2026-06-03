@@ -11,18 +11,32 @@ use crate::core::{CachePolicy, RefetchTrigger, RequestPolicy, RetryPolicy};
 ///
 /// # Quick Start
 ///
-/// ```ignore
+/// ```no_run
+/// use gpui_query_v2::QueryOptions;
+/// use gpui_query_v2::core::{CachePolicy, RetryPolicy};
+/// use gpui_query_v2::hook::use_query;
+/// # #[derive(Clone)]
+/// # struct User;
+/// # #[derive(Clone, Debug)]
+/// # struct MyError;
+/// # fn _doc(cx: &mut gpui::Context<()>) {
+///
 /// // Simplest: just a string key
-/// let result = use_query("users", fetcher, cx);
+/// let result = use_query("users", |signal| async move {
+///     Ok::<Vec<User>, MyError>(vec![])
+/// }, cx);
 ///
 /// // With options:
 /// let result = use_query(
 ///     QueryOptions::new("users")
 ///         .cache_policy(CachePolicy::Ttl { ttl_ms: 300_000 })
 ///         .retry_policy(RetryPolicy::new(5)),
-///     fetcher,
+///     |signal| async move {
+///         Ok::<Vec<User>, MyError>(vec![])
+///     },
 ///     cx,
 /// );
+/// # }
 /// ```
 #[derive(Clone, Debug)]
 pub struct QueryOptions {

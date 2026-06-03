@@ -19,3 +19,4 @@ gpui = { workspace = true, optional = true }
 [dev-dependencies]
 serde_json = { workspace = true }
 gpui = { workspace = true, features = ["test-support"] }
+proptest = "1"
