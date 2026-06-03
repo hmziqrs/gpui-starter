@@ -1,0 +1,21 @@
+[package]
+name = "gpui-query-v2"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "TanStack Query-inspired async state management for GPUI (v2 rewrite)"
+
+[features]
+default = ["client"]
+core = []
+client = ["core", "dep:gpui"]
+hook = ["client"]
+
+[dependencies]
+serde = { workspace = true }
+ahash = { version = "0.8" }
+gpui = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+gpui = { workspace = true, features = ["test-support"] }

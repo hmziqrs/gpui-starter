@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "crates/gpui-query"]
+members = [".", "crates/gpui-query", "crates/gpui-query-v2"]
 
 [workspace.dependencies]
 gpui-query = { path = "crates/gpui-query" }
