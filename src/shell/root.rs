@@ -12,6 +12,7 @@ use crate::views::{
     AboutPage, DiagnosticsPage, ErrorPlaygroundPage, FormPage, HomePage, HttpLabPage,
     HttpLabTestingPage, NotificationsPage, QueryDevToolsPage, QueryDevToolsV2Page,
     QueryPlaygroundPage, ReloadCurrentPage, RenderErrorPage, SettingsPage,
+    TriggerRenderError,
 };
 use crate::{
     app::ToggleSearch,
@@ -490,6 +491,21 @@ impl Render for AppRoot {
                 );
                 this.render_error = false;
                 this.error_page = None;
+                cx.notify();
+            }))
+            // Error boundary: action-based trigger (used by error playground to
+            // test the boundary UI without causing a real render panic, which is
+            // process-fatal in GPUI due to the Metal extern "C" callback).
+            .on_action(cx.listener(|this, action: &TriggerRenderError, _, cx| {
+                tracing::info!(
+                    target: "gpui_starter::root",
+                    message = %action.message,
+                    "error boundary activated via TriggerRenderError action"
+                );
+                this.render_error = true;
+                this.error_page = Some(cx.new(|_| {
+                    RenderErrorPage::new(action.message.clone())
+                }));
                 cx.notify();
             }))
             .flex_1()

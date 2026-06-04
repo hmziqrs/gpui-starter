@@ -1,8 +1,18 @@
 //! Error Boundary Playground — interactive test page for the error boundary.
 //!
-//! Each card exercises a different failure mode. Cards marked "boundary" (red
-//! left-border) will panic during render and trigger the error boundary.
-//! Cards marked "safe" (green left-border) handle errors gracefully inline.
+//! ## Architecture note
+//!
+//! GPUI render panics are process-fatal: they propagate through an `extern "C"`
+//! Metal rendering callback where Rust's unwinder cannot safely unwind,
+//! producing `"fatal runtime error: failed to initiate panic, error 3"`.
+//!
+//! Because of this, the "boundary" test cards below do NOT actually panic
+//! during render. Instead they dispatch a `TriggerRenderError` action that
+//! `AppRoot` intercepts to activate the error boundary UI directly. This tests
+//! the full recovery flow (fallback page → reload → retry) without crashing.
+//!
+//! The "safe" cards (green border) exercise real error paths (HTTP, FS, async)
+//! that are handled gracefully inline.
 
 use gpui::{prelude::*, *};
 use gpui_component::{
@@ -11,15 +21,13 @@ use gpui_component::{
     h_flex, v_flex,
 };
 
+use super::render_error::TriggerRenderError;
+
 // ---------------------------------------------------------------------------
 // Page struct
 // ---------------------------------------------------------------------------
 
 pub struct ErrorPlaygroundPage {
-    // Render-path trigger flags (checked at the top of render).
-    trigger_render_panic: bool,
-    trigger_div_zero: bool,
-    trigger_oob: bool,
     // Inline results for safe tests.
     http_result: Option<String>,
     fs_result: Option<String>,
@@ -30,9 +38,6 @@ pub struct ErrorPlaygroundPage {
 impl ErrorPlaygroundPage {
     pub fn new() -> Self {
         Self {
-            trigger_render_panic: false,
-            trigger_div_zero: false,
-            trigger_oob: false,
             http_result: None,
             fs_result: None,
             async_result: None,
@@ -53,24 +58,11 @@ impl Default for ErrorPlaygroundPage {
 
 impl Render for ErrorPlaygroundPage {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // IMPORTANT: Check trigger flags FIRST, before any other rendering.
-        // These panics happen during render so the error boundary can catch them.
-        if self.trigger_render_panic {
-            panic!("error playground: intentional render panic");
-        }
-        if self.trigger_div_zero {
-            let _ = 1 / (1 - self.trigger_div_zero as i32);
-        }
-        if self.trigger_oob {
-            let _ = vec![0u8][100];
-        }
-
         let theme = cx.theme();
         let radius_lg = theme.radius_lg;
         let border = theme.border;
         let muted = theme.muted;
         let muted_foreground = theme.muted_foreground;
-        let _background = theme.background;
         let _ = theme;
 
         v_flex()
@@ -97,19 +89,43 @@ impl Render for ErrorPlaygroundPage {
                                 .text_sm()
                                 .text_color(muted_foreground)
                                 .child(
-                                    "Test different failure modes. Red-bordered cards trigger the \
-                                     error boundary (render-path panics). Green-bordered cards \
-                                     handle errors gracefully inline.",
+                                    "Test different failure modes. Red-bordered cards activate the \
+                                     error boundary via action dispatch (simulating a render panic \
+                                     without crashing the process). Green-bordered cards handle \
+                                     errors gracefully inline. See the architecture note at the top \
+                                     of this file for why render panics cannot be caught at runtime.",
                                 ),
                         ),
                     ),
             )
-            // -- 1. Render Panic --
-            .child(self.render_render_panic(cx))
-            // -- 2. Division by Zero --
-            .child(self.render_div_zero(cx))
-            // -- 3. Index Out of Bounds --
-            .child(self.render_oob(cx))
+            // -- 1. Simulated Render Error --
+            .child(self.render_boundary_trigger(
+                "Simulated Render Error",
+                "Dispatches TriggerRenderError to activate the error boundary directly. \
+                 The fallback page appears with a summary and Reload button. \
+                 Note: a real render panic is process-fatal in GPUI (Metal extern \"C\" callback), \
+                 so this simulates the recovery flow without crashing.",
+                "Trigger Render Error",
+                "error playground: simulated render panic",
+                cx,
+            ))
+            // -- 2. Simulated Division by Zero --
+            .child(self.render_boundary_trigger(
+                "Simulated Division by Zero",
+                "Activates the error boundary as if a division-by-zero occurred during render. \
+                 Same mechanism as above — the boundary UI is tested end-to-end.",
+                "Trigger Div Zero Error",
+                "error playground: simulated division by zero",
+                cx,
+            ))
+            // -- 3. Simulated Index Out of Bounds --
+            .child(self.render_boundary_trigger(
+                "Simulated Index Out of Bounds",
+                "Activates the error boundary as if an out-of-bounds access occurred during render.",
+                "Trigger OOB Error",
+                "error playground: simulated index out of bounds",
+                cx,
+            ))
             // -- 4. Background Task Panic --
             .child(self.render_background_panic(cx))
             // -- 5. HTTP Error --
@@ -128,60 +144,27 @@ impl Render for ErrorPlaygroundPage {
 // ---------------------------------------------------------------------------
 
 impl ErrorPlaygroundPage {
-    fn render_render_panic(&self, cx: &mut Context<Self>) -> Div {
-        test_card(
-            "Render Panic",
-            "Panics directly in the render method. Should trigger the error boundary \
-             and show the fallback page.",
-            true, // boundary test
-            cx,
-        )
-        .child(
+    fn render_boundary_trigger(
+        &self,
+        title: &str,
+        description: &str,
+        button_label: &str,
+        error_message: &str,
+        cx: &mut Context<Self>,
+    ) -> Div {
+        let error_msg = error_message.to_string();
+        test_card(title, description, true, cx).child(
             action_row(cx).child(
-                Button::new("ep-render-panic")
+                Button::new(SharedString::from(format!("ep-{}", title)))
                     .primary()
-                    .label("Trigger Render Panic")
-                    .on_click(cx.listener(|this, _, _, _cx| {
-                        this.trigger_render_panic = true;
-                    })),
-            ),
-        )
-    }
-
-    fn render_div_zero(&self, cx: &mut Context<Self>) -> Div {
-        test_card(
-            "Division by Zero",
-            "Causes a division-by-zero panic during render. Should trigger the error boundary.",
-            true,
-            cx,
-        )
-        .child(
-            action_row(cx).child(
-                Button::new("ep-div-zero")
-                    .primary()
-                    .label("Trigger Division by Zero")
-                    .on_click(cx.listener(|this, _, _, _cx| {
-                        this.trigger_div_zero = true;
-                    })),
-            ),
-        )
-    }
-
-    fn render_oob(&self, cx: &mut Context<Self>) -> Div {
-        test_card(
-            "Index Out of Bounds",
-            "Accesses an out-of-bounds index during render. Should trigger the error boundary.",
-            true,
-            cx,
-        )
-        .child(
-            action_row(cx).child(
-                Button::new("ep-oob")
-                    .primary()
-                    .label("Trigger Index Out of Bounds")
-                    .on_click(cx.listener(|this, _, _, _cx| {
-                        this.trigger_oob = true;
-                    })),
+                    .label(button_label.to_string())
+                    .on_click(move |_, _, cx| {
+                        // Activate the error boundary by dispatching the action.
+                        // AppRoot listens for this and swaps in RenderErrorPage.
+                        cx.dispatch_action(&TriggerRenderError {
+                            message: error_msg.clone(),
+                        });
+                    }),
             ),
         )
     }

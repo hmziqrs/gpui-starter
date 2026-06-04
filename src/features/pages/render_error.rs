@@ -14,6 +14,19 @@ use gpui_component::{
 #[action(namespace = app, no_json)]
 pub struct ReloadCurrentPage;
 
+/// Activate the error boundary with a custom message.
+///
+/// This is the action-based trigger used by the error playground (and any
+/// future test harness) to exercise the error boundary UI without causing a
+/// real render panic. A real render panic is process-fatal in GPUI because it
+/// propagates through an `extern "C"` Metal callback where unwinding is not
+/// possible, so we simulate the recovery flow via action dispatch instead.
+#[derive(Action, Clone, PartialEq, Eq, serde::Deserialize)]
+#[action(namespace = app, no_json)]
+pub struct TriggerRenderError {
+    pub message: String,
+}
+
 // ---------------------------------------------------------------------------
 // RenderErrorPage
 // ---------------------------------------------------------------------------

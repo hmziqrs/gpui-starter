@@ -109,21 +109,25 @@ Wrap the active page view at the dispatch boundary in `shell/root.rs` so a
 render failure renders a fallback ("This page failed to render — <summary> /
 Reload") instead of propagating.
 
-Spike outcome — the route-swap (next-frame) approach was chosen:
+Spike outcome — **render panics are process-fatal in GPUI**; boundary is action-based:
 
-- Inline `catch_unwind` was not attempted because GPUI render uses an
-  `AtomicBool` flag (`RENDER_PANIC_OCCURRED`) to detect panics rather than
-  catching them inline. The render path is driven through `stacksafe`/`stacker`,
-  and a `catch_unwind` around `render()` would interact unpredictably with the
-  global panic hook.
-- **Chosen approach**: the panic hook sets an `AtomicBool`; on the next
-  `active_page_view` call, the flag is read and the view is swapped to
-  `RenderErrorPage`. A thread-local `IN_RENDER_PATH` guard ensures only panics
-  that originate inside the render path (not background tasks, init, etc.) set
-  the flag, preventing false error-boundary activation.
-- This is safe because the default `panic=unwind` mode lets the current frame
-  abort cleanly and the next frame renders the fallback.
+- **Neither inline `catch_unwind` nor route-swap can recover from a render panic.**
+  GPUI's render pipeline drives through `AnyView::request_layout` →
+  `with_rendered_view` → user `render()`, all inside the Metal frame callback
+  which is an `extern "C"` trampoline. When a panic unwinds through this FFI
+  boundary, Rust's panic runtime produces `"fatal runtime error: failed to
+  initiate panic, error 3, aborting"` and the process terminates immediately.
+  There is no "next frame" to swap to.
+- **Actual approach**: the error boundary is activated via `TriggerRenderError`
+  action dispatch. Code paths that detect unrecoverable states (failed invariants,
+  corrupted data) dispatch this action, which `AppRoot` intercepts to swap in
+  `RenderErrorPage`. This tests the full recovery flow (fallback → reload → retry)
+  without requiring a real panic. A thread-local `IN_RENDER_PATH` guard and
+  `RENDER_PANIC_OCCURRED` AtomicBool remain as best-effort for any panic that
+  *does* survive unwinding (e.g. in event handlers during the render cycle).
 - `last_panic_summary()` is reused for the fallback's detail text.
+- The `TriggerTestPanic` action in debug builds demonstrates the process-fatal
+  behavior (app aborts) — the error boundary cannot prevent this.
 
 ### Files
 
