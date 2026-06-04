@@ -1,5 +1,6 @@
 mod about;
 mod diagnostics;
+mod error_playground;
 mod form_page;
 mod home;
 mod http_lab;
@@ -13,6 +14,7 @@ mod settings;
 
 pub use about::AboutPage;
 pub use diagnostics::DiagnosticsPage;
+pub use error_playground::ErrorPlaygroundPage;
 pub use form_page::FormPage;
 pub use home::HomePage;
 pub use http_lab::HttpLabPage;

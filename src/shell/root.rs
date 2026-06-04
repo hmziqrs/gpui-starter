@@ -9,9 +9,9 @@ use gpui_component::{
 use crate::sidebar::Page;
 use crate::title_bar::AppTitleBar;
 use crate::views::{
-    AboutPage, DiagnosticsPage, FormPage, HomePage, HttpLabPage, HttpLabTestingPage,
-    NotificationsPage, QueryDevToolsPage, QueryDevToolsV2Page, QueryPlaygroundPage,
-    ReloadCurrentPage, RenderErrorPage, SettingsPage,
+    AboutPage, DiagnosticsPage, ErrorPlaygroundPage, FormPage, HomePage, HttpLabPage,
+    HttpLabTestingPage, NotificationsPage, QueryDevToolsPage, QueryDevToolsV2Page,
+    QueryPlaygroundPage, ReloadCurrentPage, RenderErrorPage, SettingsPage,
 };
 use crate::{
     app::ToggleSearch,
@@ -60,6 +60,7 @@ pub struct AppRoot {
     settings_page: Entity<SettingsPage>,
     notifications_page: Entity<NotificationsPage>,
     diagnostics_page: Entity<DiagnosticsPage>,
+    error_playground_page: Entity<ErrorPlaygroundPage>,
     query_devtools_page: Entity<QueryDevToolsPage>,
     query_playground_page: Entity<QueryPlaygroundPage>,
     query_devtools_v2_page: Entity<QueryDevToolsV2Page>,
@@ -96,6 +97,7 @@ impl AppRoot {
         let settings_page = cx.new(|cx| SettingsPage::new(window, cx));
         let notifications_page = cx.new(|cx| NotificationsPage::new(window, cx));
         let diagnostics_page = cx.new(|cx| DiagnosticsPage::new(window, cx));
+        let error_playground_page = cx.new(|_| ErrorPlaygroundPage::new());
         let query_devtools_page = cx.new(|cx| QueryDevToolsPage::new(window, cx));
         let query_playground_page = cx.new(|cx| QueryPlaygroundPage::new(window, cx));
         let query_devtools_v2_page = cx.new(|cx| QueryDevToolsV2Page::new(window, cx));
@@ -227,6 +229,7 @@ impl AppRoot {
             settings_page,
             notifications_page,
             diagnostics_page,
+            error_playground_page,
             query_devtools_page,
             query_playground_page,
             query_devtools_v2_page,
@@ -291,6 +294,7 @@ impl AppRoot {
             Page::Settings => self.settings_page.clone().into(),
             Page::Notifications => self.notifications_page.clone().into(),
             Page::Diagnostics => self.diagnostics_page.clone().into(),
+            Page::ErrorPlayground => self.error_playground_page.clone().into(),
             Page::QueryDevTools => self.query_devtools_page.clone().into(),
             Page::QueryPlayground => self.query_playground_page.clone().into(),
             Page::QueryDevToolsV2 => self.query_devtools_v2_page.clone().into(),
