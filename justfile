@@ -1,8 +1,8 @@
 default:
     @just --list
 
-mac:
-  ./scripts/run-macos-dev-app.sh
+mac *args='':
+  ./scripts/run-macos-dev-app.sh {{args}}
 
 fmt:
     cargo sort-derives
