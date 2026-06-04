@@ -2,6 +2,7 @@
 
 use std::fs;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 use gpui::{App, Global};
@@ -86,10 +87,23 @@ pub fn set_shutdown_error(error: impl Into<String>, cx: &mut App) {
 
 static LAST_PANIC_SUMMARY: OnceLock<Mutex<Option<String>>> = OnceLock::new();
 
+/// Set to `true` inside the panic hook so the next render pass can detect
+/// that a panic occurred and swap in the error boundary view instead of the
+/// crashing page.
+static RENDER_PANIC_OCCURRED: AtomicBool = AtomicBool::new(false);
+
 pub fn last_panic_summary() -> Option<String> {
     LAST_PANIC_SUMMARY
         .get()
         .and_then(|slot| slot.lock().ok().and_then(|value| value.clone()))
+}
+
+/// Atomically read and reset the render-panic flag.
+///
+/// Returns `true` if a panic was captured since the last call, `false`
+/// otherwise.
+pub fn take_render_panic() -> bool {
+    RENDER_PANIC_OCCURRED.swap(false, Ordering::SeqCst)
 }
 
 pub fn install_panic_hook() {
@@ -100,6 +114,10 @@ pub fn install_panic_hook() {
         if let Ok(mut value) = slot.lock() {
             *value = Some(summary.clone());
         }
+        // Mark that a panic occurred so the render loop can show the error
+        // boundary view on the next frame instead of re-trying the crashing
+        // page.
+        RENDER_PANIC_OCCURRED.store(true, Ordering::SeqCst);
         tracing::error!(
             target: "gpui_starter::lifecycle",
             panic = %summary,

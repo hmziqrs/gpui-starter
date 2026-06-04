@@ -62,6 +62,10 @@ pub struct AppConfig {
     pub granted_permissions: HashSet<String>,
     #[serde(default)]
     pub denied_permissions: HashSet<String>,
+    #[serde(default = "default_stable")]
+    pub update_channel: String,
+    #[serde(default)]
+    pub last_update_check: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -88,6 +92,8 @@ impl Default for AppConfig {
             window_bounds: None,
             granted_permissions: HashSet::new(),
             denied_permissions: HashSet::new(),
+            update_channel: default_stable(),
+            last_update_check: None,
         }
     }
 }
@@ -106,6 +112,10 @@ impl AppConfig {
 
 fn default_true() -> bool {
     true
+}
+
+fn default_stable() -> String {
+    "stable".to_string()
 }
 
 pub fn initialize(cx: &mut App) {

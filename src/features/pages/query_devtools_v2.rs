@@ -7,9 +7,10 @@ use gpui_component::{
     VirtualListScrollHandle,
     button::Button,
     h_flex,
-    scroll::{ScrollableElement, ScrollbarAxis},
-    v_flex, v_virtual_list,
+    v_flex,
 };
+
+use crate::ui::widgets::{bounded_list_height, render_virtual_list, variable_item_sizes};
 use gpui_query_v2::client::{ClientDiagnostic, QueryClient};
 use gpui_query_v2::core::{MutationStatus, QueryKeyFilter, QueryStatus};
 
@@ -495,29 +496,23 @@ fn render_query_registry(
 
     // Virtualize the registry: only the rows in the visible range are laid out
     // and painted, so adding queries no longer forces a full-tree relayout on
-    // every scroll frame. `v_virtual_list` positions items from `item_sizes`,
-    // so each rendered row/detail is pinned to the height declared here.
+    // every scroll frame.
     let queries = Rc::new(queries);
 
-    let item_heights: Vec<f32> = queries
+    let item_heights: Vec<Pixels> = queries
         .iter()
         .map(|q| {
             let is_expanded = expanded_key.as_deref() == Some(q.key.as_str());
             if is_expanded {
-                REGISTRY_ROW_H + REGISTRY_ITEM_GAP + REGISTRY_DETAIL_H
+                px(REGISTRY_ROW_H + REGISTRY_ITEM_GAP + REGISTRY_DETAIL_H)
             } else {
-                REGISTRY_ROW_H
+                px(REGISTRY_ROW_H)
             }
         })
         .collect();
 
-    let item_sizes: Rc<Vec<Size<Pixels>>> =
-        Rc::new(item_heights.iter().map(|&h| size(px(0.), px(h))).collect());
-
-    // Snug height: the list only scrolls once content exceeds the cap.
-    let content_h = item_heights.iter().sum::<f32>()
-        + REGISTRY_LIST_GAP * item_heights.len().saturating_sub(1) as f32;
-    let list_h = px(content_h.min(REGISTRY_MAX_LIST_H));
+    let item_sizes = variable_item_sizes(&item_heights);
+    let list_h = bounded_list_height(&item_sizes, px(REGISTRY_LIST_GAP), px(REGISTRY_MAX_LIST_H));
 
     // Empty state within registry
     let registry_content = if queries.is_empty() {
@@ -532,15 +527,18 @@ fn render_query_registry(
                     .child("No queries match the current filter."),
             )
     } else {
-        let entity = cx.entity();
         let scroll_handle = scroll_handle.clone();
         let rows = queries.clone();
         let expanded = expanded_key.clone();
 
-        let list = v_virtual_list(
-            entity,
+        render_virtual_list(
+            cx,
             "v2-registry-rows",
             item_sizes,
+            list_h,
+            px(REGISTRY_LIST_GAP),
+            &scroll_handle,
+            true,
             move |_this, range, _window, cx| {
                 range
                     .map(|ix| {
@@ -564,17 +562,6 @@ fn render_query_registry(
                     })
                     .collect::<Vec<_>>()
             },
-        )
-        .track_scroll(&scroll_handle)
-        .gap_0p5();
-
-        div().relative().w_full().h(list_h).child(
-            v_flex()
-                .id("v2-registry-list")
-                .relative()
-                .size_full()
-                .child(list)
-                .scrollbar(&scroll_handle, ScrollbarAxis::Vertical),
         )
     };
 

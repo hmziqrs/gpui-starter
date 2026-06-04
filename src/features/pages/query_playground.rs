@@ -4,7 +4,6 @@
 //! request policies, retry, mutations (with callbacks), infinite queries,
 //! select transforms, and imperative fetch with signal cancellation.
 
-use std::rc::Rc;
 use std::sync::Arc;
 
 use gpui::{prelude::*, *};
@@ -13,9 +12,11 @@ use gpui_component::{
     button::{Button, ButtonVariants as _},
     h_flex, v_flex,
     input::{Input, InputEvent, InputState},
-    VirtualListScrollHandle, v_virtual_list,
+    VirtualListScrollHandle,
 };
 use serde::{Deserialize, Serialize};
+
+use crate::ui::widgets::{render_virtual_list, uniform_item_sizes};
 
 use gpui_query_v2::client::QueryClient;
 use gpui_query_v2::core::{
@@ -1364,7 +1365,7 @@ impl QueryPlaygroundPage {
             // Virtualized list: only renders visible entries (20px each).
             let item_count = self.activity_log.len();
             let item_height = px(20.);
-            let item_sizes = Rc::new(vec![size(px(400.), item_height); item_count]);
+            let item_sizes = uniform_item_sizes(item_count, item_height);
 
             card.child(
                 div().px_4().max_h(px(200.))
@@ -1373,10 +1374,14 @@ impl QueryPlaygroundPage {
                         cx.stop_propagation();
                     })
                     .child(
-                        v_virtual_list(
-                            cx.entity(),
+                        render_virtual_list(
+                            cx,
                             "activity-log-vlist",
                             item_sizes,
+                            px(200.),
+                            px(0.),
+                            &scroll_handle,
+                            false,
                             move |this: &mut Self, visible_range, _window, cx| {
                                 // Render entries in reverse (newest first).
                                 let total = this.activity_log.len();
@@ -1393,8 +1398,6 @@ impl QueryPlaygroundPage {
                                 }).collect()
                             },
                         )
-                        .track_scroll(&scroll_handle)
-                        .h(px(200.))
                     )
             )
         }

@@ -16,3 +16,4 @@ pub mod tasks;
 pub mod telemetry;
 pub mod tokio_runtime;
 pub mod undo_stack;
+pub mod updater;

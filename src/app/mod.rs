@@ -326,6 +326,7 @@ pub fn init(cx: &mut App) {
         persisted.native_notifications_enabled,
         cx,
     );
+    crate::services::updater::initialize(cx);
 
     // Key bindings
     cx.bind_keys([

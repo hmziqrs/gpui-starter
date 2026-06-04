@@ -8,6 +8,7 @@ mod notifications;
 mod query_devtools;
 mod query_devtools_v2;
 mod query_playground;
+mod render_error;
 mod settings;
 
 pub use about::AboutPage;
@@ -20,4 +21,6 @@ pub use notifications::NotificationsPage;
 pub use query_devtools::QueryDevToolsPage;
 pub use query_devtools_v2::QueryDevToolsV2Page;
 pub use query_playground::QueryPlaygroundPage;
+pub use render_error::RenderErrorPage;
+pub use render_error::ReloadCurrentPage;
 pub use settings::SettingsPage;

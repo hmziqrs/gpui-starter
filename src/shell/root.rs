@@ -10,7 +10,8 @@ use crate::sidebar::Page;
 use crate::title_bar::AppTitleBar;
 use crate::views::{
     AboutPage, DiagnosticsPage, FormPage, HomePage, HttpLabPage, HttpLabTestingPage,
-    NotificationsPage, QueryDevToolsPage, QueryDevToolsV2Page, QueryPlaygroundPage, SettingsPage,
+    NotificationsPage, QueryDevToolsPage, QueryDevToolsV2Page, QueryPlaygroundPage,
+    ReloadCurrentPage, RenderErrorPage, SettingsPage,
 };
 use crate::{
     app::ToggleSearch,
@@ -63,6 +64,13 @@ pub struct AppRoot {
     query_playground_page: Entity<QueryPlaygroundPage>,
     query_devtools_v2_page: Entity<QueryDevToolsV2Page>,
     about_page: Entity<AboutPage>,
+
+    /// Error boundary: when `true`, the error fallback view is shown instead
+    /// of the active page. Set when a render panic is detected; cleared when
+    /// the user clicks "Reload Page".
+    render_error: bool,
+    /// Cached error-boundary entity so we don't re-create it every frame.
+    error_page: Option<Entity<RenderErrorPage>>,
 
     /// Debounced window-bounds persistence.
     ///
@@ -223,6 +231,8 @@ impl AppRoot {
             query_playground_page,
             query_devtools_v2_page,
             about_page,
+            render_error: false,
+            error_page: None,
             pending_bounds: None,
             _pending_bounds_flush: None,
         }
@@ -241,7 +251,38 @@ impl AppRoot {
         self._pending_bounds_flush = None;
     }
 
-    fn active_page_view(&self) -> AnyView {
+    /// Return the page view to render, considering the error boundary.
+    ///
+    /// If a render panic was detected since the last frame (via
+    /// [`crate::app::lifecycle::take_render_panic`]), we swap in the
+    /// [`RenderErrorPage`] fallback instead of the crashing page. The user can
+    /// dismiss the error boundary with the "Reload Page" button (or by
+    /// navigating to a different route), which clears the flag and retries.
+    fn active_page_view(&mut self, cx: &mut Context<Self>) -> AnyView {
+        // Check if a panic occurred since the last render.
+        if crate::lifecycle::take_render_panic() {
+            tracing::warn!(
+                target: "gpui_starter::root",
+                "render panic detected – activating error boundary"
+            );
+            self.render_error = true;
+            let summary = crate::lifecycle::last_panic_summary()
+                .unwrap_or_else(|| "An unknown error occurred.".to_string());
+            self.error_page = Some(cx.new(|_| RenderErrorPage::new(summary)));
+        }
+
+        // If the error boundary is active, show the fallback view.
+        if self.render_error {
+            if let Some(ref error_page) = self.error_page {
+                return error_page.clone().into();
+            }
+        }
+
+        self.unchecked_active_page_view()
+    }
+
+    /// Return the active page view without checking for render panics.
+    fn unchecked_active_page_view(&self) -> AnyView {
         match self.active_route.page_for_render() {
             Page::Home => self.home_page.clone().into(),
             Page::Form => self.form_page.clone().into(),
@@ -264,6 +305,8 @@ impl AppRoot {
         let route_url = route.to_url();
         tracing::info!(target: "gpui_starter::root", route = ?route, route_url, "navigating");
         self.active_route = route.clone();
+        self.render_error = false;
+        self.error_page = None;
         crate::app_state::update_config(cx, |config| {
             config.active_route = route;
         });
@@ -309,7 +352,11 @@ impl Render for AppRoot {
         let sheet_layer = Root::render_sheet_layer(window, cx);
         let dialog_layer = Root::render_dialog_layer(window, cx);
         let notification_layer = Root::render_notification_layer(window, cx);
-        let page_title = self.active_route.title();
+        let page_title = if self.render_error {
+            "Render Error"
+        } else {
+            self.active_route.title()
+        };
         let active_page = self.active_route.page_for_render();
         let rtl = is_rtl_locale(&crate::app::current_locale(cx));
 
@@ -339,7 +386,7 @@ impl Render for AppRoot {
                         let page = *page;
                         SidebarMenuItem::new(page.title())
                             .icon(Icon::new(page.icon()).small())
-                            .active(active_page == page)
+                            .active(!self.render_error && active_page == page)
                             .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
                                 this.set_route(AppRoute::page(page), cx);
                             }))
@@ -396,7 +443,7 @@ impl Render for AppRoot {
                         .id("page")
                         .flex_1()
                         .overflow_y_scroll()
-                        .child(self.active_page_view()),
+                        .child(self.active_page_view(cx)),
                 ),
         );
 
@@ -428,18 +475,42 @@ impl Render for AppRoot {
                 cx.notify();
                 tracing::info!(target: "gpui_starter::root", page = ?current, "page refreshed");
             }))
+            // Error boundary: reload clears the error state and retries the page.
+            .on_action(cx.listener(|this, _: &ReloadCurrentPage, _, cx| {
+                tracing::info!(
+                    target: "gpui_starter::root",
+                    "reloading page after render error"
+                );
+                this.render_error = false;
+                this.error_page = None;
+                cx.notify();
+            }))
             .flex_1()
             .overflow_hidden()
             .child(layout);
+
+        let elapsed_us = render_started.elapsed().as_micros() as u64;
 
         tracing::debug!(
             target: "gpui_starter::root::render",
             route = %self.active_route.title(),
             page = ?active_page,
+            render_error = self.render_error,
             tasks_active = crate::tasks::active_count(cx),
-            elapsed_us = render_started.elapsed().as_micros() as u64,
+            elapsed_us,
             "AppRoot render prepared"
         );
+
+        const SLOW_FRAME_THRESHOLD_US: u64 = 4_000; // 4ms
+        if elapsed_us > SLOW_FRAME_THRESHOLD_US {
+            tracing::warn!(
+                target: "gpui_starter::root::render",
+                route = %self.active_route.title(),
+                elapsed_us,
+                threshold_us = SLOW_FRAME_THRESHOLD_US,
+                "slow frame detected"
+            );
+        }
 
         v_flex()
             .size_full()

@@ -1,7 +1,7 @@
 use gpui::{App, InteractiveElement as _, ParentElement as _, Styled as _, div};
 use gpui_component::ActiveTheme as _;
 
-use crate::{connectivity, notifications, routes::AppRoute, session, tasks};
+use crate::{connectivity, notifications, routes::AppRoute, session, services::updater, tasks};
 
 pub fn render(route: &AppRoute, cx: &App) -> impl gpui::IntoElement {
     let render_started = std::time::Instant::now();
@@ -26,6 +26,29 @@ pub fn render(route: &AppRoute, cx: &App) -> impl gpui::IntoElement {
         .map(|s| &s.state);
     let latest_error = crate::error_surface::latest_message(cx)
         .unwrap_or_else(|| "None".to_string());
+
+    let updater_status = cx
+        .try_global::<updater::UpdateSnapshot>()
+        .map(|s| &s.status);
+    let updater_label = match updater_status {
+        Some(updater::UpdateStatus::Available { version, .. }) => {
+            Some(format!("Update: {version} available"))
+        }
+        Some(updater::UpdateStatus::Downloading { progress }) => {
+            Some(format!("Update: downloading {progress}%"))
+        }
+        Some(updater::UpdateStatus::Downloaded { version, .. }) => {
+            Some(format!("Update: {version} ready"))
+        }
+        Some(updater::UpdateStatus::ReadyToInstall) => {
+            Some("Update: restart to install".to_string())
+        }
+        Some(updater::UpdateStatus::Error(err)) => {
+            Some(format!("Update: error ({})", truncate_error(err, 30)))
+        }
+        Some(updater::UpdateStatus::Checking) => Some("Update: checking...".to_string()),
+        _ => None,
+    };
 
     let session_label = match session_state {
         Some(session::SessionState::SignedOut) => "SignedOut".to_string(),
@@ -56,17 +79,34 @@ pub fn render(route: &AppRoute, cx: &App) -> impl gpui::IntoElement {
         .border_color(cx.theme().border)
         .bg(cx.theme().secondary.opacity(0.35))
         .text_xs()
-        .child(div().flex().gap_4().items_center().children([
-            div().child(format!("Route: {}", route.title())),
-            div().child(format!("Tasks: {tasks_active}")),
-            div().child(format!("Unread: {unread}")),
-            div().child(format!(
-                "Connectivity: {:?}",
-                connectivity_state.unwrap_or(&connectivity::ConnectivityState::Unknown)
-            )),
-            div().child(format!("Session: {session_label}")),
-            div().child(format!("Notifications: {active_backend}")),
-            div().child(format!("Degraded: {degraded}")),
-            div().child(format!("LastError: {latest_error}")),
-        ]))
+        .child({
+            let mut children: Vec<gpui::Div> = vec![
+                div().child(format!("Route: {}", route.title())),
+                div().child(format!("Tasks: {tasks_active}")),
+                div().child(format!("Unread: {unread}")),
+                div().child(format!(
+                    "Connectivity: {:?}",
+                    connectivity_state.unwrap_or(&connectivity::ConnectivityState::Unknown)
+                )),
+                div().child(format!("Session: {session_label}")),
+                div().child(format!("Notifications: {active_backend}")),
+                div().child(format!("Degraded: {degraded}")),
+                div().child(format!("LastError: {latest_error}")),
+            ];
+            if let Some(label) = updater_label {
+                children.push(div().child(label));
+            }
+            div().flex().gap_4().items_center().children(children)
+        })
+}
+
+fn truncate_error(s: &str, max_len: usize) -> &str {
+    if s.len() <= max_len {
+        s
+    } else {
+        match s.char_indices().nth(max_len) {
+            Some((idx, _)) => &s[..idx],
+            None => s,
+        }
+    }
 }
