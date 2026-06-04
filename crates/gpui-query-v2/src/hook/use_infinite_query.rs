@@ -190,7 +190,7 @@ where
                      Entity may have been dropped unexpectedly. \
                      Falling back to a no-op subscription."
                 );
-                return (entity, Subscription::default());
+                return (entity, Subscription::new(|| {}));
             }
         }
     };

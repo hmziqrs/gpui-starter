@@ -313,7 +313,7 @@ where
                 // Audit fix #5: Warning eprintln removed from release builds.
                 // Return a no-op subscription so the caller can continue.
                 // This prevents a production panic from a GPUI internal issue.
-                return (entity, Subscription::default());
+                return (entity, Subscription::new(|| {}));
             }
         }
     };
