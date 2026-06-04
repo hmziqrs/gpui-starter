@@ -4,6 +4,7 @@
 //! request policies, retry, mutations (with callbacks), infinite queries,
 //! select transforms, and imperative fetch with signal cancellation.
 
+use std::rc::Rc;
 use std::sync::Arc;
 
 use gpui::{prelude::*, *};
@@ -12,6 +13,7 @@ use gpui_component::{
     button::{Button, ButtonVariants as _},
     h_flex, v_flex,
     input::{Input, InputEvent, InputState},
+    VirtualListScrollHandle, v_virtual_list,
 };
 use serde::{Deserialize, Serialize};
 
@@ -74,6 +76,7 @@ pub struct QueryPlaygroundPage {
     imperative_query: Option<(Entity<QueryResource<String, QueryError>>, Subscription)>,
     // UI state
     activity_log: Vec<String>,
+    log_scroll_handle: VirtualListScrollHandle,
     // Shared callback log that survives past method returns (Finding 2)
     _callback_log: Arc<std::sync::Mutex<Vec<String>>>,
 }
@@ -123,6 +126,7 @@ impl QueryPlaygroundPage {
             _select_subs: None,
             imperative_query: None,
             activity_log: Vec::new(),
+            log_scroll_handle: VirtualListScrollHandle::new(),
             _callback_log: callback_log,
         }
     }
@@ -1326,8 +1330,9 @@ impl QueryPlaygroundPage {
     fn render_activity_log(&self, cx: &mut Context<Self>) -> Div {
         let has_logs = !self.activity_log.is_empty();
         let log_count = self.activity_log.len();
+        let scroll_handle = self.log_scroll_handle.clone();
 
-        section_card("Activity Log", "Tracks user actions across all sections.", cx)
+        let card = section_card("Activity Log", "Tracks user actions across all sections.", cx)
             .child(
                 h_flex().justify_between().items_center().px_4().py_1()
                     .child(
@@ -1345,23 +1350,50 @@ impl QueryPlaygroundPage {
                                 }))
                         )
                     })
+            );
+
+        if self.activity_log.is_empty() {
+            card.child(
+                div().px_4().pb_3()
+                    .child(
+                        div().text_sm().text_color(cx.theme().muted_foreground)
+                            .child("No activity yet. Click a button above."),
+                    )
             )
-            .child(
-                v_flex().id("activity-log-scroll").gap_0p5().px_4().pb_3().max_h(px(200.)).overflow_y_scroll()
-                    .when(self.activity_log.is_empty(), |el| {
-                        el.child(
-                            div().text_sm().text_color(cx.theme().muted_foreground)
-                                .child("No activity yet. Click a button above."),
+        } else {
+            // Virtualized list: only renders visible entries (20px each).
+            let item_count = self.activity_log.len();
+            let item_height = px(20.);
+            let item_sizes = Rc::new(vec![size(px(400.), item_height); item_count]);
+
+            card.child(
+                div().px_4().max_h(px(200.))
+                    .child(
+                        v_virtual_list(
+                            cx.entity(),
+                            "activity-log-vlist",
+                            item_sizes,
+                            move |this: &mut Self, visible_range, _window, cx| {
+                                // Render entries in reverse (newest first).
+                                let total = this.activity_log.len();
+                                visible_range.map(|ix| {
+                                    let entry_ix = total - 1 - ix;
+                                    let entry = this.activity_log.get(entry_ix).cloned().unwrap_or_default();
+                                    div()
+                                        .h(px(20.))
+                                        .text_xs()
+                                        .font_family("monospace")
+                                        .text_color(cx.theme().muted_foreground)
+                                        .child(entry)
+                                        .into_any_element()
+                                }).collect()
+                            },
                         )
-                    })
-                    .children(self.activity_log.iter().rev().map(|entry| {
-                        div()
-                            .text_xs()
-                            .font_family("monospace")
-                            .text_color(cx.theme().muted_foreground)
-                            .child(entry.clone())
-                    })),
+                        .track_scroll(&scroll_handle)
+                        .h(px(200.))
+                    )
             )
+        }
     }
 }
 
