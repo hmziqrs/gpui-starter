@@ -6,6 +6,8 @@ mod http_lab;
 mod http_lab_testing;
 mod notifications;
 mod query_devtools;
+mod query_devtools_v2;
+mod query_playground;
 mod settings;
 
 pub use about::AboutPage;
@@ -16,4 +18,6 @@ pub use http_lab::HttpLabPage;
 pub use http_lab_testing::HttpLabTestingPage;
 pub use notifications::NotificationsPage;
 pub use query_devtools::QueryDevToolsPage;
+pub use query_devtools_v2::QueryDevToolsV2Page;
+pub use query_playground::QueryPlaygroundPage;
 pub use settings::SettingsPage;

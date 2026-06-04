@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 /// A query transitions through these states:
 /// `Idle` → `LoadingEmpty` → `Success` / `Failure`
 /// `Success` → `LoadingWithData` → `Success` / `Failure` (refetch)
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum QueryStatus {
     /// No data has been fetched yet. Initial state.
     #[default]

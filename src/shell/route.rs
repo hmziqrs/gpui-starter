@@ -15,6 +15,8 @@ const VALID_HOSTS: &[&str] = &[
     "notifications",
     "diagnostics",
     "query-devtools",
+    "query-playground",
+    "query-devtools-v2",
     "about",
 ];
 
@@ -92,6 +94,8 @@ impl AppRoute {
             Self::Page(Page::Notifications) => "gpui-starter://notifications".to_string(),
             Self::Page(Page::Diagnostics) => "gpui-starter://diagnostics".to_string(),
             Self::Page(Page::QueryDevTools) => "gpui-starter://query-devtools".to_string(),
+            Self::Page(Page::QueryPlayground) => "gpui-starter://query-playground".to_string(),
+            Self::Page(Page::QueryDevToolsV2) => "gpui-starter://query-devtools-v2".to_string(),
             Self::Page(Page::About) => "gpui-starter://about".to_string(),
             Self::SettingsNotifications => "gpui-starter://settings/notifications".to_string(),
         }
@@ -155,6 +159,8 @@ impl AppRoute {
             ("notifications", []) => Ok(Self::Page(Page::Notifications)),
             ("diagnostics", []) => Ok(Self::Page(Page::Diagnostics)),
             ("query-devtools", []) => Ok(Self::Page(Page::QueryDevTools)),
+            ("query-playground", []) => Ok(Self::Page(Page::QueryPlayground)),
+            ("query-devtools-v2", []) => Ok(Self::Page(Page::QueryDevToolsV2)),
             ("about", []) => Ok(Self::Page(Page::About)),
             _ => Err(AppError::InvalidDeepLink {
                 input: input.to_string(),

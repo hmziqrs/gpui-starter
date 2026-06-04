@@ -10,7 +10,7 @@ use crate::sidebar::Page;
 use crate::title_bar::AppTitleBar;
 use crate::views::{
     AboutPage, DiagnosticsPage, FormPage, HomePage, HttpLabPage, HttpLabTestingPage,
-    NotificationsPage, QueryDevToolsPage, SettingsPage,
+    NotificationsPage, QueryDevToolsPage, QueryDevToolsV2Page, QueryPlaygroundPage, SettingsPage,
 };
 use crate::{
     app::ToggleSearch,
@@ -60,6 +60,8 @@ pub struct AppRoot {
     notifications_page: Entity<NotificationsPage>,
     diagnostics_page: Entity<DiagnosticsPage>,
     query_devtools_page: Entity<QueryDevToolsPage>,
+    query_playground_page: Entity<QueryPlaygroundPage>,
+    query_devtools_v2_page: Entity<QueryDevToolsV2Page>,
     about_page: Entity<AboutPage>,
 }
 
@@ -78,6 +80,8 @@ impl AppRoot {
         let notifications_page = cx.new(|cx| NotificationsPage::new(window, cx));
         let diagnostics_page = cx.new(|cx| DiagnosticsPage::new(window, cx));
         let query_devtools_page = cx.new(|cx| QueryDevToolsPage::new(window, cx));
+        let query_playground_page = cx.new(|cx| QueryPlaygroundPage::new(window, cx));
+        let query_devtools_v2_page = cx.new(|cx| QueryDevToolsV2Page::new(window, cx));
         let about_page = cx.new(|_| AboutPage::new());
 
         // Eagerly register QueryClient global so DevTools page can observe it.
@@ -86,6 +90,11 @@ impl AppRoot {
                 gpui_query::CachePolicy::default(),
                 gpui_query::RequestPolicy::default(),
             ));
+        }
+
+        // Register v2 QueryClient global.
+        if !cx.has_global::<gpui_query_v2::client::QueryClient>() {
+            cx.set_global(gpui_query_v2::client::QueryClient::new());
         }
 
         // React to app-wide events coming from launcher/deep links.
@@ -187,6 +196,8 @@ impl AppRoot {
             notifications_page,
             diagnostics_page,
             query_devtools_page,
+            query_playground_page,
+            query_devtools_v2_page,
             about_page,
         }
     }
@@ -201,6 +212,8 @@ impl AppRoot {
             Page::Notifications => self.notifications_page.clone().into(),
             Page::Diagnostics => self.diagnostics_page.clone().into(),
             Page::QueryDevTools => self.query_devtools_page.clone().into(),
+            Page::QueryPlayground => self.query_playground_page.clone().into(),
+            Page::QueryDevToolsV2 => self.query_devtools_v2_page.clone().into(),
             Page::About => self.about_page.clone().into(),
         }
     }

@@ -11,6 +11,8 @@ pub enum Page {
     Notifications,
     Diagnostics,
     QueryDevTools,
+    QueryPlayground,
+    QueryDevToolsV2,
     About,
 }
 
@@ -25,6 +27,8 @@ impl Page {
             Page::Notifications => "Notifications",
             Page::Diagnostics => "Diagnostics",
             Page::QueryDevTools => "Query DevTools",
+            Page::QueryPlayground => "Query Playground",
+            Page::QueryDevToolsV2 => "Query DevTools V2",
             Page::About => "About",
         }
     }
@@ -39,6 +43,8 @@ impl Page {
             Page::Notifications => IconName::Bell,
             Page::Diagnostics => IconName::Info,
             Page::QueryDevTools => IconName::Search,
+            Page::QueryPlayground => IconName::Play,
+            Page::QueryDevToolsV2 => IconName::LayoutDashboard,
             Page::About => IconName::Info,
         }
     }
@@ -53,6 +59,8 @@ impl Page {
             Page::Notifications,
             Page::Diagnostics,
             Page::QueryDevTools,
+            Page::QueryPlayground,
+            Page::QueryDevToolsV2,
             Page::About,
         ]
     }

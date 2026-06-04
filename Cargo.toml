@@ -3,6 +3,7 @@ members = [".", "crates/gpui-query", "crates/gpui-query-v2"]
 
 [workspace.dependencies]
 gpui-query = { path = "crates/gpui-query" }
+gpui-query-v2 = { path = "crates/gpui-query-v2" }
 gpui = { git = "https://github.com/zed-industries/zed" }
 gpui_platform = { git = "https://github.com/zed-industries/zed", features = [
     "font-kit",
@@ -50,6 +51,7 @@ websocket = []
 [dependencies]
 gpui.workspace = true
 gpui-query = { workspace = true, features = ["hook"] }
+gpui-query-v2 = { workspace = true, features = ["hook"] }
 gpui_platform.workspace = true
 gpui-component.workspace = true
 gpui-component-assets.workspace = true
