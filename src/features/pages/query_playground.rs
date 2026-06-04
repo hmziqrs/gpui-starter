@@ -1368,6 +1368,10 @@ impl QueryPlaygroundPage {
 
             card.child(
                 div().px_4().max_h(px(200.))
+                    // Block scroll events from bubbling to the outer page scroll.
+                    .on_scroll_wheel(|_, _, cx| {
+                        cx.stop_propagation();
+                    })
                     .child(
                         v_virtual_list(
                             cx.entity(),
