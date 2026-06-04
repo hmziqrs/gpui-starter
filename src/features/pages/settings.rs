@@ -420,6 +420,31 @@ impl Render for SettingsPage {
                     .rounded(cx.theme().radius)
                     .border_1()
                     .border_color(cx.theme().border)
+                    .child(Label::new("Developer"))
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .justify_between()
+                            .child(Label::new("Show Frame Time"))
+                            .child(
+                                Switch::new("show-frame-time")
+                                    .checked(app_config.show_frame_time)
+                                    .on_click(|checked, _, cx| {
+                                        crate::app_state::update_config(cx, |config| {
+                                            config.show_frame_time = *checked;
+                                        });
+                                    }),
+                            ),
+                    )
+            )
+            .child(
+                v_flex()
+                    .gap_3()
+                    .p_4()
+                    .rounded(cx.theme().radius)
+                    .border_1()
+                    .border_color(cx.theme().border)
                     .child(Label::new("Desktop Actions"))
                     .child(
                         div()

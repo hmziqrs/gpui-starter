@@ -60,6 +60,7 @@ fn test_config_roundtrip() {
         denied_permissions: HashSet::new(),
         update_channel: "stable".to_string(),
         last_update_check: None,
+        show_frame_time: false,
     };
 
     let json = serde_json::to_string(&original).expect("serialize config");
@@ -280,6 +281,8 @@ fn test_update_snapshot_serialization() {
         current_version: "2.0.0".to_string(),
         last_check: Some("2026-06-04T12:00:00Z".to_string()),
         update_channel: "stable".to_string(),
+        check_retry_count: 0,
+        download_retry_count: 0,
     };
 
     insta::assert_yaml_snapshot!("update_snapshot", &snapshot);

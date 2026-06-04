@@ -1,7 +1,15 @@
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
 
-use gpui::{App, BorrowAppContext as _, Global};
+use gpui::{App, BorrowAppContext as _, Global, actions};
 use serde::{Deserialize, Serialize};
+
+// ---------------------------------------------------------------------------
+// Actions
+// ---------------------------------------------------------------------------
+
+actions!(updater, [CheckForUpdates]);
 
 // ---------------------------------------------------------------------------
 // Types
@@ -39,6 +47,8 @@ pub struct UpdateSnapshot {
     pub current_version: String,
     pub last_check: Option<String>,
     pub update_channel: String,
+    pub check_retry_count: u32,
+    pub download_retry_count: u32,
 }
 
 impl Global for UpdateSnapshot {}
@@ -74,6 +84,16 @@ const DEFAULT_MANIFEST_URL: &str = match option_env!("GPUI_UPDATE_MANIFEST_URL")
     Some(url) => url,
     None => "https://releases.example.com/manifest.json",
 };
+
+/// Hardcoded Ed25519 public key for update manifest signature verification.
+/// The corresponding private key is stored in CI secrets (UPDATE_SIGNING_KEY).
+/// Replace this with your actual public key when deploying.
+const UPDATER_PUBLIC_KEY: &[u8; 32] = include_bytes!("updater_public_key.bin");
+
+const MAX_UPDATE_RETRIES: u32 = 3;
+const RETRY_BASE_DELAY_SECS: u64 = 30;
+const STARTUP_CHECK_DELAY_SECS: u64 = 5;
+const PERIODIC_CHECK_INTERVAL_SECS: u64 = 4 * 60 * 60; // 4 hours
 
 fn platform_key() -> String {
     let os = if cfg!(target_os = "macos") {
@@ -122,7 +142,75 @@ pub fn initialize(cx: &mut App) {
         } else {
             channel
         },
+        check_retry_count: 0,
+        download_retry_count: 0,
     });
+
+    // Register the CheckForUpdates action handler.
+    cx.on_action(|_: &CheckForUpdates, cx| {
+        check_for_updates(cx);
+    });
+
+    // Schedule a delayed startup check (5 seconds after launch).
+    let startup_rt = cx
+        .global::<crate::services::tokio_runtime::TokioRuntimeGlobal>()
+        .0
+        .runtime
+        .clone();
+    cx.spawn(async move |cx| {
+        startup_rt
+            .spawn(tokio::time::sleep(std::time::Duration::from_secs(
+                STARTUP_CHECK_DELAY_SECS,
+            )))
+            .await
+            .ok();
+        cx.update(|cx| {
+            tracing::info!(
+                target: "gpui_starter::updater",
+                "running startup update check"
+            );
+            check_for_updates(cx);
+        });
+    })
+    .detach();
+
+    // Schedule periodic re-check every 4 hours.
+    let periodic_rt = cx
+        .global::<crate::services::tokio_runtime::TokioRuntimeGlobal>()
+        .0
+        .runtime
+        .clone();
+    cx.spawn(async move |cx| {
+        loop {
+            periodic_rt
+                .spawn(tokio::time::sleep(std::time::Duration::from_secs(
+                    PERIODIC_CHECK_INTERVAL_SECS,
+                )))
+                .await
+                .ok();
+
+            let should_check: bool = cx.update(|cx| {
+                let snap = snapshot(cx);
+                matches!(
+                    snap.status,
+                    UpdateStatus::Idle
+                        | UpdateStatus::UpToDate
+                        | UpdateStatus::Error(_)
+                )
+            });
+            if should_check {
+                cx.update(|cx| {
+                    tracing::info!(
+                        target: "gpui_starter::updater",
+                        "running periodic update check"
+                    );
+                    check_for_updates(cx);
+                });
+            }
+        }
+    })
+    .detach();
+
     tracing::info!(
         target: "gpui_starter::updater",
         version = %env!("CARGO_PKG_VERSION"),
@@ -167,10 +255,7 @@ pub fn check_for_updates(cx: &mut App) {
             connectivity = ?connectivity.state,
             "skipping update check — not online"
         );
-        set_status(UpdateStatus::Error(format!(
-            "no network connectivity ({:?})",
-            connectivity.state
-        )), cx);
+        handle_check_failure("no network connectivity".to_string(), cx);
         return;
     }
 
@@ -239,15 +324,17 @@ pub fn check_for_updates(cx: &mut App) {
                 ) {
                     (Ok(manifest_ver), Ok(cur_ver)) => {
                         if manifest_ver > cur_ver {
-                            set_status(
-                                UpdateStatus::Available {
-                                    version: manifest.version,
-                                    notes: manifest.release_notes,
-                                },
-                                cx,
-                            );
+                            // Reset retry count on successful check.
+                            reset_check_retry(cx);
+                            let status = UpdateStatus::Available {
+                                version: manifest.version.clone(),
+                                notes: manifest.release_notes.clone(),
+                            };
+                            set_status(status, cx);
+                            notify_update_available(&manifest.version, cx);
                         } else {
                             // Equal or older manifest version — we are up to date (or ahead).
+                            reset_check_retry(cx);
                             set_status(UpdateStatus::UpToDate, cx);
                         }
                     }
@@ -270,7 +357,7 @@ pub fn check_for_updates(cx: &mut App) {
                     error = %err,
                     "update check failed"
                 );
-                set_status(UpdateStatus::Error(err), cx);
+                handle_check_failure(err, cx);
             }
         });
     })
@@ -322,7 +409,7 @@ pub fn download_update(cx: &mut App) {
                     error = %err,
                     "failed to resolve platform asset for download"
                 );
-                cx.update(|cx| set_status(UpdateStatus::Error(err), cx));
+                cx.update(|cx| handle_download_failure(err, cx));
                 return;
             }
         };
@@ -332,7 +419,7 @@ pub fn download_update(cx: &mut App) {
         if let Err(err) = std::fs::create_dir_all(&tmp_dir) {
             let msg = format!("failed to create temp dir: {err}");
             tracing::error!(target: "gpui_starter::updater", error = %msg);
-            cx.update(|cx| set_status(UpdateStatus::Error(msg), cx));
+            cx.update(|cx| handle_download_failure(msg, cx));
             return;
         };
 
@@ -343,6 +430,7 @@ pub fn download_update(cx: &mut App) {
             .unwrap_or("update.bin")
             .to_string();
         let dest_path = tmp_dir.join(&file_name);
+        let signature = asset.signature.clone();
 
         tracing::info!(
             target: "gpui_starter::updater",
@@ -366,13 +454,13 @@ pub fn download_update(cx: &mut App) {
             Ok(Err(e)) => {
                 let msg = format!("download request failed: {e}");
                 tracing::error!(target: "gpui_starter::updater", error = %msg);
-                cx.update(|cx| set_status(UpdateStatus::Error(msg), cx));
+                cx.update(|cx| handle_download_failure(msg, cx));
                 return;
             }
             Err(e) => {
                 let msg = format!("download request panicked: {e}");
                 tracing::error!(target: "gpui_starter::updater", error = %msg);
-                cx.update(|cx| set_status(UpdateStatus::Error(msg), cx));
+                cx.update(|cx| handle_download_failure(msg, cx));
                 return;
             }
         };
@@ -380,7 +468,7 @@ pub fn download_update(cx: &mut App) {
         if !response.status().is_success() {
             let msg = format!("download returned status {}", response.status());
             tracing::error!(target: "gpui_starter::updater", error = %msg);
-            cx.update(|cx| set_status(UpdateStatus::Error(msg), cx));
+            cx.update(|cx| handle_download_failure(msg, cx));
             return;
         }
 
@@ -396,13 +484,13 @@ pub fn download_update(cx: &mut App) {
             Err(err) => {
                 let msg = format!("failed to create download file: {err}");
                 tracing::error!(target: "gpui_starter::updater", error = %msg);
-                cx.update(|cx| set_status(UpdateStatus::Error(msg), cx));
+                cx.update(|cx| handle_download_failure(msg, cx));
                 return;
             }
         };
 
         // Shared progress value updated by the download task.
-        let progress = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+        let progress = Arc::new(AtomicU32::new(0));
 
         let total_for_task = total;
         let progress_clone = progress.clone();
@@ -429,7 +517,7 @@ pub fn download_update(cx: &mut App) {
                             let pct = (downloaded as f32 / total_for_task as f32 * 100.0) as u32;
                             if pct / 10 > last_reported / 10 {
                                 last_reported = pct;
-                                progress_clone.store(pct, std::sync::atomic::Ordering::Relaxed);
+                                progress_clone.store(pct, Ordering::Relaxed);
                             }
                         }
                     }
@@ -452,7 +540,7 @@ pub fn download_update(cx: &mut App) {
         // We use a loop with short tokio sleeps to periodically check.
         let mut last_progress: u32 = 0;
         loop {
-            let cur = progress.load(std::sync::atomic::Ordering::Relaxed);
+            let cur = progress.load(Ordering::Relaxed);
             if cur != last_progress {
                 last_progress = cur;
                 let _ = cx.update(|cx| {
@@ -472,7 +560,7 @@ pub fn download_update(cx: &mut App) {
         }
 
         // Read final progress.
-        let cur = progress.load(std::sync::atomic::Ordering::Relaxed);
+        let cur = progress.load(Ordering::Relaxed);
         if cur != last_progress {
             let _ = cx.update(|cx| {
                 set_status(UpdateStatus::Downloading { progress: cur }, cx);
@@ -483,13 +571,13 @@ pub fn download_update(cx: &mut App) {
             Ok(Ok(bytes)) => bytes,
             Ok(Err(err)) => {
                 tracing::error!(target: "gpui_starter::updater", error = %err, "download failed");
-                cx.update(|cx| set_status(UpdateStatus::Error(err), cx));
+                cx.update(|cx| handle_download_failure(err, cx));
                 return;
             }
             Err(e) => {
                 let msg = format!("download task panicked: {e}");
                 tracing::error!(target: "gpui_starter::updater", error = %msg);
-                cx.update(|cx| set_status(UpdateStatus::Error(msg), cx));
+                cx.update(|cx| handle_download_failure(msg, cx));
                 return;
             }
         };
@@ -505,7 +593,37 @@ pub fn download_update(cx: &mut App) {
             "download complete"
         );
 
-        // Step 3: Verify codesign on macOS.
+        // Step 3: Verify Ed25519 signature (if present in manifest).
+        if !signature.is_empty() {
+            match verify_ed25519_signature(&dest_path, &signature) {
+                Ok(()) => {
+                    tracing::info!(
+                        target: "gpui_starter::updater",
+                        path = %path_str,
+                        "Ed25519 signature verification passed"
+                    );
+                }
+                Err(err) => {
+                    tracing::error!(
+                        target: "gpui_starter::updater",
+                        path = %path_str,
+                        error = %err,
+                        "Ed25519 signature verification failed — deleting download"
+                    );
+                    let _ = std::fs::remove_file(&dest_path);
+                    cx.update(|cx| set_status(UpdateStatus::Error(err), cx));
+                    return;
+                }
+            }
+        } else {
+            tracing::warn!(
+                target: "gpui_starter::updater",
+                path = %path_str,
+                "no signature in manifest — skipping Ed25519 verification (backward compat)"
+            );
+        }
+
+        // Step 4: Verify codesign on macOS.
         #[cfg(target_os = "macos")]
         {
             match verify_codesign(&dest_path) {
@@ -529,14 +647,15 @@ pub fn download_update(cx: &mut App) {
             }
         }
 
+        // Reset download retry count on success.
         cx.update(|cx| {
-            set_status(
-                UpdateStatus::Downloaded {
-                    version: version.clone(),
-                    path: path_str,
-                },
-                cx,
-            );
+            reset_download_retry(cx);
+            let status = UpdateStatus::Downloaded {
+                version: version.clone(),
+                path: path_str,
+            };
+            set_status(status, cx);
+            notify_update_downloaded(&version, cx);
         });
         }
     })
@@ -773,7 +892,7 @@ pub fn set_channel(channel: &str, cx: &mut App) {
 }
 
 // ---------------------------------------------------------------------------
-// Internal helpers
+// Internal helpers — status management
 // ---------------------------------------------------------------------------
 
 fn set_status(status: UpdateStatus, cx: &mut App) {
@@ -787,8 +906,266 @@ fn set_status(status: UpdateStatus, cx: &mut App) {
     });
 }
 
+// ---------------------------------------------------------------------------
+// Internal helpers — retry/backoff
+// ---------------------------------------------------------------------------
+
+/// Handle a failed check with retry/backoff logic.
+fn handle_check_failure(error: String, cx: &mut App) {
+    let retry_count = cx
+        .global::<UpdateSnapshot>()
+        .check_retry_count;
+    if retry_count < MAX_UPDATE_RETRIES {
+        let new_count = retry_count + 1;
+        let delay_secs = RETRY_BASE_DELAY_SECS * 2u64.pow(new_count - 1);
+        tracing::warn!(
+            target: "gpui_starter::updater",
+            error = %error,
+            retry = new_count,
+            max = MAX_UPDATE_RETRIES,
+            delay_secs,
+            "update check failed — scheduling retry"
+        );
+        cx.update_global::<UpdateSnapshot, _>(|snap, _cx| {
+            snap.check_retry_count = new_count;
+        });
+        set_status(UpdateStatus::Error(error), cx);
+
+        // Schedule a retry.
+        let rt = cx
+            .global::<crate::services::tokio_runtime::TokioRuntimeGlobal>()
+            .0
+            .runtime
+            .clone();
+        cx.spawn(async move |cx| {
+            rt.spawn(tokio::time::sleep(std::time::Duration::from_secs(delay_secs)))
+                .await
+                .ok();
+            cx.update(|cx| {
+                tracing::info!(
+                    target: "gpui_starter::updater",
+                    retry = new_count,
+                    "retrying update check"
+                );
+                check_for_updates(cx);
+            });
+        })
+        .detach();
+    } else {
+        tracing::error!(
+            target: "gpui_starter::updater",
+            error = %error,
+            retries = retry_count,
+            "update check failed — retries exhausted, setting permanent error"
+        );
+        set_status(UpdateStatus::Error(error), cx);
+        // Notify the user about permanent failure.
+        notify_update_error(cx);
+    }
+}
+
+/// Handle a failed download with retry/backoff logic.
+fn handle_download_failure(error: String, cx: &mut App) {
+    let retry_count = cx
+        .global::<UpdateSnapshot>()
+        .download_retry_count;
+    if retry_count < MAX_UPDATE_RETRIES {
+        let new_count = retry_count + 1;
+        let delay_secs = RETRY_BASE_DELAY_SECS * 2u64.pow(new_count - 1);
+        tracing::warn!(
+            target: "gpui_starter::updater",
+            error = %error,
+            retry = new_count,
+            max = MAX_UPDATE_RETRIES,
+            delay_secs,
+            "download failed — scheduling retry"
+        );
+        cx.update_global::<UpdateSnapshot, _>(|snap, _cx| {
+            snap.download_retry_count = new_count;
+            // Revert status back to Available so we can re-attempt.
+            snap.status = UpdateStatus::Available {
+                version: String::new(),
+                notes: String::new(),
+            };
+        });
+
+        // Schedule a download retry.
+        let rt = cx
+            .global::<crate::services::tokio_runtime::TokioRuntimeGlobal>()
+            .0
+            .runtime
+            .clone();
+        cx.spawn(async move |cx| {
+            rt.spawn(tokio::time::sleep(std::time::Duration::from_secs(delay_secs)))
+                .await
+                .ok();
+            cx.update(|cx| {
+                tracing::info!(
+                    target: "gpui_starter::updater",
+                    retry = new_count,
+                    "retrying update download"
+                );
+                download_update(cx);
+            });
+        })
+        .detach();
+    } else {
+        tracing::error!(
+            target: "gpui_starter::updater",
+            error = %error,
+            retries = retry_count,
+            "download failed — retries exhausted"
+        );
+        set_status(UpdateStatus::Error(error), cx);
+        notify_update_error(cx);
+    }
+}
+
+fn reset_check_retry(cx: &mut App) {
+    cx.update_global::<UpdateSnapshot, _>(|snap, _cx| {
+        snap.check_retry_count = 0;
+    });
+}
+
+fn reset_download_retry(cx: &mut App) {
+    cx.update_global::<UpdateSnapshot, _>(|snap, _cx| {
+        snap.download_retry_count = 0;
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Internal helpers — notifications
+// ---------------------------------------------------------------------------
+
+/// Dispatch a native notification for "update available".
+fn notify_update_available(version: &str, cx: &mut App) {
+    dispatch_background_notification(
+        &format!("Update v{version} available"),
+        "A new version is available. Open settings to download and install.",
+        cx,
+    );
+}
+
+/// Dispatch a native notification for "update downloaded".
+fn notify_update_downloaded(version: &str, cx: &mut App) {
+    dispatch_background_notification(
+        &format!("Update v{version} ready"),
+        "Update downloaded — restart to apply.",
+        cx,
+    );
+}
+
+/// Dispatch a native notification for permanent update errors (retries exhausted).
+fn notify_update_error(cx: &mut App) {
+    dispatch_background_notification(
+        "Update check failed",
+        "Could not check or download updates. Please try again later.",
+        cx,
+    );
+}
+
+/// Send a notification via the notification service without requiring a window handle.
+fn dispatch_background_notification(title: &str, body: &str, cx: &mut App) {
+    // Record in the notification inbox.
+    crate::notifications::inbox::record_attempt(
+        crate::notifications::inbox::NotificationAttemptRecord {
+            title: title.to_string(),
+            body: body.to_string(),
+            backend: crate::notifications::NotificationBackendKind::UiOnly,
+            delivered_natively: false,
+            degraded: false,
+            error_summary: None,
+            kind: crate::notifications::inbox::NotificationInboxKind::SettingsUpdate,
+        },
+        cx,
+    );
+
+    // Also attempt a native notification via the service if available.
+    let state = match cx.try_global::<crate::notifications::NativeNotificationState>() {
+        Some(s) => s.clone(),
+        None => return,
+    };
+    let enabled_by_user = state.snapshot.enabled_by_user
+        && state.snapshot.permission
+            != crate::notifications::NotificationPermissionState::Denied;
+    if !enabled_by_user {
+        return;
+    }
+
+    let request = crate::notifications::NotificationRequest::background_worthy(title, body);
+    let service = state.service.clone();
+
+    cx.spawn(async move |cx| {
+        let result = service.send(request, enabled_by_user).await;
+        tracing::info!(
+            target: "gpui_starter::updater",
+            backend = %result.backend_used,
+            delivered = result.delivered_natively,
+            "update notification send completed"
+        );
+        cx.update(|cx| {
+            crate::notifications::apply_send_result_static(&result, cx);
+        });
+    })
+    .detach();
+}
+
+// ---------------------------------------------------------------------------
+// Internal helpers — crypto
+// ---------------------------------------------------------------------------
+
+/// Verify the Ed25519 signature of the downloaded file.
+///
+/// The signature covers the SHA-256 hash of the file contents.
+/// The signature is base64-encoded in the manifest.
+fn verify_ed25519_signature(file_path: &std::path::Path, signature_b64: &str) -> Result<(), String> {
+    use base64::Engine as _;
+    use ed25519_dalek::{Signature, Verifier as _, VerifyingKey};
+    use sha2::{Digest, Sha256};
+
+    // Decode the base64 signature.
+    let sig_bytes = base64::engine::general_purpose::STANDARD
+        .decode(signature_b64)
+        .map_err(|e| format!("failed to decode base64 signature: {e}"))?;
+
+    if sig_bytes.len() != 64 {
+        return Err(format!(
+            "invalid signature length: expected 64 bytes, got {}",
+            sig_bytes.len()
+        ));
+    }
+
+    let sig_len = sig_bytes.len();
+    let sig_array: [u8; 64] = sig_bytes
+        .try_into()
+        .map_err(|_| format!("invalid signature length: expected 64 bytes, got {sig_len}"))?;
+    let signature = Signature::from_bytes(&sig_array);
+
+    // Build the verifying key from the hardcoded public key.
+    let pubkey_bytes: [u8; 32] = *UPDATER_PUBLIC_KEY;
+    let verifying_key = VerifyingKey::from_bytes(&pubkey_bytes)
+        .map_err(|e| format!("invalid updater public key: {e}"))?;
+
+    // Read the file and compute SHA-256.
+    let file_data = std::fs::read(file_path)
+        .map_err(|e| format!("failed to read downloaded file for signature check: {e}"))?;
+
+    let hash = Sha256::digest(&file_data);
+
+    // Verify the signature against the hash.
+    verifying_key
+        .verify(&hash, &signature)
+        .map_err(|e| format!("Ed25519 signature verification failed: {e}"))?;
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Internal helpers — networking
+// ---------------------------------------------------------------------------
+
 async fn fetch_platform_asset(
-    rt: std::sync::Arc<tokio::runtime::Runtime>,
+    rt: Arc<tokio::runtime::Runtime>,
     client: reqwest::Client,
 ) -> Result<PlatformAsset, String> {
     let response = rt

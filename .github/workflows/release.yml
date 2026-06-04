@@ -193,6 +193,7 @@ jobs:
       - name: Generate and publish update manifest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
         run: |
           GITHUB_REPO="${{ github.repository }}"
 

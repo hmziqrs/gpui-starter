@@ -270,7 +270,7 @@ impl NotificationService {
         }
     }
 
-    async fn send(
+    pub async fn send(
         &self,
         request: NotificationRequest,
         enabled_by_user: bool,
@@ -579,6 +579,10 @@ pub fn open_system_settings(cx: &mut App) {
                 Some("system notification settings are not supported on this platform".into());
         });
     }
+}
+
+pub fn apply_send_result_static(result: &NotificationSendResult, cx: &mut App) {
+    apply_send_result(result, cx)
 }
 
 fn apply_send_result(result: &NotificationSendResult, cx: &mut App) {

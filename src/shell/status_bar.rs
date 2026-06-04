@@ -60,6 +60,9 @@ pub fn render(route: &AppRoute, cx: &App) -> impl gpui::IntoElement {
         None => "Unknown".to_string(),
     };
 
+    // Dev-only frame-time readout.
+    let frame_time_el = render_frame_time(cx);
+
     tracing::debug!(
         target: "gpui_starter::status_bar::render",
         route = %route.title(),
@@ -96,7 +99,12 @@ pub fn render(route: &AppRoute, cx: &App) -> impl gpui::IntoElement {
             if let Some(label) = updater_label {
                 children.push(div().child(label));
             }
-            div().flex().gap_4().items_center().children(children)
+            div()
+                .flex()
+                .gap_4()
+                .items_center()
+                .children(frame_time_el)
+                .children(children)
         })
 }
 
@@ -109,4 +117,46 @@ fn truncate_error(s: &str, max_len: usize) -> &str {
             None => s,
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Dev-only frame-time readout
+// ---------------------------------------------------------------------------
+
+/// Renders a small frame-time label in the status bar. Only compiled into debug
+/// builds. Further gated by the `show_frame_time` setting so devs can toggle it
+/// at runtime from the Settings page.
+#[cfg(debug_assertions)]
+fn render_frame_time(cx: &App) -> Option<gpui::Div> {
+    let config = crate::app_state::config(cx);
+    if !config.show_frame_time {
+        return None;
+    }
+
+    let us = crate::root::last_frame_time_us();
+    let threshold = crate::root::slow_frame_threshold_us();
+
+    // Format as milliseconds (e.g. "Frame: 2.13ms").
+    let ms = us as f64 / 1000.0;
+    let label = format!("Frame: {ms:.2}ms");
+
+    // Colour-code: green < 50% threshold, yellow < threshold, red >= threshold.
+    let color = if us < threshold / 2 {
+        gpui::rgb(0x22c55e) // green
+    } else if us < threshold {
+        gpui::rgb(0xeab308) // yellow
+    } else {
+        gpui::rgb(0xef4444) // red
+    };
+
+    Some(
+        div()
+            .text_color(color)
+            .child(label),
+    )
+}
+
+#[cfg(not(debug_assertions))]
+fn render_frame_time(_cx: &App) -> Option<gpui::Div> {
+    None
 }

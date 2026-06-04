@@ -66,6 +66,10 @@ pub struct AppConfig {
     pub update_channel: String,
     #[serde(default)]
     pub last_update_check: Option<String>,
+    /// Show the dev-only frame-time readout in the status bar.
+    /// Defaults to `true` in debug builds, `false` in release builds.
+    #[serde(default = "default_show_frame_time")]
+    pub show_frame_time: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -94,6 +98,7 @@ impl Default for AppConfig {
             denied_permissions: HashSet::new(),
             update_channel: default_stable(),
             last_update_check: None,
+            show_frame_time: default_show_frame_time(),
         }
     }
 }
@@ -116,6 +121,11 @@ fn default_true() -> bool {
 
 fn default_stable() -> String {
     "stable".to_string()
+}
+
+/// Default for `show_frame_time`: enabled in debug builds, disabled in release.
+fn default_show_frame_time() -> bool {
+    cfg!(debug_assertions)
 }
 
 pub fn initialize(cx: &mut App) {

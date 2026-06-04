@@ -30,7 +30,7 @@ pub use runtime::{capabilities, events};
 pub use services::{
     accessibility, commands, connectivity, crash_report, desktop_actions, error_surface,
     first_run, http_lab, i18n, logging, notifications, secure_storage, session, storage, tasks,
-    telemetry, undo_stack,
+    telemetry, undo_stack, updater,
 };
 pub use shell::route as routes;
 pub use shell::{app_menu, menus, root, sidebar, status_bar, title_bar};
