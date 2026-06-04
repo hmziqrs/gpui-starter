@@ -72,10 +72,15 @@ pub fn snapshot(cx: &App) -> Vec<BackgroundTask> {
 }
 
 pub fn active_count(cx: &App) -> usize {
-    snapshot(cx)
-        .iter()
-        .filter(|task| matches!(task.status, TaskStatus::Queued | TaskStatus::Running))
-        .count()
+    cx.try_global::<TaskRegistry>()
+        .map(|state| {
+            state
+                .tasks
+                .iter()
+                .filter(|task| matches!(task.status, TaskStatus::Queued | TaskStatus::Running))
+                .count()
+        })
+        .unwrap_or(0)
 }
 
 pub fn start_demo_task(cx: &mut App) {

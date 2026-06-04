@@ -103,21 +103,35 @@ impl ReconnectPolicy {
 #[cfg(feature = "websocket")]
 mod live {
     use super::*;
+    use futures_util::stream::SplitSink;
     use std::sync::Arc;
     use tokio::sync::Mutex;
     use tokio_tungstenite::{connect_async, tungstenite::protocol::CloseFrame};
 
-    /// Shared inner state behind an async mutex so `cx.spawn` tasks can
-    /// coordinate safely.
-    type InnerSink = Arc<
-        Mutex<
-            Option<
-                tokio_tungstenite::WebSocketStream<
-                    tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
-                >,
-            >,
-        >,
+    /// The underlying TCP+TLS stream type used by `tokio-tungstenite`.
+    type WsStream = tokio_tungstenite::WebSocketStream<
+        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
     >;
+
+    /// Write half produced by `WebSocketStream::split()`.
+    ///
+    /// Stored inside an `Arc<Mutex<Option<...>>>` so that [`WebSocketClient::send`]
+    /// and [`WebSocketClient::close`] can access it from any async task.
+    type WriteHalf = SplitSink<WsStream, Message>;
+
+    /// Shared inner state behind a `tokio::sync::Mutex`.
+    ///
+    /// The mutex guards the write half of the active WebSocket connection.
+    /// It is `None` when disconnected and `Some(write_half)` when connected.
+    type InnerSink = Arc<Mutex<Option<WriteHalf>>>;
+
+    /// Small buffer for messages submitted via [`WebSocketClient::send`]
+    /// while the connection is temporarily down. These are flushed into the
+    /// write half as soon as the next connection is established.
+    ///
+    /// The buffer is bounded to [`MAX_PENDING_MESSAGES`] to avoid unbounded
+    /// memory growth if the connection stays down for a long time.
+    const MAX_PENDING_MESSAGES: usize = 64;
 
     /// Minimal WebSocket client with automatic reconnection.
     ///
@@ -134,12 +148,22 @@ mod live {
     ///         .ok();
     /// }).detach();
     /// ```
+    ///
+    /// # Send / reconnect flow
+    ///
+    /// Messages sent while the socket is reconnecting are buffered in
+    /// `pending` (up to [`MAX_PENDING_MESSAGES`]). When a new connection is
+    /// established, the buffer is drained into the fresh write half before
+    /// the read loop begins.
     pub struct WebSocketClient {
         pub url: String,
         pub state: ConnectionState,
         pub reconnect: ReconnectPolicy,
         pub on_message: Option<MessageHandler>,
+        /// Write half of the active WebSocket, or `None` when disconnected.
         inner: InnerSink,
+        /// Outbound messages queued while the connection is down.
+        pending: Arc<Mutex<Vec<String>>>,
     }
 
     impl WebSocketClient {
@@ -151,6 +175,7 @@ mod live {
                 reconnect: ReconnectPolicy::default(),
                 on_message: None,
                 inner: Arc::new(Mutex::new(None)),
+                pending: Arc::new(Mutex::new(Vec::new())),
             }
         }
 
@@ -166,10 +191,61 @@ mod live {
             self
         }
 
+        /// Drain the pending buffer into the write half of the socket.
+        ///
+        /// Called immediately after a new connection is established so that
+        /// messages queued during reconnection are delivered promptly.
+        async fn flush_pending(&self, sink: &mut WriteHalf) {
+            let messages = {
+                let mut buf = self.pending.lock().await;
+                std::mem::take(&mut *buf)
+            };
+
+            if messages.is_empty() {
+                return;
+            }
+
+            tracing::debug!(
+                target: "gpui_starter::websocket",
+                count = messages.len(),
+                "flushing pending messages"
+            );
+
+            for msg in &messages {
+                if sink
+                    .send(Message::Text(msg.clone()))
+                    .await
+                    .inspect_err(|e| {
+                        tracing::warn!(
+                            target: "gpui_starter::websocket",
+                            error = %e,
+                            "failed to send pending message"
+                        );
+                    })
+                    .is_err()
+                {
+                    // Put remaining messages back into the buffer so they can
+                    // be retried on the next connection attempt.
+                    let idx = messages.iter().position(|m| m == msg).unwrap_or(0);
+                    let remaining: Vec<String> = messages.into_iter().skip(idx).collect();
+                    if !remaining.is_empty() {
+                        let mut buf = self.pending.lock().await;
+                        buf.splice(0..0, remaining);
+                    }
+                    return;
+                }
+            }
+        }
+
         /// Connect to the WebSocket server with exponential-backoff retries.
         ///
         /// This is a self-contained async loop suitable for spawning via
         /// `cx.background_executor().spawn(...)` inside a `cx.spawn` block.
+        ///
+        /// After each successful connection the write half is stored in
+        /// `self.inner` so that [`send`](Self::send) can route messages
+        /// through it. Any messages buffered during a previous disconnection
+        /// are flushed before the read loop begins.
         pub async fn connect_loop(&mut self) -> Result<(), WebSocketError> {
             let mut attempt: u8 = 0;
 
@@ -190,15 +266,28 @@ mod live {
                         self.state = ConnectionState::Connected;
                         attempt = 0;
 
-                        let (_write, mut read) = ws_stream.split();
+                        // Split into write and read halves.
+                        let (write, mut read) = ws_stream.split();
+
+                        // Store the write half so `send()` can use it.
                         {
                             let mut guard = self.inner.lock().await;
-                            // TODO(github): store `write` half in inner for `send()`.
-                            *guard = None;
+                            *guard = Some(write);
+                        }
+
+                        // Flush any messages that were queued while we were
+                        // disconnected.
+                        {
+                            let mut guard = self.inner.lock().await;
+                            if let Some(ref mut sink) = *guard {
+                                self.flush_pending(sink).await;
+                            }
                         }
 
                         // Read messages until the stream closes or errors.
-                        while let Some(msg) = tokio_stream::StreamExt::next(&mut read).await {
+                        while let Some(msg) =
+                            tokio_stream::StreamExt::next(&mut read).await
+                        {
                             match msg {
                                 Ok(Message::Text(text)) => {
                                     if let Some(ref handler) = self.on_message {
@@ -269,24 +358,59 @@ mod live {
 
         /// Send a text message over the active connection.
         ///
-        /// Returns an error if the socket is not currently connected.
+        /// If the socket is currently disconnected the message is buffered
+        /// (up to [`MAX_PENDING_MESSAGES`]) and will be flushed automatically
+        /// once the next connection is established.
+        ///
+        /// Returns [`WebSocketError::NotConnected`] only when the buffer is
+        /// full and the message would be dropped.
         pub async fn send(&self, message: &str) -> Result<(), WebSocketError> {
             let mut guard = self.inner.lock().await;
             match guard.as_mut() {
-                Some(ws) => ws
+                Some(sink) => sink
                     .send(Message::Text(message.into()))
                     .await
                     .map_err(WebSocketError::Send),
-                None => Err(WebSocketError::NotConnected),
+                None => {
+                    // Not connected — buffer for later delivery.
+                    drop(guard);
+                    let mut buf = self.pending.lock().await;
+                    if buf.len() >= MAX_PENDING_MESSAGES {
+                        tracing::warn!(
+                            target: "gpui_starter::websocket",
+                            limit = MAX_PENDING_MESSAGES,
+                            "pending buffer full, dropping message"
+                        );
+                        Err(WebSocketError::NotConnected)
+                    } else {
+                        buf.push(message.to_owned());
+                        Ok(())
+                    }
+                }
             }
         }
 
         /// Gracefully close the WebSocket connection.
+        ///
+        /// Takes the write half out of the mutex (setting it to `None`) and
+        /// sends a close frame. Also clears the pending buffer since no more
+        /// messages will be delivered.
         pub async fn close(&mut self) -> Result<(), WebSocketError> {
-            let mut guard = self.inner.lock().await;
-            if let Some(ws) = guard.take() {
-                ws.close(None).await.map_err(WebSocketError::Close)?;
+            let sink = {
+                let mut guard = self.inner.lock().await;
+                guard.take()
+            };
+
+            if let Some(mut sink) = sink {
+                sink.close().await.map_err(WebSocketError::Close)?;
             }
+
+            // Clear any buffered messages — they will never be sent.
+            {
+                let mut buf = self.pending.lock().await;
+                buf.clear();
+            }
+
             self.state = ConnectionState::Closed;
             Ok(())
         }

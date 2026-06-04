@@ -2,6 +2,7 @@ use std::{path::PathBuf, sync::Arc};
 
 use gpui::{App, BorrowAppContext as _, Global};
 use rusqlite::Connection;
+use std::sync::Mutex;
 
 #[derive(Clone, Debug, Default)]
 pub struct StorageSnapshot {
@@ -30,31 +31,52 @@ pub trait StorageBackend: Send + Sync {
     ) -> rusqlite::Result<Vec<crate::error_surface::ErrorRecord>>;
 }
 
+/// SQLite-backed storage that holds a single shared connection rather than
+/// opening a new one on every operation. The connection is wrapped in
+/// `Arc<Mutex<Connection>>` because `rusqlite::Connection` is `Send` but not
+/// `Sync`, so every call serialises behind the mutex automatically.
 #[derive(Clone, Debug)]
 pub(crate) struct SqliteStorage {
-    path: PathBuf,
+    conn: Arc<Mutex<Connection>>,
 }
 
 impl SqliteStorage {
+    /// Open (or create) the database at `path` and return a storage handle
+    /// that reuses the same connection for all future operations.
+    ///
+    /// # Errors
+    ///
+    /// Returns `rusqlite::Error` if the database file cannot be opened.
     pub(crate) fn new(path: PathBuf) -> Self {
-        Self { path }
+        let conn = Connection::open(&path).expect("failed to open sqlite connection");
+        Self {
+            conn: Arc::new(Mutex::new(conn)),
+        }
     }
 
     /// Constructor for unit tests that need a `SqliteStorage` pointing at an
     /// arbitrary path (bypasses the normal app-state path resolution).
     #[cfg(test)]
     pub fn new_for_test(path: PathBuf) -> Self {
-        Self { path }
+        let conn = Connection::open(&path).expect("failed to open sqlite connection for test");
+        Self {
+            conn: Arc::new(Mutex::new(conn)),
+        }
     }
 
-    fn open(&self) -> rusqlite::Result<Connection> {
-        Connection::open(&self.path)
+    /// Acquire the shared connection lock.
+    ///
+    /// Callers should hold the lock only for the minimum time needed for
+    /// their query and drop it immediately afterwards so other tasks are
+    /// not blocked.
+    fn conn(&self) -> std::sync::MutexGuard<'_, Connection> {
+        self.conn.lock().expect("storage connection mutex poisoned")
     }
 }
 
 impl StorageBackend for SqliteStorage {
     fn schema_version(&self) -> rusqlite::Result<i64> {
-        let conn = self.open()?;
+        let conn = self.conn();
         conn.query_row(
             "SELECT COALESCE(MAX(version), 0) FROM schema_migrations",
             [],
@@ -63,13 +85,13 @@ impl StorageBackend for SqliteStorage {
     }
 
     fn health_check(&self) -> rusqlite::Result<()> {
-        let conn = self.open()?;
+        let conn = self.conn();
         let _: i64 = conn.query_row("SELECT 1", [], |row| row.get(0))?;
         Ok(())
     }
 
     fn maintenance(&self) -> rusqlite::Result<()> {
-        let conn = self.open()?;
+        let conn = self.conn();
         conn.execute_batch("PRAGMA optimize;")
     }
 
@@ -77,7 +99,7 @@ impl StorageBackend for SqliteStorage {
         &self,
         error: &crate::error_surface::ErrorRecord,
     ) -> rusqlite::Result<()> {
-        let conn = self.open()?;
+        let conn = self.conn();
         let actions_json = serde_json::to_string(&error.actions)
             .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
         conn.execute(
@@ -101,7 +123,7 @@ impl StorageBackend for SqliteStorage {
         &self,
         limit: usize,
     ) -> rusqlite::Result<Vec<crate::error_surface::ErrorRecord>> {
-        let conn = self.open()?;
+        let conn = self.conn();
         let mut stmt = conn.prepare(
             "SELECT id, occurred_at, severity, category, message, actions
              FROM error_log
@@ -242,38 +264,78 @@ pub fn snapshot(cx: &App) -> StorageSnapshot {
         .unwrap_or_default()
 }
 
+/// Run a health check against the storage backend on a background thread so
+/// the main GPUI render loop is not blocked by synchronous SQLite I/O.
+///
+/// The result is written back to the global [`StorageSnapshot`] via an
+/// `cx.update` callback once the check completes.
 pub fn run_health_check(cx: &mut App) {
     let Some(runtime) = cx.try_global::<StorageRuntime>().cloned() else {
         return;
     };
-    cx.update_global::<StorageSnapshot, _>(|snap, _cx| match runtime.backend.health_check() {
-        Ok(()) => {
-            snap.healthy = true;
-            snap.last_error = None;
-            if let Ok(version) = runtime.backend.schema_version() {
-                snap.schema_version = version;
-            }
-        }
-        Err(err) => {
-            snap.healthy = false;
-            snap.last_error = Some(err.to_string());
-        }
-    });
+    let bg = cx.background_executor().clone();
+    cx.spawn(async move |cx| {
+        let backend = runtime.backend.clone();
+        let backend_clone = Arc::clone(&backend);
+        let result = bg
+            .spawn(async move { backend.health_check() })
+            .await;
+        let version_result = bg
+            .spawn(async move { backend_clone.schema_version() })
+            .await;
+
+        let _ = cx.update(|cx| {
+            cx.update_global::<StorageSnapshot, _>(|snap, _cx| {
+                match result {
+                    Ok(()) => {
+                        snap.healthy = true;
+                        snap.last_error = None;
+                        if let Ok(version) = version_result {
+                            snap.schema_version = version;
+                        }
+                    }
+                    Err(err) => {
+                        snap.healthy = false;
+                        snap.last_error = Some(err.to_string());
+                    }
+                }
+            });
+        });
+    })
+    .detach();
 }
 
+/// Run storage maintenance (e.g. `PRAGMA optimize`) on a background thread so
+/// the main GPUI render loop is not blocked by synchronous SQLite I/O.
+///
+/// The result is written back to the global [`StorageSnapshot`] via an
+/// `cx.update` callback once maintenance completes.
 pub fn run_maintenance(cx: &mut App) {
     let Some(runtime) = cx.try_global::<StorageRuntime>().cloned() else {
         return;
     };
-    cx.update_global::<StorageSnapshot, _>(|snap, _cx| match runtime.backend.maintenance() {
-        Ok(()) => {
-            snap.last_maintenance_at = Some(chrono::Utc::now().to_rfc3339());
-            snap.last_error = None;
-        }
-        Err(err) => {
-            snap.last_error = Some(err.to_string());
-        }
-    });
+    let bg = cx.background_executor().clone();
+    cx.spawn(async move |cx| {
+        let backend = runtime.backend.clone();
+        let result = bg
+            .spawn(async move { backend.maintenance() })
+            .await;
+
+        let _ = cx.update(|cx| {
+            cx.update_global::<StorageSnapshot, _>(|snap, _cx| {
+                match result {
+                    Ok(()) => {
+                        snap.last_maintenance_at = Some(chrono::Utc::now().to_rfc3339());
+                        snap.last_error = None;
+                    }
+                    Err(err) => {
+                        snap.last_error = Some(err.to_string());
+                    }
+                }
+            });
+        });
+    })
+    .detach();
 }
 
 pub fn shutdown(cx: &mut App) {

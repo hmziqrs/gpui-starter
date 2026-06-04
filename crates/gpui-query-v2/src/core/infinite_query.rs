@@ -606,6 +606,118 @@ impl<T, E> InfiniteQueryResource<T, E> {
         Some(request_id)
     }
 
+    /// Like [`begin_fetch_next`] but accepts an optional pre-generated `RequestId`
+    /// instead of a `RequestSequencer`.
+    ///
+    /// When `maybe_request_id` is `Some`, uses that ID directly — this is the
+    /// preferred call when the bucket's co-located sequencer has already
+    /// pre-allocated an ID via `QueryClient::next_request_id_for_infinite_key`.
+    /// When `None`, falls back to a transient `RequestSequencer::new()` for
+    /// compatibility (e.g., when no `QueryClient` is available).
+    ///
+    /// Passing the pre-allocated ID through ensures the `RequestId` stored as
+    /// the resource's `active_request_id` matches the one the bucket's sequencer
+    /// already consumed, keeping the bucket's monotonic counter consistent with
+    /// the resource's active request.
+    pub fn begin_fetch_next_with_id(
+        &mut self,
+        maybe_request_id: Option<RequestId>,
+        now_ms: u128,
+    ) -> Option<RequestId> {
+        if !self.has_next_page {
+            return None;
+        }
+
+        if self.is_fetching_next_page {
+            match self.request_policy {
+                RequestPolicy::IgnoreWhileLoading => return None,
+                RequestPolicy::LatestWins => {}
+            }
+        }
+
+        if self.active_request_id.is_some() {
+            self.cancelled_count += 1;
+        }
+
+        // v2 fix: Cancel old signal before replacing
+        if let Some(old_signal) = self.signal.as_ref() {
+            old_signal.cancel();
+        }
+
+        self.is_fetching_next_page = true;
+        self.is_fetching_previous_page = false;
+
+        let request_id = maybe_request_id
+            .unwrap_or_else(|| RequestSequencer::new().next_request());
+        self.active_request_id = Some(request_id);
+        self.status = if self.pages.is_empty() {
+            QueryStatus::LoadingEmpty
+        } else {
+            QueryStatus::LoadingWithData
+        };
+        self.started_at = Some(QueryTimestamp::from(now_ms));
+        self.error = None;
+        self.signal = Some(QuerySignal::new());
+
+        Some(request_id)
+    }
+
+    /// Like [`begin_fetch_previous`] but accepts an optional pre-generated
+    /// `RequestId` instead of a `RequestSequencer`.
+    ///
+    /// When `maybe_request_id` is `Some`, uses that ID directly — this is the
+    /// preferred call when the bucket's co-located sequencer has already
+    /// pre-allocated an ID via `QueryClient::next_request_id_for_infinite_key`.
+    /// When `None`, falls back to a transient `RequestSequencer::new()` for
+    /// compatibility (e.g., when no `QueryClient` is available).
+    ///
+    /// Passing the pre-allocated ID through ensures the `RequestId` stored as
+    /// the resource's `active_request_id` matches the one the bucket's sequencer
+    /// already consumed, keeping the bucket's monotonic counter consistent with
+    /// the resource's active request.
+    pub fn begin_fetch_previous_with_id(
+        &mut self,
+        maybe_request_id: Option<RequestId>,
+        now_ms: u128,
+    ) -> Option<RequestId> {
+        if !self.has_previous_page {
+            return None;
+        }
+
+        if self.is_fetching_previous_page {
+            match self.request_policy {
+                RequestPolicy::IgnoreWhileLoading => return None,
+                RequestPolicy::LatestWins => {}
+            }
+        }
+
+        if self.active_request_id.is_some() {
+            self.cancelled_count += 1;
+        }
+
+        // v2 fix: Cancel old signal before replacing
+        if let Some(old_signal) = self.signal.as_ref() {
+            old_signal.cancel();
+        }
+
+        self.is_fetching_previous_page = true;
+        self.is_fetching_next_page = false;
+
+        let request_id = maybe_request_id
+            .unwrap_or_else(|| RequestSequencer::new().next_request());
+        self.active_request_id = Some(request_id);
+        self.status = if self.pages.is_empty() {
+            QueryStatus::LoadingEmpty
+        } else {
+            QueryStatus::LoadingWithData
+        };
+        self.started_at = Some(QueryTimestamp::from(now_ms));
+        self.error = None;
+        self.signal = Some(QuerySignal::new());
+
+        Some(request_id)
+    }
+
     /// Accept the current request for two-phase completion.
     ///
     /// Returns a [`RequestGuard`] if the request is still active, or `None`

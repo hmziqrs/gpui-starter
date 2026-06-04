@@ -603,6 +603,31 @@ impl QueryClient {
         }
     }
 
+    /// Update the cached `StatusSnapshot` for an infinite query bucket entry.
+    ///
+    /// Test helper for deterministic GC tests on infinite queries. In production,
+    /// the hook layer calls `bucket.update_status_snapshot()` after each request
+    /// completion. In tests that bypass the hook layer, this method allows
+    /// controlling the snapshot so GC behavior is deterministic.
+    #[allow(dead_code)]
+    pub(crate) fn update_infinite_snapshot<
+        T: Clone + Send + Sync + 'static,
+        E: Clone + Send + Sync + 'static,
+    >(
+        &mut self,
+        key: &QueryKey,
+        status: QueryStatus,
+        last_updated_ms: Option<u128>,
+        cache_policy: CachePolicy,
+    ) {
+        let type_id = TypeId::of::<(T, E)>();
+        if let Some(bucket) = self.infinite_buckets.get_mut(&type_id) {
+            if let Some(typed) = bucket.as_any_mut().downcast_mut::<InfiniteQueryBucket<T, E>>() {
+                typed.update_status_snapshot(key, status, last_updated_ms, cache_policy);
+            }
+        }
+    }
+
     /// Increment the observer count for a query bucket entry.
     ///
     /// Test helper to simulate the hook layer's `bucket.retain()` call so

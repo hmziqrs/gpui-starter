@@ -34,7 +34,7 @@
 //! ```no_run
 //! use gpui_query_v2::hook::{use_query_select, QueryOptions};
 //! use gpui_query_v2::core::SelectTransform;
-//! # #[derive(Clone)]
+//! # #[derive(Clone, PartialEq)]
 //! # struct User;
 //! # #[derive(Clone, Debug)]
 //! # struct MyError;
@@ -169,6 +169,15 @@ impl<T, U, E> MappedQueryResource<T, U, E> {
     /// Whether source data exists.
     pub fn has_data(&self) -> bool {
         self.source_data.is_some()
+    }
+
+    /// Read-only access to the source data.
+    ///
+    /// Used internally by the hook layer to compare source data by reference
+    /// before cloning, avoiding unnecessary allocations when the data has not
+    /// changed.
+    pub fn source_data(&self) -> Option<&T> {
+        self.source_data.as_ref()
     }
 
     /// Update the source data from the underlying query resource.

@@ -83,6 +83,11 @@ impl<T, E> QueryResource<T, E> {
         self.error = None;
         self.active_request_id = None;
         self.last_updated_at = Some(QueryTimestamp::from(now_ms));
+
+        // Memory optimization: initial_data is only useful before the first
+        // successful fetch. Once real data has arrived the extra copy is
+        // redundant, so drop it to halve the initial-data memory footprint.
+        drop(self.initial_data.take());
     }
 
     pub(crate) fn apply_failure(&mut self, error: impl Into<E>) {
@@ -98,6 +103,10 @@ impl<T, E> QueryResource<T, E> {
         self.error = None;
         self.active_request_id = None;
         self.last_updated_at = Some(QueryTimestamp::from(now_ms));
+
+        // Memory optimization: same rationale as apply_success — the
+        // initial_data copy is redundant once a real fetch has resolved.
+        drop(self.initial_data.take());
     }
 
     pub(crate) fn apply_failure_with_data(&mut self, data: T, error: impl Into<E>) {

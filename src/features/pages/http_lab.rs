@@ -81,28 +81,49 @@ impl HttpLabPage {
 impl Render for HttpLabPage {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let render_started = Instant::now();
-        let state = http_lab::snapshot(cx);
-        let selected_resource = state.selected_resource();
-        let selected_action = state.selected_action;
-        let selected_status = selected_resource.status();
-        let active_count = state.active_count();
-        let history_len = state.history.len();
-        let transition_len = state.transition_log.len();
 
-        let view = v_flex()
-            .min_h_full()
-            .p_6()
-            .gap_5()
-            .child(hero(&state, cx))
-            .child(action_bar(&state, cx))
-            .child(tab_bar(&state))
-            .child(resource_panel(
-                &state,
-                state.selected_action,
-                selected_resource,
-                cx,
-            ))
-            .child(activity_panel(&state, cx));
+        // Extract action bar data first — action_bar needs &mut Context for
+        // cx.listener(), so it must be built outside any state borrow.
+        let (active_count, action_meta) = http_lab::read_state(cx, |state| {
+            let meta = HttpLabAction::all()
+                .iter()
+                .copied()
+                .map(|action| {
+                    let resource = state.resource(action);
+                    (action, resource.is_loading(), resource.request_policy())
+                })
+                .collect::<Vec<_>>();
+            (state.active_count(), meta)
+        });
+        let bar = action_bar_from_meta(active_count, action_meta, cx);
+
+        // Now borrow state immutably via read_state for all read-only panels.
+        // These helpers only need &App (not &mut Context), so the borrow is safe.
+        let (history_len, transition_len, selected_action, selected_status, view) =
+            http_lab::read_state(cx, |state| {
+                let selected_resource = state.selected_resource();
+                let selected_action = state.selected_action;
+                let selected_status = selected_resource.status();
+                let history_len = state.history.len();
+                let transition_len = state.transition_log.len();
+
+                let view = v_flex()
+                    .min_h_full()
+                    .p_6()
+                    .gap_5()
+                    .child(hero(&state, cx))
+                    .child(bar)
+                    .child(tab_bar(&state))
+                    .child(resource_panel(
+                        &state,
+                        state.selected_action,
+                        selected_resource,
+                        cx,
+                    ))
+                    .child(activity_panel(&state, cx));
+
+                (history_len, transition_len, selected_action, selected_status, view)
+            });
 
         tracing::info!(
             target: RENDER_LOG,
@@ -166,20 +187,37 @@ fn hero(state: &HttpLabState, cx: &App) -> Div {
         )
 }
 
-fn action_bar(state: &HttpLabState, cx: &mut Context<HttpLabPage>) -> Div {
+/// Build the action bar from pre-extracted scalar data rather than a borrowed
+/// `&HttpLabState`. This allows the caller to use `&mut Context` (needed for
+/// `cx.listener()`) without holding an immutable borrow of the global state.
+fn action_bar_from_meta(
+    active_count: usize,
+    action_meta: Vec<(HttpLabAction, bool, RequestPolicy)>,
+    cx: &mut Context<HttpLabPage>,
+) -> Div {
     div()
         .flex()
         .flex_wrap()
         .gap_2()
-        .children(HttpLabAction::all().iter().copied().map(|action| {
-            let resource = state.resource(action);
-            action_button(action, resource, cx)
+        .children(action_meta.into_iter().map(|(action, is_loading, policy)| {
+            let blocks_duplicate = is_loading && policy == RequestPolicy::IgnoreWhileLoading;
+            Button::new(format!("http-lab-run-{}", action.id()))
+                .outline()
+                .label(if is_loading {
+                    format!("Loading {}", action.label())
+                } else {
+                    action.label().to_string()
+                })
+                .disabled(blocks_duplicate)
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.run_action(action, cx);
+                }))
         }))
         .child(
             Button::new("http-lab-cancel-all")
                 .outline()
                 .label("Cancel all")
-                .disabled(state.active_count() == 0)
+                .disabled(active_count == 0)
                 .on_click(|_, _, cx| {
                     http_lab::cancel_all(cx);
                 }),
@@ -192,27 +230,6 @@ fn action_bar(state: &HttpLabState, cx: &mut Context<HttpLabPage>) -> Div {
                     http_lab::reset(cx);
                 }),
         )
-}
-
-fn action_button(
-    action: HttpLabAction,
-    resource: &QueryResource<HttpExchange>,
-    cx: &mut Context<HttpLabPage>,
-) -> Button {
-    let is_loading = resource.is_loading();
-    let blocks_duplicate =
-        is_loading && resource.request_policy() == RequestPolicy::IgnoreWhileLoading;
-    Button::new(format!("http-lab-run-{}", action.id()))
-        .outline()
-        .label(if is_loading {
-            format!("Loading {}", action.label())
-        } else {
-            action.label().to_string()
-        })
-        .disabled(blocks_duplicate)
-        .on_click(cx.listener(move |this, _, _, cx| {
-            this.run_action(action, cx);
-        }))
 }
 
 fn tab_bar(state: &HttpLabState) -> Div {

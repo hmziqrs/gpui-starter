@@ -12,6 +12,7 @@
 use ahash::AHashMap;
 use gpui::{App, AppContext as _, WeakEntity};
 
+use super::bucket::StatusSnapshot;
 use crate::core::{
     CachePolicy, InfiniteQueryResource, QueryKey, QueryKeyFilter, QueryStatus, RequestPolicy,
     RequestSequencer,
@@ -26,6 +27,11 @@ struct InfiniteBucketEntry<T, E> {
     sequencer: RequestSequencer,
     /// Number of active observer subscriptions for this resource.
     observer_count: usize,
+    /// Cached status for GC decisions, updated on each request completion.
+    ///
+    /// Perf: allows GC to filter entries without acquiring entity read locks
+    /// during the iteration loop. Mirrors the same pattern in `BucketEntry`.
+    status_snapshot: StatusSnapshot,
 }
 
 /// Type-partitioned storage for infinite query resources of a specific `(T, E)` type pair.
@@ -79,6 +85,11 @@ impl<T: Clone + Send + Sync + 'static, E: Clone + Send + Sync + 'static> Infinit
                 entity: entity.downgrade(),
                 sequencer: RequestSequencer::new(),
                 observer_count: 0,
+                status_snapshot: StatusSnapshot {
+                    status: QueryStatus::Idle,
+                    last_updated_ms: None,
+                    cache_policy,
+                },
             },
         );
         entity
@@ -125,6 +136,28 @@ impl<T: Clone + Send + Sync + 'static, E: Clone + Send + Sync + 'static> Infinit
             entry.observer_count = entry.observer_count.saturating_sub(1);
         }
     }
+
+    /// Update the cached status snapshot for an entry.
+    ///
+    /// Call this after each request completion (success or failure) so the
+    /// GC can make eviction decisions without acquiring entity read locks.
+    /// Mirrors `QueryBucket::update_status_snapshot`.
+    #[allow(dead_code)]
+    pub(crate) fn update_status_snapshot(
+        &mut self,
+        key: &QueryKey,
+        status: QueryStatus,
+        last_updated_ms: Option<u128>,
+        cache_policy: CachePolicy,
+    ) {
+        if let Some(entry) = self.entries.get_mut(key) {
+            entry.status_snapshot = StatusSnapshot {
+                status,
+                last_updated_ms,
+                cache_policy,
+            };
+        }
+    }
 }
 
 // Implement the erased trait so InfiniteQueryBucket can live in QueryClient's
@@ -143,56 +176,53 @@ impl<T: Clone + Send + Sync + 'static, E: Clone + Send + Sync + 'static> ErasedI
         self
     }
 
-    fn gc(&mut self, now_ms: u128, gc_time_ms: u64, cx: &App) {
+    /// Garbage-collect stale infinite query resources.
+    ///
+    /// Uses cached `StatusSnapshot` to avoid acquiring entity read locks
+    /// during iteration (same pattern as `QueryBucket::gc`). The snapshot is
+    /// updated via `update_status_snapshot` after each request completion.
+    ///
+    /// Uses `HashMap::retain()` to avoid the intermediate `Vec<QueryKey>`
+    /// allocation.
+    fn gc(&mut self, now_ms: u128, gc_time_ms: u64, _cx: &App) {
         let gc_time_ms = gc_time_ms.max(MIN_GC_TIME_MS);
         let gc_threshold = gc_time_ms as u128;
 
-        let to_remove: Vec<QueryKey> = self
-            .entries
-            .iter()
-            .filter_map(|(key, entry)| {
-                // Clean up entries whose entity has already been collected.
-                let entity = match entry.entity.upgrade() {
-                    Some(e) => e,
-                    None => return Some(key.clone()),
-                };
+        self.entries.retain(|_key, entry| {
+            // Clean up entries whose entity has already been collected.
+            // We still upgrade to check liveness, but do NOT call entity.read(cx).
+            if entry.entity.upgrade().is_none() {
+                return false; // Dead reference — evict.
+            }
 
-                // Never evict entries with active observers.
-                if entry.observer_count > 0 {
-                    return None;
-                }
+            // Never evict entries with active observers.
+            if entry.observer_count > 0 {
+                return true;
+            }
 
-                let resource = entity.read(cx);
+            let snapshot = &entry.status_snapshot;
 
-                // Never evict resources that are actively loading.
-                if resource.status().is_loading() {
-                    return None;
-                }
+            // Never evict resources that are actively loading.
+            if snapshot.status.is_loading() {
+                return true;
+            }
 
-                let evictable = matches!(
-                    resource.status(),
-                    QueryStatus::Idle | QueryStatus::Failure
-                );
-                if !evictable {
-                    return None;
-                }
+            // Only evict if in a terminal, non-success state.
+            let evictable = matches!(
+                snapshot.status,
+                QueryStatus::Idle | QueryStatus::Failure
+            );
+            if !evictable {
+                return true; // Keep — not evictable (e.g. Success, Cancelled).
+            }
 
-                // Check cache age: evict if data is older than gc_time_ms.
-                let age_ms = resource
-                    .last_updated_at_ms()
-                    .map(|updated| now_ms.saturating_sub(updated))
-                    .unwrap_or(gc_threshold);
-                if age_ms >= gc_threshold {
-                    return Some(key.clone());
-                }
-
-                None
-            })
-            .collect();
-
-        for key in to_remove {
-            self.entries.remove(&key);
-        }
+            // Check cache age from the cached snapshot (no entity read lock needed).
+            let age_ms = snapshot
+                .last_updated_ms
+                .map(|updated| now_ms.saturating_sub(updated))
+                .unwrap_or(gc_threshold); // No timestamp → treat as expired.
+            age_ms < gc_threshold
+        });
     }
 
     fn count(&self) -> usize {
@@ -220,22 +250,26 @@ impl<T: Clone + Send + Sync + 'static, E: Clone + Send + Sync + 'static> ErasedI
     }
 
     fn reset_matching(&mut self, filter: &QueryKeyFilter, cx: &mut App) {
-        let entities: Vec<gpui::Entity<InfiniteQueryResource<T, E>>> = self
+        let keys: Vec<QueryKey> = self
             .entries
-            .iter()
-            .filter_map(|(key, entry)| {
-                if filter.matches(key) {
-                    entry.entity.upgrade()
-                } else {
-                    None
-                }
-            })
+            .keys()
+            .filter(|key| filter.matches(key))
+            .cloned()
             .collect();
 
-        for entity in entities {
-            entity.update(cx, |resource, _| {
-                resource.reset();
-            });
+        for key in keys {
+            if let Some(entry) = self.entries.get(&key) {
+                if let Some(entity) = entry.entity.upgrade() {
+                    entity.update(cx, |resource, _| {
+                        resource.reset();
+                    });
+                    // Update snapshot after reset — status goes to Idle.
+                    if let Some(entry) = self.entries.get_mut(&key) {
+                        entry.status_snapshot.status = QueryStatus::Idle;
+                        entry.status_snapshot.last_updated_ms = None;
+                    }
+                }
+            }
         }
     }
 
@@ -272,6 +306,10 @@ impl<T: Clone + Send + Sync + 'static, E: Clone + Send + Sync + 'static> ErasedI
                                 signal.cancel();
                             }
                         });
+                        // Update snapshot after cancel.
+                        if let Some(entry) = self.entries.get_mut(&key) {
+                            entry.status_snapshot.status = QueryStatus::Cancelled;
+                        }
                     }
                 }
             }

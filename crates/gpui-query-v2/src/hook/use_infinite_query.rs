@@ -74,7 +74,7 @@ use gpui::{AppContext as _, BorrowAppContext as _, Context, Entity, Subscription
 
 use crate::client::{InfiniteQueryObserver, QueryClient};
 use crate::core::{
-    InfiniteQueryResource, QueryStatus, RequestId, RequestSequencer,
+    InfiniteQueryResource, QueryStatus, RequestId,
 };
 
 use super::options::InfiniteQueryOptions;
@@ -198,9 +198,10 @@ where
     // Start the initial fetch if idle
     let should_fetch = entity.read_with(cx, |r, _| r.status() == QueryStatus::Idle);
     if should_fetch {
-        // #fix #4/#6/#8: Use the bucket's persistent sequencer via QueryClient
-        // so RequestIds are monotonic across the resource lifetime. Falls back
-        // to a transient sequencer when no QueryClient is available.
+        // #fix: Use the bucket's persistent sequencer via QueryClient so
+        // RequestIds are monotonic across the resource lifetime. The
+        // pre-allocated ID is passed through to begin_fetch_next_with_id so
+        // the resource's active_request_id matches the bucket's counter.
         let maybe_request_id = if cx.has_global::<QueryClient>() {
             let key = entity.read_with(cx, |r, _| r.key().clone());
             cx.update_global::<QueryClient, _>(|client, _| {
@@ -210,27 +211,13 @@ where
             None
         };
 
-        // If the bucket didn't have a pre-allocated ID, generate one via
-        // begin_fetch_next with a transient sequencer (last resort).
-        let request_id = if let Some(_pre_allocated_id) = maybe_request_id {
-            // Use the pre-allocated ID with begin_fetch_next via a one-shot sequencer
-            // that produces the same ID.
-            let mut seq = RequestSequencer::new();
-            let rid = entity.update(cx, |resource, _| {
-                let now_ms = current_time_ms();
-                resource.begin_fetch_next(&mut seq, now_ms)
-            });
-            // If begin_fetch_next returned Some, use it. The pre-allocated ID
-            // was already consumed by the bucket's sequencer; begin_fetch_next
-            // uses its own sequencer. Both are monotonic, so this is safe.
-            rid
-        } else {
-            let mut seq = RequestSequencer::new();
-            entity.update(cx, |resource, _| {
-                let now_ms = current_time_ms();
-                resource.begin_fetch_next(&mut seq, now_ms)
-            })
-        };
+        // Pass the pre-allocated ID (or None) directly into
+        // begin_fetch_next_with_id, which uses it instead of creating
+        // a separate transient sequencer.
+        let request_id = entity.update(cx, |resource, _| {
+            let now_ms = current_time_ms();
+            resource.begin_fetch_next_with_id(maybe_request_id, now_ms)
+        });
 
         if let Some(request_id) = request_id {
             let weak = entity.downgrade();
@@ -298,30 +285,24 @@ pub fn fetch_next_page_infinite<T, E, C, FNext, Fut>(
 {
     let weak = entity.downgrade();
 
-    // #fix #4/#8/#9: Use the bucket's persistent sequencer via QueryClient
-    // for monotonic RequestIds. Falls back to a transient sequencer.
-    let request_id = if cx.has_global::<QueryClient>() {
+    // #fix: Use the bucket's persistent sequencer via QueryClient for
+    // monotonic RequestIds. The pre-allocated ID is passed through to
+    // begin_fetch_next_with_id so the resource's active_request_id matches
+    // the bucket's counter. Falls back to None (transient sequencer) when
+    // no QueryClient is available.
+    let maybe_request_id = if cx.has_global::<QueryClient>() {
         let key = entity.read_with(cx, |r, _| r.key().clone());
-        let maybe_pre_allocated = cx.update_global::<QueryClient, _>(|client, _| {
+        cx.update_global::<QueryClient, _>(|client, _| {
             client.next_request_id_for_infinite_key::<T, E>(&key)
-        });
-        // begin_fetch_next still needs to run to transition the state machine.
-        // The sequencer inside begin_fetch_next is a separate instance but the
-        // two-phase protocol (accept_current_request) ensures correctness.
-        let mut seq = RequestSequencer::new();
-        let rid = entity.update(cx, |resource, _| {
-            let now_ms = current_time_ms();
-            resource.begin_fetch_next(&mut seq, now_ms)
-        });
-        let _ = maybe_pre_allocated; // consumed to advance bucket sequencer
-        rid
-    } else {
-        let mut seq = RequestSequencer::new();
-        entity.update(cx, |resource, _| {
-            let now_ms = current_time_ms();
-            resource.begin_fetch_next(&mut seq, now_ms)
         })
+    } else {
+        None
     };
+
+    let request_id = entity.update(cx, |resource, _| {
+        let now_ms = current_time_ms();
+        resource.begin_fetch_next_with_id(maybe_request_id, now_ms)
+    });
 
     // #fix #2: Removed unconditional cx.notify() here. The InfiniteQueryObserver
     // observes status changes and will trigger re-renders when status transitions
@@ -364,26 +345,24 @@ pub fn fetch_previous_page_infinite<T, E, C, FPrev, Fut>(
 {
     let weak = entity.downgrade();
 
-    // #fix #4/#8/#9: Use the bucket's persistent sequencer via QueryClient.
-    let request_id = if cx.has_global::<QueryClient>() {
+    // #fix: Use the bucket's persistent sequencer via QueryClient for
+    // monotonic RequestIds. The pre-allocated ID is passed through to
+    // begin_fetch_previous_with_id so the resource's active_request_id matches
+    // the bucket's counter. Falls back to None (transient sequencer) when
+    // no QueryClient is available.
+    let maybe_request_id = if cx.has_global::<QueryClient>() {
         let key = entity.read_with(cx, |r, _| r.key().clone());
-        let maybe_pre_allocated = cx.update_global::<QueryClient, _>(|client, _| {
+        cx.update_global::<QueryClient, _>(|client, _| {
             client.next_request_id_for_infinite_key::<T, E>(&key)
-        });
-        let mut seq = RequestSequencer::new();
-        let rid = entity.update(cx, |resource, _| {
-            let now_ms = current_time_ms();
-            resource.begin_fetch_previous(&mut seq, now_ms)
-        });
-        let _ = maybe_pre_allocated;
-        rid
-    } else {
-        let mut seq = RequestSequencer::new();
-        entity.update(cx, |resource, _| {
-            let now_ms = current_time_ms();
-            resource.begin_fetch_previous(&mut seq, now_ms)
         })
+    } else {
+        None
     };
+
+    let request_id = entity.update(cx, |resource, _| {
+        let now_ms = current_time_ms();
+        resource.begin_fetch_previous_with_id(maybe_request_id, now_ms)
+    });
 
     // #fix #2: Removed unconditional cx.notify() here. InfiniteQueryObserver
     // handles re-rendering on status transitions.

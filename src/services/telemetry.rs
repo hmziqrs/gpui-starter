@@ -164,11 +164,17 @@ fn resolve_otlp_endpoint(explicit: Option<&str>) -> String {
 /// Attempt to install an OTLP HTTP tracer provider on the global
 /// OpenTelemetry pipeline.
 ///
-/// Returns `Ok(())` when the provider was installed successfully or when
+/// Returns `Ok(provider)` when the provider was installed successfully or when
 /// the `otlp` feature is not enabled (no-op). Returns a human-readable
 /// error string when the exporter cannot reach the collector.
+///
+/// The returned [`opentelemetry_sdk::trace::TracerProvider`] is kept by the
+/// caller so it can invoke [`force_flush`](opentelemetry_sdk::trace::TracerProvider::force_flush)
+/// without shutting down the global provider.
 #[cfg(feature = "otlp")]
-fn install_otlp_tracer(endpoint: &str) -> Result<(), TelemetryError> {
+fn install_otlp_tracer(
+    endpoint: &str,
+) -> Result<opentelemetry_sdk::trace::TracerProvider, TelemetryError> {
     use opentelemetry::KeyValue;
     use opentelemetry_sdk::Resource;
     use opentelemetry_sdk::propagation::TraceContextPropagator;
@@ -188,19 +194,21 @@ fn install_otlp_tracer(endpoint: &str) -> Result<(), TelemetryError> {
         .map_err(|e| TelemetryError::Otlp(Box::new(e)))?;
 
     global::set_text_map_propagator(TraceContextPropagator::new());
-    global::set_tracer_provider(provider);
+    // Pass a clone to the global registry; keep the original for force_flush.
+    global::set_tracer_provider(provider.clone());
 
     tracing::info!(
         target: "gpui_starter::telemetry",
         endpoint = %endpoint,
         "OTLP tracer provider installed"
     );
-    Ok(())
+    Ok(provider)
 }
 
 /// No-op fallback when the `otlp` feature is disabled.
 ///
 /// Logs the endpoint for diagnostics but does not create an exporter.
+/// Returns a unit `()` since there is no provider to track.
 #[cfg(not(feature = "otlp"))]
 fn install_otlp_tracer(endpoint: &str) -> Result<(), TelemetryError> {
     tracing::debug!(
@@ -233,10 +241,24 @@ fn install_otlp_tracer(endpoint: &str) -> Result<(), TelemetryError> {
 /// through [`TelemetrySnapshot::last_export_error`]. The sink itself never
 /// panics; individual event records are logged at debug/warn level and
 /// propagated to the subscriber regardless of collector reachability.
+///
+/// # Flush vs Shutdown
+///
+/// [`flush`](TelemetrySink::flush) pushes pending spans to the collector
+/// **without** disabling the tracer provider. The provider remains active and
+/// continues accepting new spans after a flush.
+///
+/// [`shutdown`](crate::services::telemetry::shutdown) terminates the provider
+/// permanently. No further spans can be exported after shutdown.
 #[derive(Clone)]
 struct RemoteSink {
     endpoint: String,
     connected: bool,
+    /// Handle to the SDK tracer provider, used to call `force_flush()` without
+    /// shutting down the global provider. Only `Some` when the `otlp` feature
+    /// is enabled and the provider was installed successfully.
+    #[cfg(feature = "otlp")]
+    provider: Option<opentelemetry_sdk::trace::TracerProvider>,
 }
 
 impl RemoteSink {
@@ -245,7 +267,43 @@ impl RemoteSink {
     ///
     /// The `connected` flag is set to `false` when installation fails, which
     /// allows callers to report the degradation through the capability system.
+    #[allow(unused_variables)]
     fn new(endpoint: &str) -> Self {
+        let (connected, provider) = Self::install(endpoint);
+        Self {
+            endpoint: endpoint.to_owned(),
+            connected,
+            #[cfg(feature = "otlp")]
+            provider,
+        }
+    }
+
+    /// Delegate to [`install_otlp_tracer`] and separate success/failure state.
+    ///
+    /// When the `otlp` feature is enabled, returns `(true, Some(provider))` on
+    /// success. When the feature is disabled, returns `(true, None)` (the
+    /// no-op path always succeeds).
+    #[cfg(feature = "otlp")]
+    fn install(
+        endpoint: &str,
+    ) -> (bool, Option<opentelemetry_sdk::trace::TracerProvider>) {
+        match install_otlp_tracer(endpoint) {
+            Ok(provider) => (true, Some(provider)),
+            Err(err) => {
+                tracing::warn!(
+                    target: "gpui_starter::telemetry",
+                    endpoint = %endpoint,
+                    error = %err,
+                    "OTLP tracer provider installation failed; events will be logged locally"
+                );
+                (false, None)
+            }
+        }
+    }
+
+    /// No-op install path when the `otlp` feature is disabled.
+    #[cfg(not(feature = "otlp"))]
+    fn install(endpoint: &str) -> (bool, ()) {
         let connected = match install_otlp_tracer(endpoint) {
             Ok(()) => true,
             Err(err) => {
@@ -258,10 +316,45 @@ impl RemoteSink {
                 false
             }
         };
-        Self {
-            endpoint: endpoint.to_owned(),
-            connected,
+        (connected, ())
+    }
+
+    /// Call `force_flush()` on the stored SDK tracer provider.
+    ///
+    /// This pushes all buffered spans to the collector without disabling the
+    /// provider. Errors from individual span processors are collected and
+    /// returned as a single [`TelemetryError::Otlp`].
+    #[cfg(feature = "otlp")]
+    fn force_flush_provider(&self) -> Result<(), TelemetryError> {
+        let Some(provider) = self.provider.as_ref() else {
+            tracing::warn!(
+                target: "gpui_starter::telemetry",
+                "force_flush called but no SDK provider is available; falling back to no-op"
+            );
+            return Ok(());
+        };
+
+        let results = provider.force_flush();
+        let errors: Vec<_> = results.into_iter().filter_map(|r| r.err()).collect();
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            let msg = errors
+                .iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<_>>()
+                .join(", ");
+            Err(TelemetryError::Otlp(Box::new(
+                std::io::Error::other(format!("force_flush errors: {msg}")),
+            )))
         }
+    }
+
+    /// No-op flush path when the `otlp` feature is disabled.
+    #[cfg(not(feature = "otlp"))]
+    fn force_flush_provider(&self) -> Result<(), TelemetryError> {
+        Ok(())
     }
 }
 
@@ -318,6 +411,12 @@ impl TelemetrySink for RemoteSink {
         Ok(())
     }
 
+    /// Push pending spans to the collector **without** shutting down the provider.
+    ///
+    /// This is safe to call repeatedly (e.g. from the Settings "Flush
+    /// Telemetry" button). The tracer provider remains fully operational after
+    /// each flush, unlike `shutdown_tracer_provider()` which is a one-way
+    /// destructive operation.
     fn flush(&self) -> Result<(), TelemetryError> {
         if !self.connected {
             tracing::debug!(
@@ -331,9 +430,7 @@ impl TelemetrySink for RemoteSink {
             )));
         }
         tracing::debug!(target: "gpui_starter::telemetry", endpoint = %self.endpoint, "remote telemetry flush");
-        // Force the OpenTelemetry batch exporter to ship pending spans now.
-        global::shutdown_tracer_provider();
-        Ok(())
+        self.force_flush_provider()
     }
 }
 
@@ -450,6 +547,10 @@ pub fn flush(cx: &mut App) {
 
 /// Flush pending telemetry and shut down the global tracer provider.
 ///
+/// This is a **one-way** operation: after calling `shutdown` no further spans
+/// can be exported. Use [`flush`] instead when you only need to push pending
+/// spans to the collector without disabling telemetry.
+///
 /// Safe to call multiple times. Subsequent calls after the first are no-ops at
 /// the OpenTelemetry level.
 pub fn shutdown(cx: &mut App) {
@@ -461,10 +562,10 @@ pub fn shutdown(cx: &mut App) {
         events_recorded = state.events_recorded,
         "telemetry shutdown requested"
     );
+    // Flush pending spans through the sink (uses force_flush, not shutdown).
     flush(cx);
-    // Shut down the global tracer provider so pending spans are flushed.
-    // When the `otlp` feature is enabled the RemoteSink::flush already
-    // calls this; calling it again is safe (OpenTelemetry handles it).
+    // Now shut down the global tracer provider permanently. This is the only
+    // place where shutdown_tracer_provider() should be called.
     global::shutdown_tracer_provider();
 }
 

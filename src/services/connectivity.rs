@@ -43,7 +43,6 @@ pub fn snapshot(cx: &App) -> ConnectivitySnapshot {
 
 pub fn check_now(cx: &mut App) {
     let probe_url = snapshot(cx).probe_url;
-    let interfaces = read_interfaces();
     let rt = cx
         .global::<crate::services::tokio_runtime::TokioRuntimeGlobal>()
         .0
@@ -56,7 +55,8 @@ pub fn check_now(cx: &mut App) {
         .clone();
 
     cx.spawn(async move |cx| {
-        let handle = rt.spawn(async move {
+        // Run the HTTP connectivity probe on the tokio runtime.
+        let probe_handle = rt.spawn(async move {
             client
                 .get(&probe_url)
                 .timeout(std::time::Duration::from_secs(10))
@@ -64,10 +64,26 @@ pub fn check_now(cx: &mut App) {
                 .await
         });
 
-        let result = match handle.await {
+        // NetworkInterface::show() performs blocking system calls; run it on a
+        // tokio blocking thread so it never stalls the main GPUI thread.
+        let interfaces_handle = rt.spawn_blocking(read_interfaces);
+
+        let result = match probe_handle.await {
             Ok(r) => r.map_err(|e| e.to_string()),
             Err(e) => Err(format!("connectivity probe panicked: {e}")),
         };
+
+        // Await the interface list (concurrent with the probe above).
+        let interfaces = interfaces_handle
+            .await
+            .unwrap_or_else(|e| {
+                tracing::warn!(
+                    target: "gpui_starter::connectivity",
+                    error = %e,
+                    "failed to read network interfaces"
+                );
+                Vec::new()
+            });
 
         cx.update(move |cx| {
             cx.update_global::<ConnectivitySnapshot, _>(|next, _cx| {

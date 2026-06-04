@@ -63,6 +63,15 @@ pub struct AppRoot {
     query_playground_page: Entity<QueryPlaygroundPage>,
     query_devtools_v2_page: Entity<QueryDevToolsV2Page>,
     about_page: Entity<AboutPage>,
+
+    /// Debounced window-bounds persistence.
+    ///
+    /// On macOS, `observe_window_bounds` fires ~60 times/sec during a drag. Each
+    /// `update_config` call clones the full `AppConfig`, normalises it, pretty-prints
+    /// JSON, and performs an atomic file write. Debouncing collapses that burst into
+    /// a single write once the user stops moving/resizing the window.
+    pending_bounds: Option<crate::app_state::PersistedWindowBounds>,
+    _pending_bounds_flush: Option<Task<()>>,
 }
 
 impl AppRoot {
@@ -147,17 +156,32 @@ impl AppRoot {
             cx.notify();
         })
         .detach();
-        cx.observe_window_bounds(window, |_, window, cx| {
+        // Debounce window-bounds persistence to avoid hammering disk at ~60 Hz
+        // during a drag/resize. We stash the latest bounds and flush them once
+        // the user stops moving the window for 500 ms.
+        cx.observe_window_bounds(window, |this, window, cx| {
             let bounds = window.window_bounds().get_bounds();
-            let persisted = crate::app_state::PersistedWindowBounds {
+            this.pending_bounds = Some(crate::app_state::PersistedWindowBounds {
                 x: bounds.origin.x.into(),
                 y: bounds.origin.y.into(),
                 width: bounds.size.width.into(),
                 height: bounds.size.height.into(),
-            };
-            crate::app_state::update_config(cx, |config| {
-                config.window_bounds = Some(persisted);
             });
+
+            // Cancel any previously scheduled flush and schedule a new one.
+            this._pending_bounds_flush = Some(cx.spawn(async move |this, cx| {
+                cx.background_executor()
+                    .timer(std::time::Duration::from_millis(500))
+                    .await;
+
+                let _ = this.update(cx, |this, cx| {
+                    if let Some(bounds) = this.pending_bounds.take() {
+                        crate::app_state::update_config(cx, |config| {
+                            config.window_bounds = Some(bounds);
+                        });
+                    }
+                });
+            }));
         })
         .detach();
 
@@ -199,7 +223,22 @@ impl AppRoot {
             query_playground_page,
             query_devtools_v2_page,
             about_page,
+            pending_bounds: None,
+            _pending_bounds_flush: None,
         }
+    }
+
+    /// Flush any debounced window bounds to disk immediately.
+    ///
+    /// Called during shutdown to ensure the final window position is persisted
+    /// even if the debounce timer has not yet fired.
+    pub fn flush_pending_bounds(&mut self, cx: &mut Context<Self>) {
+        if let Some(bounds) = self.pending_bounds.take() {
+            crate::app_state::update_config(cx, |config| {
+                config.window_bounds = Some(bounds);
+            });
+        }
+        self._pending_bounds_flush = None;
     }
 
     fn active_page_view(&self) -> AnyView {
@@ -230,6 +269,32 @@ impl AppRoot {
         });
         cx.notify();
     }
+}
+
+/// Flush any pending window bounds to disk immediately.
+///
+/// Reads the current platform window bounds and persists them, bypassing the
+/// debounce timer. Safe to call even when no window is open. Called from the
+/// `Quit` action handler so that the final window position is persisted even
+/// when the debounce timer has not yet fired.
+pub fn flush_window_bounds(cx: &mut App) {
+    let Some(window_handle) = cx.active_window() else {
+        return;
+    };
+    window_handle
+        .update(cx, |_, window, cx| {
+            let bounds = window.window_bounds().get_bounds();
+            let persisted = crate::app_state::PersistedWindowBounds {
+                x: bounds.origin.x.into(),
+                y: bounds.origin.y.into(),
+                width: bounds.size.width.into(),
+                height: bounds.size.height.into(),
+            };
+            crate::app_state::update_config(cx, |config| {
+                config.window_bounds = Some(persisted);
+            });
+        })
+        .ok();
 }
 
 impl Focusable for AppRoot {

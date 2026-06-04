@@ -13,7 +13,8 @@ fn save_and_load_config_uses_json_state_file() {
         ..AppConfig::default()
     };
 
-    save_config(&state_file, &config).unwrap();
+    let bytes = serde_json::to_vec(&config).unwrap();
+    save_config(&state_file, &bytes).unwrap();
     let (loaded, err) = load_config(&state_file);
 
     assert_eq!(err, None);

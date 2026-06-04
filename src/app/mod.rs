@@ -340,6 +340,12 @@ pub fn init(cx: &mut App) {
     cx.on_action(|_: &Quit, cx| {
         crate::lifecycle::set_shutdown_step("begin_shutdown", cx);
         crate::lifecycle::set_stage(crate::lifecycle::LifecycleStage::ShuttingDown, cx);
+
+        // Flush any debounced window bounds before shutdown so the final
+        // position is persisted even if the 500 ms timer has not fired yet.
+        crate::lifecycle::set_shutdown_step("flush_window_bounds", cx);
+        crate::root::flush_window_bounds(cx);
+
         crate::lifecycle::set_shutdown_step("drain_tasks", cx);
 
         let drain = crate::tasks::drain_with_timeout(std::time::Duration::from_secs(5), cx);
@@ -354,6 +360,9 @@ pub fn init(cx: &mut App) {
                 crate::desktop_actions::shutdown(cx);
                 crate::lifecycle::set_shutdown_step("unregister_shortcuts", cx);
                 crate::shortcuts::shutdown(cx);
+                // Flush any debounced config changes before continuing shutdown.
+                crate::lifecycle::set_shutdown_step("flush_config", cx);
+                crate::app_state::force_save(cx);
                 crate::lifecycle::set_shutdown_step("flush_storage", cx);
                 crate::storage::shutdown(cx);
                 crate::lifecycle::set_shutdown_step("flush_telemetry", cx);

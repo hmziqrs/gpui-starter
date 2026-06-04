@@ -58,7 +58,17 @@ pub fn snapshot(cx: &App) -> Vec<NotificationInboxItem> {
         .unwrap_or_default()
 }
 
+/// Returns the number of unread inbox items without cloning the inbox.
+pub fn unread_count(cx: &App) -> usize {
+    cx.try_global::<NotificationInboxState>()
+        .map(|state| state.items.iter().filter(|item| !item.read).count())
+        .unwrap_or(0)
+}
+
 pub fn record(item: NotificationInboxItem, cx: &mut App) {
+    // PERF: Clone the item before inserting into state so update_config can use it
+    // without re-reading from global (avoids borrowing global + config simultaneously).
+    let item_for_config = item.clone();
     {
         let state = cx.default_global::<NotificationInboxState>();
         state.items.insert(0, item);
@@ -66,9 +76,9 @@ pub fn record(item: NotificationInboxItem, cx: &mut App) {
             state.items.truncate(MAX_INBOX_ITEMS);
         }
     }
-    let items = cx.global::<NotificationInboxState>().items.clone();
     app_state::update_config(cx, |config| {
-        config.notification_inbox = items;
+        config.notification_inbox.insert(0, item_for_config);
+        config.notification_inbox.truncate(MAX_INBOX_ITEMS);
     });
 }
 
@@ -79,9 +89,11 @@ pub fn mark_all_read(cx: &mut App) {
             item.read = true;
         }
     }
-    let items = cx.global::<NotificationInboxState>().items.clone();
+    // PERF: Update config in-place instead of cloning the entire items Vec.
     app_state::update_config(cx, |config| {
-        config.notification_inbox = items;
+        for item in &mut config.notification_inbox {
+            item.read = true;
+        }
     });
 }
 

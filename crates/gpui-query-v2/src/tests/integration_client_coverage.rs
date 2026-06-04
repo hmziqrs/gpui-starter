@@ -1827,6 +1827,15 @@ fn test_gc_preserves_loading_infinite_query(cx: &mut TestAppContext) {
             });
             assert!(entity.read(cx).status().is_loading());
 
+            // Update the cached snapshot so GC reads Loading instead of Idle.
+            // Without this, GC uses the stale snapshot (Idle) and would evict.
+            client.update_infinite_snapshot::<String, QueryError>(
+                &key,
+                QueryStatus::LoadingEmpty,
+                None,
+                CachePolicy::default(),
+            );
+
             // GC at far-future — loading resources should survive
             client.gc_with_time(1_000_000, cx);
 

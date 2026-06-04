@@ -67,6 +67,10 @@ pub struct MutationResource<V, T, E = QueryError> {
     variables: Option<V>,
     retry_count: u32,
     retry_policy: RetryPolicy,
+    /// Timestamp (ms) of the most recent [`begin`](MutationResource::begin) call.
+    /// Used by [`MutationBucket::gc`](crate::client::mutation_bucket::MutationBucket::gc)
+    /// to decide whether the resource is old enough to evict.
+    created_at: u64,
     #[serde(skip)]
     signal: Option<QuerySignal>,
 }
@@ -82,6 +86,7 @@ impl<V, T, E> MutationResource<V, T, E> {
             variables: None,
             retry_count: 0,
             retry_policy,
+            created_at: 0,
             signal: None,
         }
     }
@@ -155,13 +160,24 @@ impl<V, T, E> MutationResource<V, T, E> {
     /// Start a mutation with the given variables.
     ///
     /// Transitions to [`Loading`](MutationStatus::Loading), stores the
-    /// variables, clears any previous error, and creates a fresh
-    /// cancellation signal.
-    pub fn begin(&mut self, variables: V) {
+    /// variables, clears any previous error, records `now_ms` as the
+    /// creation timestamp, and creates a fresh cancellation signal.
+    ///
+    /// `now_ms` is a monotonically-nondecreasing timestamp in milliseconds,
+    /// typically sourced from [`QueryClient`](crate::client::QueryClient)'s
+    /// clock. It is used by garbage collection to determine resource age.
+    pub fn begin(&mut self, variables: V, now_ms: u64) {
         self.status = MutationStatus::Loading;
         self.variables = Some(variables);
         self.error = None;
+        self.created_at = now_ms;
         self.signal = Some(QuerySignal::new());
+    }
+
+    /// The timestamp (ms) when [`begin`](MutationResource::begin) was last
+    /// called, or `0` if the mutation has never been started.
+    pub fn created_at(&self) -> u64 {
+        self.created_at
     }
 
     /// Complete the mutation successfully.
@@ -212,13 +228,15 @@ impl<V, T, E> MutationResource<V, T, E> {
 
     /// Reset the mutation back to idle.
     ///
-    /// Clears all data, error, variables, retry count, and signal.
+    /// Clears all data, error, variables, retry count, signal, and creation
+    /// timestamp.
     pub fn reset(&mut self) {
         self.status = MutationStatus::Idle;
         self.data = None;
         self.error = None;
         self.variables = None;
         self.retry_count = 0;
+        self.created_at = 0;
         self.signal = None;
     }
 

@@ -150,49 +150,72 @@ pub fn prepare_action(action: HttpLabAction, cx: &mut App) -> Option<ActionHandl
 
 /// Run a prepared action. The caller must spawn this on a GPUI entity context
 /// so that `cx.update` can push results back into the view.
+///
+/// Loops automatically on retryable failures: `apply_result` returns a retry
+/// handle when the retry policy permits another attempt, and we await that
+/// handle on the same entity task, feeding the result back through
+/// `apply_result` until no further retries are needed.
 pub async fn execute_action(handle: ActionHandle, cx: &mut gpui::AsyncApp) {
-    let started = Instant::now();
-    let ActionHandle {
-        action,
-        request_id,
-        cancellation,
-        http_handle,
-    } = handle;
-    tracing::info!(
-        target: LOG,
-        action = action.id(),
-        request_id = %request_id.label(),
-        cancelled = cancellation.is_cancelled(),
-        "HTTP Lab awaiting pre-spawned Tokio request task"
-    );
+    let mut current_handle = handle;
 
-    let result = http_handle
-        .await
-        .unwrap_or_else(|e| Err(format!("HTTP task panicked: {e}")));
-
-    tracing::info!(
-        target: LOG,
-        action = action.id(),
-        request_id = %request_id.label(),
-        elapsed_ms = started.elapsed().as_millis() as u64,
-        "HTTP Lab joined Tokio request task"
-    );
-
-    cx.update(move |cx| {
+    loop {
+        let started = Instant::now();
+        let ActionHandle {
+            action,
+            request_id,
+            cancellation,
+            http_handle,
+        } = current_handle;
         tracing::info!(
             target: LOG,
             action = action.id(),
             request_id = %request_id.label(),
-            "HTTP Lab applying result on GPUI thread"
+            cancelled = cancellation.is_cancelled(),
+            "HTTP Lab awaiting pre-spawned Tokio request task"
         );
-        apply_result(action, request_id, result, cx);
+
+        let result = http_handle
+            .await
+            .unwrap_or_else(|e| Err(format!("HTTP task panicked: {e}")));
+
         tracing::info!(
             target: LOG,
             action = action.id(),
             request_id = %request_id.label(),
-            "HTTP Lab applied result on GPUI thread"
+            elapsed_ms = started.elapsed().as_millis() as u64,
+            "HTTP Lab joined Tokio request task"
         );
-    });
+
+        let retry_handle = cx.update(move |cx| {
+            tracing::info!(
+                target: LOG,
+                action = action.id(),
+                request_id = %request_id.label(),
+                "HTTP Lab applying result on GPUI thread"
+            );
+            let retry = apply_result(action, request_id, result, cx);
+            tracing::info!(
+                target: LOG,
+                action = action.id(),
+                request_id = %request_id.label(),
+                "HTTP Lab applied result on GPUI thread"
+            );
+            retry
+        });
+
+        match retry_handle {
+            Some(next_handle) => {
+                tracing::info!(
+                    target: LOG,
+                    action = next_handle.action.id(),
+                    request_id = %next_handle.request_id.label(),
+                    "HTTP Lab retry handle returned, continuing entity task loop"
+                );
+                current_handle = next_handle;
+            }
+            None => break,
+        }
+    }
 }
 
 pub struct ActionHandle {
@@ -293,12 +316,19 @@ fn prepare_retry_handle(
     })
 }
 
+/// Apply a result to state and, if the failure is retryable, return a
+/// prepared `ActionHandle` for the retry attempt.
+///
+/// The caller (the entity task in `execute_action`) awaits the retry handle
+/// and calls this function again with the retry's result. This keeps retry
+/// wiring on the entity task where `cx.update` is available, rather than
+/// trying to spawn from synchronous `&mut App` context.
 fn apply_result(
     action: HttpLabAction,
     request_id: RequestId,
     result: Result<Vec<ActionExchange>, String>,
     cx: &mut App,
-) {
+) -> Option<ActionHandle> {
     let now_ms = now_ms();
     tracing::debug!(
         target: LOG,
@@ -313,32 +343,25 @@ fn apply_result(
 
     // Check for retry — only on failure, not on success.
     if !is_failure {
-        return;
+        return None;
     }
-    if let Some(retry_count) = cx.update_global::<HttpLabState, _>(|state, _cx| {
+    let retry_count = cx.update_global::<HttpLabState, _>(|state, _cx| {
         should_retry_action(state, action)
-    }) {
-        let delay_ms = cx.update_global::<HttpLabState, _>(|state, _cx| {
-            state.resource(action).retry_policy().delay_for_attempt(retry_count)
-        });
-        tracing::info!(
-            target: LOG,
-            action = action.id(),
-            retry_count,
-            delay_ms,
-            "HTTP Lab scheduling retry"
-        );
-        let retry_request_id = cx.update_global::<HttpLabState, _>(|state, _cx| {
-            prepare_retry(state, action, now_ms)
-        });
-        if let Some(retry_request_id) = retry_request_id {
-            if let Some(handle) = prepare_retry_handle(action, retry_request_id, cx) {
-                // Fire and forget the retry — the result comes back through
-                // the normal apply_result path via the entity task.
-                let _ = handle;
-            }
-        }
-    }
+    })?;
+    let delay_ms = cx.update_global::<HttpLabState, _>(|state, _cx| {
+        state.resource(action).retry_policy().delay_for_attempt(retry_count)
+    });
+    tracing::info!(
+        target: LOG,
+        action = action.id(),
+        retry_count,
+        delay_ms,
+        "HTTP Lab scheduling retry"
+    );
+    let retry_request_id = cx.update_global::<HttpLabState, _>(|state, _cx| {
+        prepare_retry(state, action, now_ms)
+    })?;
+    prepare_retry_handle(action, retry_request_id, cx)
 }
 
 fn now_ms() -> u128 {

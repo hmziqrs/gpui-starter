@@ -19,7 +19,7 @@
 //! ```no_run
 //! use gpui_query_v2::hook::{use_query_select, QueryOptions};
 //! use gpui_query_v2::core::SelectTransform;
-//! # #[derive(Clone)]
+//! # #[derive(Clone, PartialEq)]
 //! # struct User;
 //! # #[derive(Clone, Debug)]
 //! # struct MyError;
@@ -98,7 +98,7 @@ pub fn use_query_select<T, U, E, C, F, Fut>(
     (Subscription, Subscription),
 )
 where
-    T: Clone + Send + Sync + 'static,
+    T: Clone + PartialEq + Send + Sync + 'static,
     U: 'static,
     E: Clone + Send + Sync + std::fmt::Debug + 'static,
     C: 'static,
@@ -116,14 +116,26 @@ where
 
     // Step 3: Observe the query entity so the mapped resource stays in sync.
     // Every time the query entity is updated (fetch completes, refetch, cache
-    // invalidation, etc.), we re-read its data and update the mapped source.
+    // invalidation, etc.), we compare the new data against the cached source
+    // data by reference before cloning. This avoids cloning the entire source
+    // data T on every observer notification when nothing has changed.
     let mapped_weak = mapped_entity.downgrade();
     let mapped_subscription = cx.observe(&query_entity, move |_, entity, cx| {
-        let fresh_data: Option<T> = entity.read(cx).data().cloned();
         if let Some(mapped) = mapped_weak.upgrade() {
-            mapped.update(cx, |m, _| {
-                m.update_source(fresh_data);
+            let changed = mapped.read_with(cx, |m, _| {
+                let fresh_ref = entity.read(cx).data();
+                match (m.source_data(), fresh_ref) {
+                    (Some(cached), Some(fresh)) => cached != fresh,
+                    (None, None) => false,
+                    _ => true,
+                }
             });
+            if changed {
+                let fresh_data: Option<T> = entity.read(cx).data().cloned();
+                mapped.update(cx, |m, _| {
+                    m.update_source(fresh_data);
+                });
+            }
         }
     });
 
