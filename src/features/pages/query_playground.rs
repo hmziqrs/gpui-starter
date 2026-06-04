@@ -134,8 +134,9 @@ impl QueryPlaygroundPage {
 
     fn log(&mut self, msg: impl Into<String>) {
         self.activity_log.push(msg.into());
-        if self.activity_log.len() > 50 {
-            self.activity_log.remove(0);
+        // Cap at 30 entries to limit DOM overhead.
+        if self.activity_log.len() > 30 {
+            self.activity_log.drain(0..self.activity_log.len() - 30);
         }
     }
 
@@ -742,9 +743,11 @@ impl Render for QueryPlaygroundPage {
         let _ = theme;
 
         let page = v_flex()
+            .id("query-playground-page")
             .min_h_full()
             .p_6()
             .gap_5()
+            .overflow_y_scroll()
             // -- Header --
             .child(
                 div()
@@ -1321,10 +1324,29 @@ impl QueryPlaygroundPage {
     }
 
     fn render_activity_log(&self, cx: &mut Context<Self>) -> Div {
+        let has_logs = !self.activity_log.is_empty();
+        let log_count = self.activity_log.len();
+
         section_card("Activity Log", "Tracks user actions across all sections.", cx)
             .child(
-                // Finding 9: Use overflow_y_scroll so users can scroll through
-                // all log entries instead of clipping them.
+                h_flex().justify_between().items_center().px_4().py_1()
+                    .child(
+                        div().text_xs().text_color(cx.theme().muted_foreground)
+                            .child(format!("{} entries", log_count))
+                    )
+                    .when(has_logs, |el| {
+                        el.child(
+                            Button::new("clear-logs")
+                                .label("Clear Logs")
+                                .compact()
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.activity_log.clear();
+                                    cx.notify();
+                                }))
+                        )
+                    })
+            )
+            .child(
                 v_flex().id("activity-log-scroll").gap_0p5().px_4().pb_3().max_h(px(200.)).overflow_y_scroll()
                     .when(self.activity_log.is_empty(), |el| {
                         el.child(
