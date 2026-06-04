@@ -159,9 +159,12 @@ pub fn initialize(cx: &mut App) {
         .clone();
     cx.spawn(async move |cx| {
         startup_rt
-            .spawn(tokio::time::sleep(std::time::Duration::from_secs(
-                STARTUP_CHECK_DELAY_SECS,
-            )))
+            .spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_secs(
+                    STARTUP_CHECK_DELAY_SECS,
+                ))
+                .await;
+            })
             .await
             .ok();
         cx.update(|cx| {
@@ -183,9 +186,12 @@ pub fn initialize(cx: &mut App) {
     cx.spawn(async move |cx| {
         loop {
             periodic_rt
-                .spawn(tokio::time::sleep(std::time::Duration::from_secs(
-                    PERIODIC_CHECK_INTERVAL_SECS,
-                )))
+                .spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_secs(
+                        PERIODIC_CHECK_INTERVAL_SECS,
+                    ))
+                    .await;
+                })
                 .await
                 .ok();
 
@@ -554,9 +560,11 @@ pub fn download_update(cx: &mut App) {
             }
 
             // Sleep briefly on the tokio runtime to avoid busy-waiting.
-            rt.spawn(tokio::time::sleep(std::time::Duration::from_millis(200)))
-                .await
-                .ok();
+            rt.spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            })
+            .await
+            .ok();
         }
 
         // Read final progress.
@@ -938,9 +946,11 @@ fn handle_check_failure(error: String, cx: &mut App) {
             .runtime
             .clone();
         cx.spawn(async move |cx| {
-            rt.spawn(tokio::time::sleep(std::time::Duration::from_secs(delay_secs)))
-                .await
-                .ok();
+            rt.spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_secs(delay_secs)).await;
+            })
+            .await
+            .ok();
             cx.update(|cx| {
                 tracing::info!(
                     target: "gpui_starter::updater",
@@ -996,9 +1006,11 @@ fn handle_download_failure(error: String, cx: &mut App) {
             .runtime
             .clone();
         cx.spawn(async move |cx| {
-            rt.spawn(tokio::time::sleep(std::time::Duration::from_secs(delay_secs)))
-                .await
-                .ok();
+            rt.spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_secs(delay_secs)).await;
+            })
+            .await
+            .ok();
             cx.update(|cx| {
                 tracing::info!(
                     target: "gpui_starter::updater",
