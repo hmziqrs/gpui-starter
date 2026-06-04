@@ -3162,6 +3162,7 @@ dependencies = [
  "es-fluent-build",
  "es-fluent-lang",
  "es-fluent-manager-embedded",
+ "futures-util",
  "global-hotkey",
  "gpui",
  "gpui-component",

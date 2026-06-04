@@ -327,6 +327,7 @@ pub fn init(cx: &mut App) {
         cx,
     );
     crate::services::updater::initialize(cx);
+    crate::services::updater::check_pending_swap(cx);
 
     // Key bindings
     cx.bind_keys([

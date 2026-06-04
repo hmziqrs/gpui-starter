@@ -443,7 +443,10 @@ impl Render for AppRoot {
                         .id("page")
                         .flex_1()
                         .overflow_y_scroll()
-                        .child(self.active_page_view(cx)),
+                        .child({
+                            let _render_guard = crate::lifecycle::enter_render_path();
+                            self.active_page_view(cx)
+                        }),
                 ),
         );
 

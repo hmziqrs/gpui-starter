@@ -87,6 +87,39 @@ pub fn set_shutdown_error(error: impl Into<String>, cx: &mut App) {
 
 static LAST_PANIC_SUMMARY: OnceLock<Mutex<Option<String>>> = OnceLock::new();
 
+// ---------------------------------------------------------------------------
+// Render-path tracking (thread-local guard)
+// ---------------------------------------------------------------------------
+
+std::thread_local! {
+    static IN_RENDER_PATH: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// RAII guard returned by [`enter_render_path`]. Resets the thread-local flag
+/// when dropped.
+struct RenderPathGuard;
+
+impl Drop for RenderPathGuard {
+    fn drop(&mut self) {
+        IN_RENDER_PATH.with(|c| c.set(false));
+    }
+}
+
+/// Mark the current thread as being inside the render path.
+///
+/// Returns a guard that clears the flag on drop. Intended to wrap only the
+/// `active_page_view` call so that only render-originating panics trigger the
+/// error boundary.
+pub fn enter_render_path() -> impl Drop {
+    IN_RENDER_PATH.with(|c| c.set(true));
+    RenderPathGuard
+}
+
+/// Returns `true` if the current thread is inside the render path.
+pub fn in_render_path() -> bool {
+    IN_RENDER_PATH.with(|c| c.get())
+}
+
 /// Set to `true` inside the panic hook so the next render pass can detect
 /// that a panic occurred and swap in the error boundary view instead of the
 /// crashing page.
@@ -114,10 +147,14 @@ pub fn install_panic_hook() {
         if let Ok(mut value) = slot.lock() {
             *value = Some(summary.clone());
         }
-        // Mark that a panic occurred so the render loop can show the error
-        // boundary view on the next frame instead of re-trying the crashing
-        // page.
-        RENDER_PANIC_OCCURRED.store(true, Ordering::SeqCst);
+        // Mark that a render panic occurred so the render loop can show the
+        // error boundary view on the next frame instead of re-trying the
+        // crashing page.  Only set the flag when the panic originates inside
+        // the render path to avoid false error-boundary activation from
+        // background tasks, init, etc.
+        if in_render_path() {
+            RENDER_PANIC_OCCURRED.store(true, Ordering::SeqCst);
+        }
         tracing::error!(
             target: "gpui_starter::lifecycle",
             panic = %summary,

@@ -109,16 +109,21 @@ Wrap the active page view at the dispatch boundary in `shell/root.rs` so a
 render failure renders a fallback ("This page failed to render — <summary> /
 Reload") instead of propagating.
 
-Feasibility note — this is the item with real homework:
+Spike outcome — the route-swap (next-frame) approach was chosen:
 
-- GPUI drives view render through `stacksafe`/`stacker`; a naive
-  `catch_unwind` around `render()` may not behave as expected and the unwind
-  guard interacts with the global panic hook.
-- Spike first: confirm whether a `catch_unwind` at the page-view boundary
-  actually recovers under GPUI's render path, or whether recovery has to happen
-  at a coarser granularity (e.g. swap the route to an error route on the next
-  frame after the panic hook fires, rather than catching inline).
-- Reuse `last_panic_summary()` for the fallback's detail text.
+- Inline `catch_unwind` was not attempted because GPUI render uses an
+  `AtomicBool` flag (`RENDER_PANIC_OCCURRED`) to detect panics rather than
+  catching them inline. The render path is driven through `stacksafe`/`stacker`,
+  and a `catch_unwind` around `render()` would interact unpredictably with the
+  global panic hook.
+- **Chosen approach**: the panic hook sets an `AtomicBool`; on the next
+  `active_page_view` call, the flag is read and the view is swapped to
+  `RenderErrorPage`. A thread-local `IN_RENDER_PATH` guard ensures only panics
+  that originate inside the render path (not background tasks, init, etc.) set
+  the flag, preventing false error-boundary activation.
+- This is safe because the default `panic=unwind` mode lets the current frame
+  abort cleanly and the next frame renders the fallback.
+- `last_panic_summary()` is reused for the fallback's detail text.
 
 ### Files
 

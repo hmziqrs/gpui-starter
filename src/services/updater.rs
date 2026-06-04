@@ -71,7 +71,34 @@ struct PlatformAsset {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_MANIFEST_URL: &str = "https://releases.example.com/manifest.json";
-const MACOS_PLATFORM_KEY: &str = "macos-aarch64";
+
+fn platform_key() -> String {
+    let os = if cfg!(target_os = "macos") {
+        "macos"
+    } else if cfg!(target_os = "linux") {
+        "linux"
+    } else if cfg!(target_os = "windows") {
+        "windows"
+    } else {
+        "unknown"
+    };
+    let arch = std::env::consts::ARCH; // "aarch64", "x86_64", etc.
+    format!("{os}-{arch}")
+}
+
+fn pending_swap_path() -> PathBuf {
+    directories::ProjectDirs::from("", "", "gpui-starter")
+        .map(|pd| {
+            let dir = pd.data_dir().join("updates");
+            let _ = std::fs::create_dir_all(&dir);
+            dir.join("pending-swap.json")
+        })
+        .unwrap_or_else(|| {
+            let dir = std::env::temp_dir().join("gpui-starter-updates");
+            let _ = std::fs::create_dir_all(&dir);
+            dir.join("pending-swap.json")
+        })
+}
 
 fn current_app_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
@@ -203,16 +230,35 @@ pub fn check_for_updates(cx: &mut App) {
                     config.last_update_check = Some(now);
                 });
 
-                if manifest.version == current_version {
-                    set_status(UpdateStatus::UpToDate, cx);
-                } else {
-                    set_status(
-                        UpdateStatus::Available {
-                            version: manifest.version,
-                            notes: manifest.release_notes,
-                        },
-                        cx,
-                    );
+                match (
+                    semver::Version::parse(&manifest.version),
+                    semver::Version::parse(&current_version),
+                ) {
+                    (Ok(manifest_ver), Ok(cur_ver)) => {
+                        if manifest_ver > cur_ver {
+                            set_status(
+                                UpdateStatus::Available {
+                                    version: manifest.version,
+                                    notes: manifest.release_notes,
+                                },
+                                cx,
+                            );
+                        } else {
+                            // Equal or older manifest version — we are up to date (or ahead).
+                            set_status(UpdateStatus::UpToDate, cx);
+                        }
+                    }
+                    (Err(e), _) | (_, Err(e)) => {
+                        tracing::error!(
+                            target: "gpui_starter::updater",
+                            error = %e,
+                            "failed to parse version for comparison"
+                        );
+                        set_status(
+                            UpdateStatus::Error(format!("version parse error: {e}")),
+                            cx,
+                        );
+                    }
                 }
             }
             Err(err) => {
@@ -278,107 +324,218 @@ pub fn download_update(cx: &mut App) {
             }
         };
 
-        // Step 2: Download the asset to a temp directory.
-        let download_result: Result<PathBuf, String> = (|| async {
-            let tmp_dir = std::env::temp_dir().join("gpui-starter-updates");
-            std::fs::create_dir_all(&tmp_dir)
-                .map_err(|e| format!("failed to create temp dir: {e}"))?;
+        // Step 2: Download the asset to a temp directory with streaming progress.
+        let tmp_dir = std::env::temp_dir().join("gpui-starter-updates");
+        if let Err(err) = std::fs::create_dir_all(&tmp_dir) {
+            let msg = format!("failed to create temp dir: {err}");
+            tracing::error!(target: "gpui_starter::updater", error = %msg);
+            cx.update(|cx| set_status(UpdateStatus::Error(msg), cx));
+            return;
+        };
 
-            let file_name = asset
-                .url
-                .rsplit('/')
-                .next()
-                .unwrap_or("update.bin")
-                .to_string();
-            let dest_path = tmp_dir.join(&file_name);
+        let file_name = asset
+            .url
+            .rsplit('/')
+            .next()
+            .unwrap_or("update.bin")
+            .to_string();
+        let dest_path = tmp_dir.join(&file_name);
 
-            tracing::info!(
-                target: "gpui_starter::updater",
-                url = %asset.url,
-                dest = %dest_path.display(),
-                size = asset.size,
-                "starting download"
-            );
+        tracing::info!(
+            target: "gpui_starter::updater",
+            url = %asset.url,
+            dest = %dest_path.display(),
+            size = asset.size,
+            "starting download"
+        );
 
-            let response = rt
-                .spawn(async move {
-                    client
-                        .get(&asset.url)
-                        .timeout(std::time::Duration::from_secs(300))
-                        .send()
-                        .await
-                })
-                .await
-                .map_err(|e| format!("download request panicked: {e}"))?
-                .map_err(|e| format!("download request failed: {e}"))?;
-
-            if !response.status().is_success() {
-                return Err(format!("download returned status {}", response.status()));
+        let response = match rt
+            .spawn(async move {
+                client
+                    .get(&asset.url)
+                    .timeout(std::time::Duration::from_secs(300))
+                    .send()
+                    .await
+            })
+            .await
+        {
+            Ok(Ok(r)) => r,
+            Ok(Err(e)) => {
+                let msg = format!("download request failed: {e}");
+                tracing::error!(target: "gpui_starter::updater", error = %msg);
+                cx.update(|cx| set_status(UpdateStatus::Error(msg), cx));
+                return;
             }
+            Err(e) => {
+                let msg = format!("download request panicked: {e}");
+                tracing::error!(target: "gpui_starter::updater", error = %msg);
+                cx.update(|cx| set_status(UpdateStatus::Error(msg), cx));
+                return;
+            }
+        };
 
-            let bytes = response
-                .bytes()
-                .await
-                .map_err(|e| format!("failed to read download body: {e}"))?;
+        if !response.status().is_success() {
+            let msg = format!("download returned status {}", response.status());
+            tracing::error!(target: "gpui_starter::updater", error = %msg);
+            cx.update(|cx| set_status(UpdateStatus::Error(msg), cx));
+            return;
+        }
 
-            std::fs::write(&dest_path, &bytes)
-                .map_err(|e| format!("failed to write update file: {e}"))?;
+        let total: u64 = response
+            .headers()
+            .get("content-length")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0);
 
-            Ok(dest_path)
-        })()
-        .await;
+        let file = match std::fs::File::create(&dest_path) {
+            Ok(f) => f,
+            Err(err) => {
+                let msg = format!("failed to create download file: {err}");
+                tracing::error!(target: "gpui_starter::updater", error = %msg);
+                cx.update(|cx| set_status(UpdateStatus::Error(msg), cx));
+                return;
+            }
+        };
 
-        cx.update(move |cx| match download_result {
-            Ok(path) => {
-                let path_str = path.to_string_lossy().to_string();
-                tracing::info!(
-                    target: "gpui_starter::updater",
-                    version = %version,
-                    path = %path_str,
-                    "download complete"
-                );
+        // Shared progress value updated by the download task.
+        let progress = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
 
-                // Step 3: Verify codesign on macOS.
-                #[cfg(target_os = "macos")]
-                {
-                    match verify_codesign(&path) {
-                        Ok(()) => {
-                            tracing::info!(
-                                target: "gpui_starter::updater",
-                                path = %path_str,
-                                "codesign verification passed"
-                            );
+        let total_for_task = total;
+        let progress_clone = progress.clone();
+
+        // Spawn the streaming download as a self-contained 'static task.
+        let download_handle = rt.spawn(async move {
+            use futures_util::StreamExt as _;
+            use std::io::Write as _;
+            let mut stream = response.bytes_stream();
+            let mut downloaded: u64 = 0;
+            let mut last_reported: u32 = 0;
+            let mut file = file;
+            let mut last_err: Option<String> = None;
+
+            while let Some(chunk_result) = stream.next().await {
+                match chunk_result {
+                    Ok(chunk) => {
+                        downloaded += chunk.len() as u64;
+                        if let Err(err) = file.write_all(&chunk) {
+                            last_err = Some(format!("failed to write download chunk: {err}"));
+                            break;
                         }
-                        Err(err) => {
-                            tracing::error!(
-                                target: "gpui_starter::updater",
-                                path = %path_str,
-                                error = %err,
-                                "codesign verification failed"
-                            );
-                            set_status(UpdateStatus::Error(err), cx);
-                            return;
+                        if total_for_task > 0 {
+                            let pct = (downloaded as f32 / total_for_task as f32 * 100.0) as u32;
+                            if pct / 10 > last_reported / 10 {
+                                last_reported = pct;
+                                progress_clone.store(pct, std::sync::atomic::Ordering::Relaxed);
+                            }
                         }
                     }
+                    Err(e) => {
+                        last_err = Some(format!("failed to read download chunk: {e}"));
+                        break;
+                    }
                 }
-
-                set_status(
-                    UpdateStatus::Downloaded {
-                        version: version.clone(),
-                        path: path_str,
-                    },
-                    cx,
-                );
             }
-            Err(err) => {
-                tracing::error!(
-                    target: "gpui_starter::updater",
-                    error = %err,
-                    "download failed"
-                );
-                set_status(UpdateStatus::Error(err), cx);
+
+            let _ = file.flush();
+            if let Some(err) = last_err {
+                Err(err)
+            } else {
+                Ok(downloaded)
             }
         });
+
+        // Poll the shared progress and push updates into GPUI state.
+        // We use a loop with short tokio sleeps to periodically check.
+        let mut last_progress: u32 = 0;
+        loop {
+            let cur = progress.load(std::sync::atomic::Ordering::Relaxed);
+            if cur != last_progress {
+                last_progress = cur;
+                let _ = cx.update(|cx| {
+                    set_status(UpdateStatus::Downloading { progress: cur }, cx);
+                });
+            }
+
+            // Check if the download finished — try a non-blocking poll.
+            if download_handle.is_finished() {
+                break;
+            }
+
+            // Sleep briefly on the tokio runtime to avoid busy-waiting.
+            rt.spawn(tokio::time::sleep(std::time::Duration::from_millis(200)))
+                .await
+                .ok();
+        }
+
+        // Read final progress.
+        let cur = progress.load(std::sync::atomic::Ordering::Relaxed);
+        if cur != last_progress {
+            let _ = cx.update(|cx| {
+                set_status(UpdateStatus::Downloading { progress: cur }, cx);
+            });
+        }
+
+        let downloaded = match download_handle.await {
+            Ok(Ok(bytes)) => bytes,
+            Ok(Err(err)) => {
+                tracing::error!(target: "gpui_starter::updater", error = %err, "download failed");
+                cx.update(|cx| set_status(UpdateStatus::Error(err), cx));
+                return;
+            }
+            Err(e) => {
+                let msg = format!("download task panicked: {e}");
+                tracing::error!(target: "gpui_starter::updater", error = %msg);
+                cx.update(|cx| set_status(UpdateStatus::Error(msg), cx));
+                return;
+            }
+        };
+
+        {
+
+        let path_str = dest_path.to_string_lossy().to_string();
+        tracing::info!(
+            target: "gpui_starter::updater",
+            version = %version,
+            path = %path_str,
+            downloaded_bytes = downloaded,
+            "download complete"
+        );
+
+        // Step 3: Verify codesign on macOS.
+        #[cfg(target_os = "macos")]
+        {
+            match verify_codesign(&dest_path) {
+                Ok(()) => {
+                    tracing::info!(
+                        target: "gpui_starter::updater",
+                        path = %path_str,
+                        "codesign verification passed"
+                    );
+                }
+                Err(err) => {
+                    tracing::error!(
+                        target: "gpui_starter::updater",
+                        path = %path_str,
+                        error = %err,
+                        "codesign verification failed"
+                    );
+                    cx.update(|cx| set_status(UpdateStatus::Error(err), cx));
+                    return;
+                }
+            }
+        }
+
+        cx.update(|cx| {
+            set_status(
+                UpdateStatus::Downloaded {
+                    version: version.clone(),
+                    path: path_str,
+                },
+                cx,
+            );
+        });
+        }
     })
     .detach();
 }
@@ -411,9 +568,7 @@ pub fn apply_update(cx: &mut App) {
     set_status(UpdateStatus::ReadyToInstall, cx);
 
     // Write a marker file so the app launcher can perform the swap on next boot.
-    let marker_dir = std::env::temp_dir().join("gpui-starter-updates");
-    let _ = std::fs::create_dir_all(&marker_dir);
-    let marker_path = marker_dir.join("pending-swap.json");
+    let marker_path = pending_swap_path();
     let pending = serde_json::json!({
         "version": version,
         "source_path": path,
@@ -430,6 +585,164 @@ pub fn apply_update(cx: &mut App) {
             UpdateStatus::Error(format!("failed to schedule swap: {err}")),
             cx,
         );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Check and apply pending swap on startup
+// ---------------------------------------------------------------------------
+
+pub fn check_pending_swap(cx: &mut App) {
+    let marker_path = pending_swap_path();
+    if !marker_path.exists() {
+        return;
+    }
+
+    tracing::info!(
+        target: "gpui_starter::updater",
+        path = %marker_path.display(),
+        "pending swap marker found, attempting binary swap"
+    );
+
+    let data = match std::fs::read_to_string(&marker_path) {
+        Ok(d) => d,
+        Err(err) => {
+            tracing::error!(
+                target: "gpui_starter::updater",
+                error = %err,
+                "failed to read pending swap marker"
+            );
+            return;
+        }
+    };
+
+    let pending: serde_json::Value = match serde_json::from_str(&data) {
+        Ok(v) => v,
+        Err(err) => {
+            tracing::error!(
+                target: "gpui_starter::updater",
+                error = %err,
+                "failed to parse pending swap marker"
+            );
+            // Remove corrupt marker so we don't retry indefinitely.
+            let _ = std::fs::remove_file(&marker_path);
+            return;
+        }
+    };
+
+    let source_path = match pending.get("source_path").and_then(|v| v.as_str()) {
+        Some(p) => PathBuf::from(p),
+        None => {
+            tracing::error!(
+                target: "gpui_starter::updater",
+                "pending swap marker missing source_path"
+            );
+            let _ = std::fs::remove_file(&marker_path);
+            return;
+        }
+    };
+
+    let version = pending
+        .get("version")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown");
+
+    if !source_path.exists() {
+        tracing::error!(
+            target: "gpui_starter::updater",
+            path = %source_path.display(),
+            "pending swap source path does not exist"
+        );
+        let _ = std::fs::remove_file(&marker_path);
+        return;
+    }
+
+    let current_exe = match std::env::current_exe() {
+        Ok(e) => e,
+        Err(err) => {
+            tracing::error!(
+                target: "gpui_starter::updater",
+                error = %err,
+                "failed to determine current executable path"
+            );
+            return;
+        }
+    };
+
+    // Detect whether we are inside a .app bundle on macOS.
+    let swap_result: Result<(), String> = (|| {
+        #[cfg(target_os = "macos")]
+        {
+            // If the current exe is inside a .app bundle, swap the entire bundle.
+            if let Some(bundle_path) = current_exe
+                .ancestors()
+                .find(|a| a.extension().is_some_and(|ext| ext == "app"))
+            {
+                // The downloaded source might also be a .app bundle or a directory
+                // that should replace the bundle.
+                let source_bundle = if source_path.extension().is_some_and(|ext| ext == "app") {
+                    source_path.clone()
+                } else if source_path.is_dir() {
+                    source_path.clone()
+                } else {
+                    // Standalone binary inside a bundle — replace the binary directly.
+                    let dest_binary = current_exe.clone();
+                    std::process::Command::new("mv")
+                        .arg("-f")
+                        .arg(&source_path)
+                        .arg(&dest_binary)
+                        .status()
+                        .map_err(|e| format!("failed to mv binary: {e}"))?;
+                    return Ok(());
+                };
+
+                tracing::info!(
+                    target: "gpui_starter::updater",
+                    source = %source_bundle.display(),
+                    dest = %bundle_path.display(),
+                    "swapping .app bundle"
+                );
+                // Remove old bundle and move new one into place.
+                if bundle_path.exists() {
+                    std::fs::remove_dir_all(bundle_path)
+                        .map_err(|e| format!("failed to remove old bundle: {e}"))?;
+                }
+                std::process::Command::new("mv")
+                    .arg(&source_bundle)
+                    .arg(bundle_path)
+                    .status()
+                    .map_err(|e| format!("failed to mv bundle: {e}"))?;
+                return Ok(());
+            }
+        }
+
+        // Standalone binary fallback: rename the new binary over the current exe.
+        let dest = current_exe.clone();
+        std::fs::rename(&source_path, &dest)
+            .map_err(|e| format!("failed to rename binary: {e}"))?;
+
+        Ok(())
+    })();
+
+    match swap_result {
+        Ok(()) => {
+            tracing::info!(
+                target: "gpui_starter::updater",
+                version = %version,
+                "pending swap applied successfully"
+            );
+            let _ = std::fs::remove_file(&marker_path);
+            set_status(UpdateStatus::Idle, cx);
+        }
+        Err(err) => {
+            tracing::error!(
+                target: "gpui_starter::updater",
+                error = %err,
+                "pending swap failed"
+            );
+            // Leave the marker so the user/admin can investigate, but set error status.
+            set_status(UpdateStatus::Error(format!("swap failed: {err}")), cx);
+        }
     }
 }
 
@@ -499,11 +812,12 @@ async fn fetch_platform_asset(
     let manifest: UpdateManifest = serde_json::from_slice(&body)
         .map_err(|e| format!("failed to parse manifest: {e}"))?;
 
+    let key = platform_key();
     manifest
         .platforms
-        .get(MACOS_PLATFORM_KEY)
+        .get(&key)
         .cloned()
-        .ok_or_else(|| format!("no asset for platform '{MACOS_PLATFORM_KEY}' in manifest"))
+        .ok_or_else(|| format!("no asset for platform '{key}' in manifest"))
 }
 
 #[cfg(target_os = "macos")]
