@@ -1,14 +1,14 @@
 ---
 title: "Sidebar navigation in GPUI: routing without a router"
-description: "How gpui-starter implements multi-page navigation using Rust enums and pattern matching instead of a web-style router."
+description: "How gpui-starter builds multi-page navigation with Rust enums and pattern matching instead of a web-style router, plus deep link parsing and testing."
 date: 2026-05-07
 tags: [GPUI, Rust, desktop]
 draft: false
 ---
 
-Desktop apps don't have URLs. There is no browser history or address bar. When you click a sidebar item, something different has to happen than what a web framework would do.
+Desktop apps don't have URLs. No browser history, no address bar. When you click a sidebar item, the app needs to show a different view, and it needs to do that without anything resembling a web router.
 
-In gpui-starter, navigation is built around a Rust enum. No router library, no path matching. Types and pattern matching.
+In gpui-starter, navigation is built around a Rust enum. No router library, no path matching. Types and pattern matching do the job.
 
 ## The Page enum
 
@@ -26,7 +26,7 @@ pub enum Page {
 
 That is the entire routing table. When the app needs to know "what page are we on," it reads this value. When it needs to switch pages, it writes a new value. The enum lives inside the app's main [entity](/docs/architecture/), which means GPUI's reactivity system handles the rest.
 
-If you add a new screen, you add a variant. The compiler will then tell you every place you forgot to handle it. This is one of the better properties of modeling routes as an enum: exhaustiveness checking.
+If you add a new screen, you add a variant. The compiler then tells you every place you forgot to handle it. The main advantage of modeling routes as an enum is exhaustiveness checking. You can't forget a route because Rust won't let you.
 
 ## Rendering from the active page
 
@@ -47,15 +47,15 @@ fn render_content(&self, cx: &ViewContext<Self>) -> impl IntoElement {
 }
 ```
 
-No conditional rendering chain, no template switching, no route resolver. The match block maps each variant to a render function. If you add a `Page::Dashboard` variant and forget to add it here, Rust refuses to compile.
+The match block maps each variant to a render function. If you add a `Page::Dashboard` variant and forget to add it here, Rust refuses to compile. That's the whole mechanism.
 
-This pattern works because GPUI renders on every frame when an entity is marked dirty. Changing the page value marks the entity as changed, the framework schedules a re-render, and the match block picks the right view.
+This works because GPUI re-renders on every frame when an entity is marked dirty. Changing the page value marks the entity as changed, the framework schedules a re-render, and the match block picks the right view.
 
 ## The sidebar module
 
 The sidebar in gpui-starter is its own module. It renders a list of items, each bound to a `Page` variant. Clicking an item calls `cx.emit(PageEvent::Navigate(page))` or directly mutates the entity, depending on the architecture you pick.
 
-A simplified version looks like this:
+A simplified version:
 
 ```rust
 fn render_sidebar(&self, cx: &ViewContext<Self>) -> impl IntoElement {
@@ -91,7 +91,7 @@ cx.update(&mut entity, |state, cx| {
 });
 ```
 
-That `cx.notify()` call is what triggers the re-render. GPUI does not diff a virtual DOM. It re-runs the view's render function and draws the result. The match block in `render_content` picks the new variant, and the new view appears.
+That `cx.notify()` call triggers the re-render. GPUI does not diff a virtual DOM. It re-runs the view's render function and draws the result. The match block in `render_content` picks the new variant, and the new view appears.
 
 ## How page changes propagate
 
@@ -105,9 +105,9 @@ For navigation, the flow is:
 4. On the next frame, GPUI calls the view's `render` method.
 5. The match block in `render_content` sees the new variant and renders the corresponding view.
 
-No event bus. No prop drilling. The entity is the source of truth, and `cx.notify()` is the signal that something changed.
+There is no event bus or prop drilling. The entity is the source of truth, and `cx.notify()` is the signal that something changed.
 
-If you want multiple views to react to page changes, you can subscribe to the entity. Any view that reads `self.page` during render will automatically stay in sync because it re-renders when the entity notifies.
+If you want multiple views to react to page changes, you can subscribe to the entity. Any view that reads `self.page` during render will automatically stay in sync because it re-renders when the entity notifies. For more on how entities work across the app, see the [state management with GPUI entities](/blog/state-management-gpui-entities/) post.
 
 ## Deep links: parsing URLs into Page variants
 
@@ -133,14 +133,14 @@ impl FromStr for Page {
 
 When the app receives a deep link, it parses the URL into a `Page`, updates the entity, and calls `cx.notify()`. The same render path handles it. Deep links and sidebar clicks end up in the same place: a new value in the page field.
 
-This also makes testing straightforward. You can test routing by asserting that `Page::from_str("myapp://settings") == Ok(Page::Settings)`. No need to simulate clicks or render a UI.
+This also makes testing straightforward. You can test routing by asserting that `Page::from_str("myapp://settings") == Ok(Page::Settings)`. No need to simulate clicks or render a UI. For a broader look at testing GPUI views, check [testing GPUI applications](/blog/testing-gpui-applications/).
 
 ## Why this works for desktop
 
 Web frameworks need routers because URLs are the primary navigation mechanism. The browser's back button, bookmarks, and shared links all depend on URLs existing.
 
-Desktop apps have different constraints. Navigation is driven by user interaction within the app window. There is no back button in the traditional sense (though you could build one by keeping a `Vec<Page>` history). Bookmarks don't exist. Deep links are a bonus, not the primary path.
+Desktop apps have different constraints. Navigation is driven by user interaction within the app window. There is no back button (though you could build one by keeping a `Vec<Page>` history). Bookmarks don't exist. Deep links are a bonus, not the primary path.
 
-An enum plus a match statement covers the common case. You get compile-time guarantees that every page is handled and a single source of truth for what pages exist. Deep link support comes naturally by implementing `FromStr`.
+An enum plus a match statement covers the common case. You get compile-time guarantees that every page is handled, and a single source of truth for what pages exist. Deep link support is just a `FromStr` impl away.
 
-The sidebar module in gpui-starter demonstrates this pattern end to end. Check the [architecture](/docs/architecture/) docs for how entities fit into the larger app structure, or start from [getting started](/docs/getting-started/) to see the full setup.
+If you are building something like this yourself, start with the [getting started](/docs/getting-started/) guide for the full setup. The sidebar module in gpui-starter demonstrates this pattern end to end, and the [architecture](/docs/architecture/) docs explain how entities fit into the larger app structure. For a different take on state flow, the [entity system explained](/blog/gpui-entity-system-explained/) post goes deeper on reactivity.

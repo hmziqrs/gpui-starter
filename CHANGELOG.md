@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-06-05
+
+### Added
+
+- Auto-updater with signed manifests and Ed25519 verification
+- Crash report generation and storage for application panics
+- Frame-time debugger for performance profiling
+- Background WebSocket support (optional feature)
+- gpui-query async data fetching library (TanStack Query-inspired)
+- gpui-query-v2 next-gen async state management
+- Vendored gpui-component library from longbridge
+- Vendored gpui-form for declarative form handling
+- Error boundary with action-based triggers
+- Release workflow with codesigning and notarization
+- Deploy workflow for Cloudflare Pages
+
+### Changed
+
+- 60 new blog posts covering GPUI development topics
+- Improved documentation coverage across all pages
+- Updated FAQ entries with better SEO targeting
+- Enhanced structured data and meta optimization
+- Internal linking improvements across all pages
+
 ## [0.2.0] - 2025-06-15
 
 ### Added

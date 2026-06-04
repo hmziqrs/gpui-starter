@@ -1,20 +1,20 @@
 ---
 title: "Testing GPUI applications"
-description: "Strategies for testing Rust desktop apps built with GPUI, from unit tests to integration harnesses."
+description: "Practical strategies for testing Rust desktop apps built with GPUI, from plain unit tests and the gpui test harness to hand-written fakes and VisualTestContext."
 date: 2026-05-11
 tags: [Rust, GPUI, testing]
 draft: false
 ---
 
-"If it compiles, it probably works" is a Rust saying but it's not a testing strategy. GPUI apps have a testing problem that web developers don't face: there is no DOM. You can't call `querySelector`, you can't assert on CSS classes, and you can't fire synthetic click events at an HTML element. The UI lives on the GPU. So how do you test it?
+"If it compiles, it probably works" is a fun Rust saying. It is not a testing strategy. GPUI apps have a testing problem that web developers never face: there is no DOM. You cannot call `querySelector`, assert on CSS classes, or fire synthetic click events at an HTML element. The UI lives on the GPU. So how do you test it?
 
-The answer is to test the things that matter and skip the things that don't. GPUI's architecture makes this easier than you'd think.
+You test what matters and skip what doesn't. GPUI's architecture makes this more practical than you might expect. This post covers the testing approach I settled on while building gpui-starter, from plain `#[test]` functions through the GPUI test harness to integration tests with real rendering.
 
 ## What you can test without rendering
 
 Most of the logic in a well-structured GPUI app lives outside `render()`. State, routing, config migrations, undo history, event queues. None of these need a window or a GPU context. They are plain Rust structs and functions, and you test them with plain `#[test]`.
 
-The routing module in gpui-starter parses deep links like `gpui-starter://settings/notifications` into an `AppRoute` enum. The test for this is a regular Rust test with no GPUI machinery:
+The routing module in gpui-starter parses deep links like `gpui-starter://settings/notifications` into an `AppRoute` enum. The test for this is a regular Rust test with no GPUI machinery (see the [routing docs](/docs/routing/) for how the route system works):
 
 ```rust
 #[test]
@@ -45,7 +45,7 @@ fn record_clears_redo_history() {
 }
 ```
 
-These tests run fast, compose well, and catch real bugs. The config migration tests in gpui-starter caught a regression where a legacy config with `version: 0` would fail to enable the global shortcut flag. That's a behavioral bug, not a rendering bug, and you don't need a GPU to find it.
+These tests run fast, compose well, and catch real bugs. The config migration tests in gpui-starter caught a regression where a legacy config with `version: 0` would fail to enable the global shortcut flag. That is a behavioral bug, not a rendering bug, and you do not need a GPU to find it.
 
 ## When you need the GPUI test harness
 
@@ -68,7 +68,7 @@ fn test_entity_round_trip(cx: &mut TestAppContext) {
 }
 ```
 
-For async operations, the test executor gives you `cx.run_until_parked()`, which advances all pending tasks to completion. This means timer-based code, background fetches, and detached tasks all complete deterministically. No flaky `sleep(100)` calls.
+For async operations, the test executor gives you `cx.run_until_parked()`, which advances all pending tasks to completion. Timer-based code, background fetches, detached tasks all complete deterministically. No flaky `sleep(100)` calls.
 
 To enable GPUI tests in your project, add a feature flag:
 
@@ -79,7 +79,7 @@ test-support = ["gpui/test-support"]
 
 Then run with `cargo test --features test-support`.
 
-## The testing module
+## Hand-written fakes over mocking libraries
 
 gpui-starter includes a `src/testing.rs` module with fake implementations of external services: telemetry, connectivity, notifications, and secure storage. These are not mocks in the mocking-framework sense. They are hand-written fakes with real state and real behavior.
 
@@ -116,33 +116,33 @@ fn fake_notification_backend_success_and_failure() {
 }
 ```
 
-Why hand-written fakes instead of a mocking library? Because Rust's type system makes fakes cheap to write, and they compose better. A `FakeSecureStorage` that round-trips values through `set`/`get`/`delete` is more useful than a mock that verifies `set` was called with the right argument. You test behavior, not call counts.
+Why hand-written fakes instead of a mocking library? Rust's type system makes fakes cheap to write, and they compose better. A `FakeSecureStorage` that round-trips values through `set`/`get`/`delete` is more useful than a mock that verifies `set` was called with the right argument. You test behavior, not call counts.
 
 ## Testing globals and state transitions
 
-GPUI globals are test-friendly by design. You can `set_global`, `update` it, then `read_with` to assert. And since `set_global` replaces the previous value, tests can reset state between runs without cleanup hooks.
+GPUI globals are test-friendly by design. You call `set_global`, `update` it, then `read_with` to assert. Since `set_global` replaces the previous value, tests can reset state between runs without cleanup hooks.
 
 The event queue in gpui-starter uses a `Global` to accumulate events, then drains them. Testing this with `TestAppContext` means you create the global, emit events, and assert the queue contents. No window required.
 
-For state machines like `TaskStatus` (Queued, Running, Succeeded, Failed, Cancelled), test each transition explicitly. The `tasks` module in gpui-starter has a `mutate_task` helper that finds a task by ID, applies a mutation, and re-emits the global. Testing that `succeed` sets progress to 100% and clears the error field is a few lines of setup with a `TestAppContext`.
+For state machines like `TaskStatus` (Queued, Running, Succeeded, Failed, Cancelled), test each transition explicitly. The `tasks` module has a `mutate_task` helper that finds a task by ID, applies a mutation, and re-emits the global. Testing that `succeed` sets progress to 100% and clears the error field is a few lines of setup with a `TestAppContext`.
 
 ## Form validation, command handling, and actions
 
-Form validation in GPUI is logic. A field validator is a function that takes a string and returns `Result<(), ValidationError>`. Test it like any other pure function.
+Form validation in GPUI is logic. A field validator is a function that takes a string and returns `Result<(), ValidationError>`. Test it like any other pure function. The [forms docs](/docs/forms/) show how validators compose.
 
-Command handling maps to GPUI actions. You register action handlers with `on_action`, and in tests you can dispatch actions programmatically through `VisualTestContext`. For the command launcher (Cmd+K), test the fuzzy matching and ranking logic separately from the UI that renders the results.
+Command handling maps to GPUI actions. You register action handlers with `on_action`, and in tests you can dispatch actions programmatically through `VisualTestContext`. For the command launcher (Cmd+K), test the fuzzy matching and ranking logic separately from the UI that renders the results. I wrote about this in more detail in the [building a command launcher](/blog/building-command-launcher-gpui/) post.
 
-The `AppRoute::parse_deep_link` tests show the pattern well: parse input, assert output, assert errors on bad input. Your command handler tests should do the same.
+The `AppRoute::parse_deep_link` tests show the pattern: parse input, assert output, assert errors on bad input. Your command handler tests should do the same.
 
 ## Why integration tests matter more for UI
 
-Unit tests cover pure logic. But the bugs that hurt are the ones where logic meets rendering: a state transition that should trigger a re-render but doesn't, a subscription that fires for the wrong entity, a theme change that breaks layout.
+Unit tests cover pure logic. But the bugs that hurt are the ones where logic meets rendering: a state transition that should trigger a re-render but does not, a subscription that fires for the wrong entity, a theme change that breaks layout.
 
 GPUI's `VisualTestContext` lets you open a real window, render a component, dispatch actions, and read the resulting state. These tests are slower than plain `#[test]` because they go through the rendering pipeline. They are also the only tests that catch the "I forgot to call `cx.notify()`" class of bugs.
 
 My rule of thumb: if a function signature includes `&mut Context<Self>`, it probably deserves an integration test. If it only takes `&self` or owned values, a unit test suffices.
 
-## What gpui-starter's tests look like in practice
+## What the test suite looks like in practice
 
 The project has around 20 tests across modules like `app_state`, `routes`, `undo_stack`, `events`, `storage`, `config_migrations`, and `testing`. Most are plain `#[test]` functions. A few use `tempfile::tempdir()` for filesystem operations. None require a GPU context because the architecture separates state from rendering.
 
@@ -168,8 +168,8 @@ fn initializes_schema_and_migration_table() {
 }
 ```
 
-## The strategy in summary
+## The testing strategy in short
 
-Test pure logic with plain `#[test]`. Test entity state and async behavior with `#[gpui::test]` and `TestAppContext`. Test rendering and action dispatch with `VisualTestContext` when you need to. Write hand-written fakes for external services. Don't test pixels.
+Test pure logic with plain `#[test]`. Test entity state and async behavior with `#[gpui::test]` and `TestAppContext`. Test rendering and action dispatch with `VisualTestContext` when you need to. Write hand-written fakes for external services. Do not test pixels.
 
-For a deeper look at how gpui-starter structures state and context, see the [architecture guide](/docs/architecture/).
+For a deeper look at how gpui-starter structures state and context, see the [architecture guide](/docs/architecture/). If you are new to the framework, the [getting started with GPUI](/blog/getting-started-with-gpui/) post covers project setup and first components.

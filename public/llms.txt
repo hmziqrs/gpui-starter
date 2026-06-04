@@ -4,7 +4,7 @@
 
 ## What it is
 
-gpui-starter is a boilerplate project for building desktop apps with [GPUI](https://github.com/zed-industries/zed), the GPU-accelerated UI framework by the Zed team. It includes multi-page navigation, 21 built-in themes, internationalization, form validation, a command launcher, desktop notifications, secure credential storage, and undo/redo. Everything you need to skip the boilerplate and start building.
+gpui-starter is a boilerplate project for building desktop apps with [GPUI](https://github.com/zed-industries/zed), the GPU-accelerated UI framework by the Zed team. It includes multi-page navigation, 21 built-in themes, internationalization, form validation, a command launcher, desktop notifications, secure credential storage, undo/redo, single-instance locking, diagnostics, gpui-query (TanStack Query-inspired async data fetching), auto-updater with Ed25519-signed manifests, crash reporting, privacy-first telemetry, WebSocket support, and error boundaries. Everything you need to skip the boilerplate and start building.
 
 ## Installation
 
@@ -30,6 +30,12 @@ Requires Rust (2024 edition). macOS: Xcode Command Line Tools. Linux: Vulkan + X
 - **Single instance** — prevents multiple app instances with IPC forwarding
 - **SQLite** — local data persistence via rusqlite in WAL mode
 - **Diagnostics** — built-in diagnostics page showing app state, logs, and system info
+- **gpui-query** — async data fetching library (TanStack Query-inspired) with stale-while-revalidate and automatic refetching
+- **Auto-updater** — Ed25519-signed manifest updates from GitHub Releases with user prompts
+- **Crash reporting** — panic hooks capture stack traces and write structured crash reports to disk
+- **Telemetry** — privacy-first with three modes (disabled, local-only, remote) and explicit consent gate
+- **WebSocket** — optional feature for real-time data streaming
+- **Error boundaries** — action-based error triggers with graceful degradation
 
 ## Tech stack
 
@@ -77,27 +83,133 @@ Docs at https://gpui-starter.hmziq.xyz/docs/
 - **Secure Storage** — OS keychain via keyring
 - **Routing & Navigation** — sidebar navigation, enum-based routing
 - **Testing** — unit tests and integration harnesses
+- **gpui-query** — async data fetching with stale-while-revalidate (TanStack Query-inspired)
+- **Auto-Updater** — Ed25519-signed updates from GitHub Releases
+- **Crash Reporting** — structured crash reports with panic hooks
+- **Diagnostics** — live app state, subsystem health, debug actions
+- **Telemetry** — privacy-first telemetry with consent gate (disabled/local/remote)
+- **Undo/Redo** — command-pattern stack with Cmd+Z/Cmd+Y
+- **Single-Instance** — prevents duplicate windows with IPC forwarding
+- **WebSocket** — optional real-time data streaming support
+- **Error Boundaries** — action-based error triggers with graceful degradation
 
 ## Blog
 
-16 posts at https://gpui-starter.hmziq.xyz/blog/
+75 posts at https://gpui-starter.hmziq.xyz/blog/
 
-- Why Rust + GPUI for desktop apps
-- Getting started with GPUI
-- Sidebar navigation in GPUI: routing without a router
-- Internationalization in GPUI apps with es-fluent
-- Deep dive: the 21-theme system
-- State management in GPUI: entities, globals, and context
-- Form validation in Rust with koruma and gpui-form
-- Storing secrets in desktop apps: the keyring approach
-- Desktop notifications in Rust: a fallback strategy
-- Building a command launcher (Cmd+K) in GPUI
-- GPUI vs egui vs iced: Rust GUI frameworks compared
-- From prototype to production: scaling a GPUI app
-- Undo and redo in Rust desktop apps
-- Building a custom title bar in GPUI
-- Single-instance apps in Rust: preventing duplicate windows
-- Testing GPUI applications
+### Getting Started
+
+- Why Rust + GPUI for desktop apps — `building-desktop-apps-rust-gpui`
+- Getting started with GPUI: a new paradigm for Rust desktop apps — `getting-started-with-gpui`
+- Hello World in GPUI: your first Rust desktop app — `hello-world-gpui-tutorial`
+- Getting started with Rust desktop development in 2026 — `getting-started-rust-desktop-2026`
+
+### GPUI Core Concepts
+
+- State management in GPUI: entities, globals, and context — `state-management-gpui-entities`
+- The GPUI entity system explained: state and reactivity — `gpui-entity-system-explained`
+- How GPUI renders: inside the GPU-accelerated pipeline — `gpui-rendering-pipeline-deep-dive`
+- Sidebar navigation in GPUI: routing without a router — `sidebar-navigation-gpui`
+- Building sidebar navigation in GPUI: a complete tutorial — `sidebar-navigation-gpui-tutorial`
+- Building a command launcher (Cmd+K) in GPUI — `building-command-launcher-gpui`
+- Building a command palette in Rust with GPUI — `command-palette-rust-tutorial`
+- Building a custom title bar in GPUI — `custom-titlebar-gpui`
+
+### Themes
+
+- Deep dive: the 21-theme system — `theme-system-deep-dive`
+- Creating a theme system in GPUI with hot-reload — `theme-system-gpui-tutorial`
+
+### Forms & Validation
+
+- Form validation in Rust with koruma and gpui-form — `form-validation-koruma-rust`
+- Form validation in Rust desktop apps: a practical tutorial — `form-validation-rust-tutorial`
+
+### Internationalization
+
+- Internationalization in GPUI apps with es-fluent — `internationalization-gpui-apps`
+- Adding internationalization to a Rust desktop app with Fluent — `i18n-rust-desktop-tutorial`
+- Fluent i18n in Rust: internationalization for desktop apps — `integrating-fluent-rust-i18n`
+
+### Security & Storage
+
+- Storing secrets in desktop apps: the keyring approach — `secure-credential-storage`
+- Secure credential storage in Rust with OS keyring — `secure-storage-rust-tutorial`
+- Cross-platform credential storage in Rust with keyring — `integrating-keyring-rust-credentials`
+- Security best practices for Rust desktop applications — `rust-desktop-security-guide`
+
+### Notifications
+
+- Desktop notifications in Rust: a fallback strategy — `desktop-notifications-rust`
+- Desktop notifications in Rust: native backends and toast fallbacks — `notifications-rust-desktop-tutorial`
+
+### Persistence & Data
+
+- Using SQLite in a Rust desktop app: a practical guide — `sqlite-rust-desktop-tutorial`
+- Data serialization in Rust desktop apps with serde — `integrating-serde-rust-serialization`
+
+### App Lifecycle & Infrastructure
+
+- Single-instance apps in Rust: preventing duplicate windows — `single-instance-rust-app`
+- Adding a macOS system tray icon to your Rust app — `system-tray-rust-macos-tutorial`
+- Undo and redo in Rust desktop apps — `undo-redo-rust-desktop-apps`
+- From prototype to production: scaling a GPUI app — `scaling-gpui-prototype-to-production`
+
+### Integrations
+
+- Making Rust desktop apps accessible with AccessKit — `integrating-accesskit-rust-accessibility`
+- File watching in Rust desktop apps with notify — `integrating-notify-rust-file-watching`
+- HTTP requests in Rust desktop apps with reqwest — `integrating-reqwest-rust-http`
+- Structured logging in Rust desktop apps with tracing — `integrating-tracing-rust-logging`
+
+### Framework Comparisons
+
+- GPUI vs egui vs iced: Rust GUI frameworks compared — `gpui-vs-egui-vs-iced`
+- GPUI vs egui: retained vs immediate mode GUI in Rust — `gpui-vs-egui-rust-gui`
+- GPUI vs iced: reactive vs Elm architecture in Rust GUI — `gpui-vs-iced-elm-architecture`
+- GPUI vs Slint: two approaches to Rust GUI development — `gpui-vs-slint-rust-gui`
+- GPUI vs Tauri: which Rust framework for your desktop app? — `gpui-vs-tauri-framework`
+- GPUI vs Electron: Rust vs JavaScript for desktop apps — `gpui-vs-electron-rust-desktop`
+- GPUI vs Flutter for Desktop: Rust vs Dart Compared — `gpui-vs-flutter-desktop`
+- Electron vs Tauri vs GPUI: which to pick for your desktop app — `electron-vs-tauri-vs-gpui`
+- Electron alternatives in 2026: lighter ways to build desktop apps — `electron-alternatives-2026`
+- Tauri vs Electron: performance and developer experience compared — `tauri-vs-electron-performance`
+- Rust vs C++ for GUI development: safety meets performance — `rust-vs-cpp-gui-development`
+- Rust vs Swift for desktop development: a practical comparison — `rust-vs-swift-desktop-development`
+- Rust GUI frameworks in 2026: the complete comparison guide — `rust-gui-frameworks-comparison-2026`
+
+### Rust Desktop Deep Dives
+
+- Structuring a Rust desktop application project — `rust-desktop-project-structure`
+- Rust GUI development best practices in 2026 — `rust-gui-best-practices-2026`
+- State management patterns for Rust desktop applications — `rust-desktop-state-management`
+- Async patterns for Rust desktop applications — `rust-desktop-async-patterns`
+- Memory management patterns for Rust desktop applications — `rust-desktop-memory-management`
+- Performance optimization for Rust desktop applications — `rust-desktop-performance-guide`
+- Performance profiling for Rust desktop apps — `rust-desktop-performance-profiling`
+- Configuration patterns for Rust desktop applications — `rust-desktop-configuration-patterns`
+- Error handling and boundaries in Rust GUI apps — `rust-desktop-error-boundaries`
+- App lifecycle management in Rust: startup to shutdown — `rust-desktop-lifecycle-management`
+- Debugging techniques for Rust desktop applications — `rust-desktop-debugging-techniques`
+- Testing strategies for Rust desktop applications — `rust-desktop-testing-strategies`
+- Testing GPUI applications — `testing-gpui-applications`
+- CI/CD for Rust desktop applications — `rust-desktop-ci-cd-guide`
+- Distributing Rust desktop applications: codesigning and packaging — `rust-desktop-app-distribution`
+- Crash reporting for Rust desktop applications — `rust-desktop-crash-reporting`
+- Privacy-first telemetry for Rust desktop apps — `rust-desktop-telemetry-privacy`
+- Building accessible Rust desktop applications — `rust-desktop-accessibility-guide`
+- Migrating from Electron to Rust: lessons learned — `migrating-electron-to-rust`
+
+### Building Real Apps
+
+- Building a desktop chat application with Rust and GPUI — `building-chat-app-rust-desktop`
+- Building creative applications with Rust and GPUI — `building-creative-app-rust`
+- Building data analysis tools with Rust and GPUI — `building-data-analysis-tool-rust`
+- Building developer tools with Rust and GPUI — `building-developer-tools-rust-gpui`
+- Building a file manager in Rust with GPUI — `building-file-manager-rust-gpui`
+- Building internal tools as Rust desktop apps — `building-internal-tools-rust-desktop`
+- Building a note-taking app in Rust with GPUI — `building-note-taking-app-rust`
+- Building a text editor in Rust with GPUI — `building-text-editor-rust-gpui`
 
 ## FAQ
 

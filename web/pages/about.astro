@@ -27,12 +27,12 @@ import { latestVersion } from '../util/changelog';
       </div>
       <span class="eyebrow">// About</span>
       <h1 class="reveal mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight leading-[1.1] headline-glow">
-        A boilerplate.<br /><span class="gradient-text">Not a framework.</span>
+        Copy it. Ship it.<br /><span class="gradient-text">Make it yours.</span>
       </h1>
       <p class="reveal mt-6 text-lg text-text-dim max-w-lg mx-auto">
-        gpui-starter is a working multi-page desktop app you can clone, study,
-        and build on. It's not an abstraction layer — it's a starting point
-        with real, production-quality patterns.
+        gpui-starter is a working multi-page desktop app you can clone and
+        build on. Every feature actually runs. The patterns come from shipping
+        real GPUI software, not from imagining what might work.
       </p>
     </div>
   </section>
@@ -43,12 +43,12 @@ import { latestVersion } from '../util/changelog';
       <div class="glass rounded-2xl p-8 md:p-10">
         <h2 class="text-2xl font-bold mb-4">Why it exists</h2>
         <p class="text-text-dim leading-relaxed">
-          GPUI is Zed Industries' GPU-accelerated UI framework for Rust. It's
-          fast, type-safe, and elegant — but it comes with no documentation on
-          how to structure a real app. gpui-starter fills that gap: a
-          batteries-included desktop application that shows you how to wire up
-          navigation, themes, i18n, forms, and system integration. Clone it,
-          run it, and start building.
+          GPUI is Zed's GPU-accelerated UI framework for Rust. The API is solid
+          and fast, but there is almost nothing written about how to structure a
+          real app with it. gpui-starter started as a personal reference: a
+          working desktop application with navigation, themes, i18n, forms, and
+          system integration wired up end to end. Other people found it useful,
+          so I cleaned it up and released it.
         </p>
       </div>
     </div>
@@ -64,28 +64,28 @@ import { latestVersion } from '../util/changelog';
             <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
           </div>
           <h3 class="text-lg font-bold mb-2">Real Rust code</h3>
-          <p class="text-sm text-text-dim">Not toy examples. Production patterns with proper error handling, entity lifecycle management, and render purity.</p>
+          <p class="text-sm text-text-dim">Not toy examples. Proper error handling, entity lifecycle management, render purity. The kind of code you write when the app has to work.</p>
         </div>
         <div class="glass rounded-2xl p-6">
           <div class="icon-box mb-3">
             <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
           </div>
-          <h3 class="text-lg font-bold mb-2">Batteries included</h3>
-          <p class="text-sm text-text-dim">Themes, i18n, forms, launcher, tray icon — all working out of the box. No "add this yourself" placeholders.</p>
+          <h3 class="text-lg font-bold mb-2">Everything ships</h3>
+          <p class="text-sm text-text-dim">Themes, i18n, forms, launcher, tray icon. All working when you first run <code>cargo run</code>. No stub sections to fill in later.</p>
         </div>
         <div class="glass rounded-2xl p-6">
           <div class="icon-box mb-3">
             <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
           </div>
-          <h3 class="text-lg font-bold mb-2">Production patterns</h3>
-          <p class="text-sm text-text-dim">Architecture and performance guides distilled from real GPUI development. State tiers, render purity, backpressure.</p>
+          <h3 class="text-lg font-bold mb-2">Battle-tested structure</h3>
+          <p class="text-sm text-text-dim">State tiers, render purity, backpressure handling. Patterns I use in production GPUI apps, not things that looked good in a blog post.</p>
         </div>
         <div class="glass rounded-2xl p-6">
           <div class="icon-box mb-3">
             <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           </div>
           <h3 class="text-lg font-bold mb-2">Open source</h3>
-          <p class="text-sm text-text-dim">MIT licensed. Fork it, customize it, ship it. No attribution required.</p>
+          <p class="text-sm text-text-dim">MIT licensed. Fork it, change it, ship it. No attribution required, no strings attached.</p>
         </div>
       </div>
     </div>
@@ -99,29 +99,43 @@ import { latestVersion } from '../util/changelog';
         <div class="glass rounded-xl p-5 flex gap-4 items-start">
           <span class="stat-num text-2xl font-extrabold shrink-0">1</span>
           <div>
-            <h3 class="font-bold mb-1">AppRoot creates the layout</h3>
-            <p class="text-sm text-text-dim">A resizable sidebar + content area. Pages are enum variants rendered by the active selection.</p>
+            <h3 class="font-bold mb-1">AppRoot owns the layout</h3>
+            <p class="text-sm text-text-dim">A resizable sidebar next to a content area. Pages are enum variants; the active one gets rendered.</p>
           </div>
         </div>
         <div class="glass rounded-xl p-5 flex gap-4 items-start">
           <span class="stat-num text-2xl font-extrabold shrink-0">2</span>
           <div>
-            <h3 class="font-bold mb-1">Sidebar emits page changes</h3>
-            <p class="text-sm text-text-dim">Clicking a nav item updates the active page. The content area re-renders with the new view.</p>
+            <h3 class="font-bold mb-1">Sidebar drives navigation</h3>
+            <p class="text-sm text-text-dim">Click a nav item to switch pages. The content area re-renders with the new view. No router, just an enum match.</p>
           </div>
         </div>
         <div class="glass rounded-xl p-5 flex gap-4 items-start">
           <span class="stat-num text-2xl font-extrabold shrink-0">3</span>
           <div>
-            <h3 class="font-bold mb-1">Launcher opens as a popup</h3>
-            <p class="text-sm text-text-dim">Cmd+K opens a floating PopUp window with search. Selections communicate back via a global.</p>
+            <h3 class="font-bold mb-1">Cmd+K launcher</h3>
+            <p class="text-sm text-text-dim">A floating popup with fuzzy search. Selections write back through a global, so any part of the app can respond.</p>
           </div>
         </div>
         <div class="glass rounded-xl p-5 flex gap-4 items-start">
           <span class="stat-num text-2xl font-extrabold shrink-0">4</span>
           <div>
-            <h3 class="font-bold mb-1">Themes hot-reload from disk</h3>
-            <p class="text-sm text-text-dim">ThemeRegistry watches the themes/ directory. JSON changes are applied instantly with no restart.</p>
+            <h3 class="font-bold mb-1">Themes reload from disk</h3>
+            <p class="text-sm text-text-dim">ThemeRegistry watches the themes/ directory. Edit a JSON file, save it, and the running app picks up the change immediately.</p>
+          </div>
+        </div>
+        <div class="glass rounded-xl p-5 flex gap-4 items-start">
+          <span class="stat-num text-2xl font-extrabold shrink-0">5</span>
+          <div>
+            <h3 class="font-bold mb-1">gpui-query handles async data</h3>
+            <p class="text-sm text-text-dim">Fetch from APIs, cache results, refetch on a timer. Same pattern as TanStack Query, built for GPUI entities.</p>
+          </div>
+        </div>
+        <div class="glass rounded-xl p-5 flex gap-4 items-start">
+          <span class="stat-num text-2xl font-extrabold shrink-0">6</span>
+          <div>
+            <h3 class="font-bold mb-1">Auto-updater checks for new versions</h3>
+            <p class="text-sm text-text-dim">Ed25519-signed manifests from GitHub Releases. The app prompts the user, downloads in the background, and applies on next launch.</p>
           </div>
         </div>
       </div>
@@ -130,7 +144,7 @@ import { latestVersion } from '../util/changelog';
 
   <!-- Stats -->
   <section class="py-12 px-6 reveal">
-    <div class="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-5 text-center">
+    <div class="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-5 gap-5 text-center">
       <div class="glass rounded-xl p-5">
         <div class="stat-num text-2xl font-extrabold">v{latestVersion}</div>
         <div class="text-sm text-text-mute mt-1">Current version</div>
@@ -138,6 +152,10 @@ import { latestVersion } from '../util/changelog';
       <div class="glass rounded-xl p-5">
         <div class="stat-num text-2xl font-extrabold">21</div>
         <div class="text-sm text-text-mute mt-1">Built-in themes</div>
+      </div>
+      <div class="glass rounded-xl p-5">
+        <div class="stat-num text-2xl font-extrabold">gpui-query</div>
+        <div class="text-sm text-text-mute mt-1">Async data crate</div>
       </div>
       <div class="glass rounded-xl p-5">
         <div class="stat-num text-2xl font-extrabold">MIT</div>
@@ -160,7 +178,8 @@ import { latestVersion } from '../util/changelog';
         <div>
           <h3 class="text-lg font-bold">hmziqrs</h3>
           <p class="text-sm text-text-dim mt-1">
-            Building Rust tools and desktop apps.
+            Rust developer. I build desktop tools and maintain a few open source
+            projects when the compiler lets me.
           </p>
           <div class="flex gap-4 mt-3">
             <a href="https://github.com/hmziqrs" target="_blank" rel="noopener" class="text-sm text-text-mute no-underline hover:text-amber transition-colors">GitHub</a>

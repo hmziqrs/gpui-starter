@@ -1,14 +1,18 @@
 ---
 title: "Notifications"
-description: "Desktop notification system with native OS backends, in-app toasts, and persistent inbox"
+description: "Desktop notification system in gpui-starter with native OS backends, automatic fallback, and a persistent inbox for tracking delivery status."
 ---
+
+The notification module (`src/services/notifications/`) handles sending desktop notifications through native OS APIs, with an automatic two-tier fallback chain. When the primary backend fails, it tries a secondary backend. When both fail, it shows an in-app toast. Every send attempt is recorded in a persistent inbox you can surface in your UI.
+
+This page covers the backend trait, the fallback chain, permission handling, the inbox store, and how to wire up a custom backend. For a broader tutorial on why desktop notifications are hard and how this system was designed, see the [notifications in Rust desktop apps](/blog/notifications-rust-desktop-tutorial/) blog post. For app-wide architecture patterns, see [Architecture](/docs/architecture/).
 
 ## Module structure
 
 ```
-src/notifications/
+src/services/notifications/
 ├── mod.rs              # Public API re-exports
-├── service.rs          # NotificationService, dispatcher, globals
+├── service.rs          # NotificationService, globals, send logic
 ├── inbox.rs            # Persistent inbox store (NotificationInboxState)
 └── backend/
     ├── mod.rs          # NotificationBackend trait
@@ -16,11 +20,11 @@ src/notifications/
     └── notify_rust.rs  # Fallback backend (libnotify/DBus/Windows)
 ```
 
-The `views/notifications.rs` file renders the inbox page in the app sidebar.
+The inbox page rendered in the app sidebar lives at `src/features/pages/notifications.rs`.
 
 ## NotificationBackend trait
 
-All native backends implement a common async trait:
+Every native backend implements this async trait:
 
 ```rust
 #[async_trait]
@@ -33,21 +37,22 @@ pub trait NotificationBackend: Send + Sync {
 }
 ```
 
-`NotificationService` holds an `Option<Arc<dyn NotificationBackend>>` for the primary backend and a required `Arc<dyn NotificationBackend>` for the fallback. On send, it tries the primary first. If the primary fails or is absent, it falls back to the secondary. If both fail, delivery degrades to in-app only.
+The `NotificationService` holds two backend slots. `primary` is `Option<Arc<dyn NotificationBackend>>` because the primary might not be available on the current platform. `secondary` is always present and wraps `NotifyRustBackend`. On send, the service tries the primary first, falls back to the secondary on failure, and degrades to in-app only when both fail.
 
 ## Backend selection
 
 | Backend | Crate | When used | Interactive | Permission API |
 |---------|-------|-----------|-------------|----------------|
-| `UserNotifyBackend` | `user-notify` | Primary when available (macOS bundled app) | Yes (actions, reply) | Yes |
-| `NotifyRustBackend` | `notify-rust` | Fallback (Linux, Windows, unbundled macOS) | No | No |
+| `UserNotifyBackend` | `user-notify` | Primary on macOS bundled app | Yes (actions, reply) | Yes |
+| `NotifyRustBackend` | `notify-rust` | Fallback: Linux, Windows, unbundled macOS | No | No |
 | In-app toast | `gpui-component` | Degraded mode when native delivery fails | No | No |
 
-`NotificationService::new()` attempts `UserNotifyBackend::new()`. If that returns an error, the primary is `None` and the service logs the failure reason. `NotifyRustBackend` is always initialized as the secondary.
+`NotificationService::new()` calls `UserNotifyBackend::new()`. If that fails (wrong platform, no bundle identifier, missing entitlements), the primary slot stays `None` and the error is logged. `NotifyRustBackend` is always initialized as the secondary.
 
-## Backend capabilities
+### Backend capabilities
 
 ```rust
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct NotificationCapabilities {
     pub can_request_permission: bool,
     pub can_read_permission_state: bool,
@@ -65,9 +70,12 @@ pub struct NotificationCapabilities {
 | `can_send_interactive` | Yes | No | No |
 | `requires_packaged_runtime` | Yes | No | Yes |
 
+Check capabilities at runtime with `snapshot(cx).capabilities` to conditionally show or hide UI elements like the "Request Permission" button.
+
 ## Permission handling
 
 ```rust
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NotificationPermissionState {
     Unknown,
     Unsupported,
@@ -78,35 +86,44 @@ pub enum NotificationPermissionState {
 }
 ```
 
+Each variant maps to a real platform condition:
+
 | Platform | How permissions work |
 |----------|---------------------|
-| macOS (bundled) | Uses `UNUserNotificationCenter`. Calls `getNotificationSettingsWithCompletionHandler` to read state, `first_time_ask_for_notification_permission` to request. Requires a valid bundle identifier. |
-| macOS (unbundled) | Falls back to `NotifyRustBackend`. Permission state is `Unavailable`. |
-| Linux | `notify-rust` sends via libnotify/DBus. No permission model. |
-| Windows | `notify-rust` sends via Windows toast XML. Permission state is `Unsupported`. |
+| macOS (bundled) | Uses `UNUserNotificationCenter`. Reads state via `getNotificationSettingsWithCompletionHandler`, requests via `first_time_ask_for_notification_permission`. Requires a valid bundle identifier in `Info.plist`. |
+| macOS (unbundled) | Falls back to `NotifyRustBackend`. Permission state is `Unavailable` with the error reason. |
+| Linux | `notify-rust` sends via libnotify/DBus. No permission model exists. State is `Unsupported`. |
+| Windows | `notify-rust` sends via Windows toast XML. State is `Unsupported`. |
 
-To open the system notification settings panel on macOS:
+To request permission from a window context (triggers the native macOS permission dialog on first call):
+
+```rust
+notifications::request_permission_from_window(window, cx);
+```
+
+To open the system notification settings panel (macOS only):
 
 ```rust
 notifications::open_system_settings(cx);
 ```
 
-This opens `x-apple.systempreferences:com.apple.Notifications-Settings.extension`.
+This opens `x-apple.systempreferences:com.apple.Notifications-Settings.extension`. On non-macOS platforms, it logs a warning and sets `last_backend_error` on the snapshot.
 
 ## Notification inbox
 
-Every send attempt, permission change, and settings update is recorded in a persistent inbox backed by `NotificationInboxState` (a GPUI global).
+Every send attempt, permission change, and settings toggle is recorded in a persistent inbox backed by `NotificationInboxState` (a GPUI global). The inbox is loaded from `target/state.json` on startup via `app_state::config()` and written back on every mutation.
 
 ### InboxEntry fields
 
 ```rust
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NotificationInboxItem {
     pub id: NotificationId,
     pub created_at: AppTimestamp,
     pub title: String,
     pub body: String,
     pub read: bool,
-    pub backend: String,
+    pub backend: String,           // "user-notify", "notify-rust", "in-app only"
     pub delivered_natively: bool,
     pub degraded: bool,
     pub error_summary: Option<String>,
@@ -118,7 +135,7 @@ pub struct NotificationInboxItem {
 
 | Kind | Recorded when |
 |------|--------------|
-| `Attempt` | A notification is sent (or fails) |
+| `Attempt` | A notification send completes (success or failure) |
 | `PermissionUpdate` | Permission state changes after a request |
 | `SettingsUpdate` | User toggles native notifications on or off |
 
@@ -126,17 +143,18 @@ pub struct NotificationInboxItem {
 
 | Function | Description |
 |----------|-------------|
-| `inbox::initialize(cx)` | Load inbox from persisted config |
-| `inbox::snapshot(cx)` | Read current items |
-| `inbox::record(item, cx)` | Prepend an item, cap at 200 |
-| `inbox::mark_all_read(cx)` | Mark every item as read |
-| `inbox::clear_all(cx)` | Remove all items |
+| `inbox::initialize(cx)` | Load inbox from persisted config, install global |
+| `inbox::snapshot(cx)` | Read current items as a cloned `Vec` |
+| `inbox::unread_count(cx)` | Count unread items without cloning the full list |
+| `inbox::record(item, cx)` | Prepend an item, cap at 200 entries, persist |
+| `inbox::mark_all_read(cx)` | Mark every item as read, persist |
+| `inbox::clear_all(cx)` | Remove all items, persist |
 
-The inbox is persisted to `target/state.json` via `app_state::update_config`. The max inbox size is 200 items (`MAX_INBOX_ITEMS`).
+The max inbox size is 200 items (`MAX_INBOX_ITEMS`). Older items are truncated on insert. This keeps the config file from growing unbounded.
 
 ### Sidebar integration
 
-`views/notifications.rs` renders the inbox page. It observes `NotificationInboxState` and displays unread count, per-item metadata (backend, timestamp, error), and "Mark all read" / "Clear all" buttons.
+`src/features/pages/notifications.rs` renders the inbox page in the sidebar. It observes `NotificationInboxState` and displays unread count, per-item metadata (backend used, timestamp, error if any), and "Mark all read" / "Clear all" action buttons. See [Getting Started](/docs/getting-started/) for how pages are registered in the sidebar router.
 
 ## Sending a notification
 
@@ -145,19 +163,21 @@ Build a `NotificationRequest` and call `send_from_window`:
 ```rust
 use crate::notifications::{NotificationRequest, send_from_window};
 
-// Simple foreground notification
-let request = NotificationRequest::foreground("Title", "Body text");
+// Standard notification with sound
+let request = NotificationRequest::foreground("Download complete", "save.zip is ready");
 send_from_window(request, window, cx);
 ```
+
+`send_from_window` is async internally (it uses `cx.spawn`). The function returns immediately; the result is applied via snapshot mutation and inbox recording when the async work completes.
 
 ### NotificationRequest builders
 
 | Method | Use case |
 |--------|----------|
-| `foreground(title, body)` | Standard notification with sound |
-| `action_buttons(title, body)` | Includes Open/Snooze action buttons (macOS) |
+| `foreground(title, body)` | Standard notification with sound, `ForegroundOnly` importance |
+| `action_buttons(title, body)` | Includes Open/Snooze action buttons (macOS `UNNotificationCategory`) |
 | `reply(title, body)` | Includes a text reply input (macOS) |
-| `background_worthy(title, body)` | Higher importance, will not show in-app fallback |
+| `background_worthy(title, body)` | Higher importance, no in-app fallback on native failure |
 
 ### NotificationRequest fields
 
@@ -166,9 +186,9 @@ pub struct NotificationRequest {
     pub title: SharedString,
     pub body: SharedString,
     pub play_sound: bool,          // default: true
-    pub thread_id: Option<String>, // groups notifications
+    pub thread_id: Option<String>, // groups notifications on macOS
     pub category: Option<String>,  // maps to interactive action sets
-    pub prefer_native: bool,       // default: true; false skips native
+    pub prefer_native: bool,       // default: true; set false to force in-app only
     pub importance: NotificationImportance,
 }
 ```
@@ -177,16 +197,19 @@ pub struct NotificationRequest {
 
 | Level | Behavior |
 |-------|----------|
-| `ForegroundOnly` | If native delivery fails, an in-app toast is shown |
-| `BackgroundWorthy` | No in-app fallback on native failure; marked degraded |
+| `ForegroundOnly` | If native delivery fails, an in-app toast appears via `window.push_notification` |
+| `BackgroundWorthy` | No in-app fallback on native failure. Marked `degraded: true` in the inbox. Use for update checks, sync status, and other non-urgent background events. |
 
-### Send flow
+### Send flow step by step
 
-1. `send_from_window` checks `enabled_by_user` and `permission != Denied`
-2. If disabled or denied, returns `UiOnly` result immediately
-3. Attempts primary backend, then secondary on failure
-4. Records the attempt in the inbox
-5. If native delivery failed and importance is `ForegroundOnly`, pushes an in-app toast via `window.push_notification`
+1. `send_from_window` checks `enabled_by_user` and `permission != Denied`.
+2. If disabled or denied, returns a `UiOnly` result immediately. No native call is made.
+3. If enabled and permitted, attempts primary backend (`UserNotifyBackend`).
+4. On primary failure, attempts secondary backend (`NotifyRustBackend`).
+5. Records the attempt in the inbox with backend used, delivery status, and any errors.
+6. If native delivery failed and importance is `ForegroundOnly`, pushes an in-app toast via `window.push_notification`.
+
+One detail worth knowing: the send function checks `enabled_by_user && permission != Denied` before calling any backend. If the user has disabled notifications or denied permission, the native backends are never contacted. This avoids pointless IPC and permission warnings.
 
 ### Send result
 
@@ -200,18 +223,20 @@ pub struct NotificationSendResult {
 }
 ```
 
+`degraded` is `true` when the primary backend was available but the send fell through to the secondary, or when both backends failed and delivery fell back to in-app. Check this field to show warning indicators in your settings UI.
+
 ## Initialization
 
-Call `notifications::initialize(cx)` during app startup. This:
+Call `notifications::initialize(cx)` during app startup. This does five things:
 
-1. Creates `NotificationService` (selects backends)
-2. Builds a `NotificationRuntimeSnapshot`
-3. Installs `NativeNotificationState` as a GPUI global
-4. Registers the capability with the app's capability system
-5. Starts an async permission state refresh
+1. Creates `NotificationService` (selects backends based on platform).
+2. Builds a `NotificationRuntimeSnapshot` from the service state.
+3. Installs `NativeNotificationState` as a GPUI global.
+4. Registers the `native_notifications` capability with the app's capability system (see [Architecture](/docs/architecture/) for how capabilities work).
+5. Starts an async permission state refresh.
 
 ```rust
-// In app initialization
+// In your app init function
 notifications::initialize(cx);
 notifications::inbox::initialize(cx);
 ```
@@ -220,26 +245,31 @@ notifications::inbox::initialize(cx);
 
 ```rust
 pub fn snapshot(cx: &App) -> NotificationRuntimeSnapshot {
-    // active_backend, permission, capabilities, degraded_reason, etc.
+    cx.global::<NativeNotificationState>().snapshot.clone()
 }
 ```
 
-Use this to display notification status in settings UI.
+The snapshot contains `active_backend`, `permission`, `capabilities`, `enabled_by_user`, `degraded_reason`, and `last_backend_error`. Use it to drive notification status UI in settings pages. See the [Testing](/docs/testing/) page for how to mock globals like `NativeNotificationState` in test contexts.
 
-## Toggling notifications
+## Toggling notifications at runtime
 
 ```rust
-// Enable or disable native notifications at runtime
+// Disable native notifications (user toggled a switch)
 notifications::set_native_notifications_enabled(false, cx);
+
+// Re-enable
+notifications::set_native_notifications_enabled(true, cx);
 ```
 
-This updates the persisted config, mutates the snapshot, records a `SettingsUpdate` in the inbox, and updates the capability system.
+This does three things: updates the persisted config (`native_notifications_enabled` field), mutates the runtime snapshot, and records a `SettingsUpdate` entry in the inbox. It also updates the capability system so the rest of the app can react to the change.
 
 ## Adding a custom backend
 
-1. Create a new file in `src/notifications/backend/`, for example `my_backend.rs`.
+You might need a custom backend for a platform not covered by `user-notify` or `notify-rust`, or to integrate with a push notification service. Here is how to add one.
 
-2. Implement `NotificationBackend`:
+### Step 1: Create the backend file
+
+Create `src/services/notifications/backend/my_backend.rs`:
 
 ```rust
 use async_trait::async_trait;
@@ -254,7 +284,7 @@ pub struct MyBackend;
 #[async_trait]
 impl NotificationBackend for MyBackend {
     fn kind(&self) -> NotificationBackendKind {
-        NotificationBackendKind::UiOnly // or add a new variant
+        NotificationBackendKind::UiOnly // or add a new variant to the enum
     }
 
     fn capabilities(&self) -> NotificationCapabilities {
@@ -276,17 +306,80 @@ impl NotificationBackend for MyBackend {
     }
 
     async fn send(&self, request: &NotificationRequest) -> anyhow::Result<()> {
-        // your delivery logic
+        // Your delivery logic here
         Ok(())
     }
 }
 ```
 
-3. Register the module in `backend/mod.rs`:
+### Step 2: Register the module
+
+In `backend/mod.rs`:
 
 ```rust
 mod my_backend;
 pub use my_backend::MyBackend;
 ```
 
-4. Wire it into `NotificationService::new()` in `service.rs`, either replacing the primary or adding it as an intermediate fallback before `NotifyRustBackend`.
+### Step 3: Wire into NotificationService
+
+In `service.rs`, modify `NotificationService::new()` to use your backend as the primary, secondary, or an intermediate fallback before `NotifyRustBackend`:
+
+```rust
+// Example: use MyBackend as primary on a specific platform
+let primary = if cfg!(target_os = "my_platform") {
+    Some(Arc::new(MyBackend) as Arc<dyn NotificationBackend>)
+} else {
+    // existing UserNotifyBackend logic
+};
+```
+
+The fallback chain in `NotificationService::send()` tries `primary` then `secondary`. If you need more than two tiers, refactor `send()` to iterate over a `Vec<Arc<dyn NotificationBackend>>` instead.
+
+## Testing notifications
+
+Notification backends can be tested without firing real OS notifications. See [Testing](/docs/testing/) for the general GPUI test harness setup. The pattern for notifications:
+
+1. Replace `NativeNotificationState` global with a test instance that uses a mock backend.
+2. Call `send_from_window` and assert on the inbox state.
+3. Use `inbox::snapshot(cx)` to verify the recorded attempt.
+
+For debugging delivery issues in production, the [debugging techniques](/blog/rust-desktop-debugging-techniques/) post covers how to read the structured log output from the notification module (all log events use the `gpui_starter::notifications` target).
+
+## Common patterns
+
+### Show a notification after a long-running task
+
+```rust
+cx.spawn(async move |cx| {
+    some_async_work().await;
+    cx.update(|cx| {
+        // Note: you need a window handle here; use the one captured before the spawn
+        let request = NotificationRequest::foreground("Task done", "Your file has been exported");
+        // send_from_window requires a Window reference, so use push_in_app_feedback
+        // or dispatch through your window management layer
+    });
+}).detach();
+```
+
+### Conditionally show interactive buttons
+
+Interactive notifications (actions, reply) only work on macOS with `UserNotifyBackend`. Check capabilities before offering the option:
+
+```rust
+let snap = notifications::snapshot(cx);
+if snap.capabilities.can_send_interactive {
+    let request = NotificationRequest::action_buttons("New message", "From: Alice");
+    send_from_window(request, window, cx);
+} else {
+    let request = NotificationRequest::foreground("New message", "From: Alice");
+    send_from_window(request, window, cx);
+}
+```
+
+### Display inbox unread count in the sidebar
+
+```rust
+let unread = notifications::inbox::unread_count(cx);
+// Use `unread` to render a badge next to the Notifications nav item
+```

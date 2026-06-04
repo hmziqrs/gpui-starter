@@ -4,7 +4,7 @@ import Layout from '../layouts/MarketingLayout.astro';
 const title = 'Privacy Policy - gpui-starter';
 const description =
   'How the gpui-starter website handles your data. No analytics, no cookies, no tracking. The desktop app collects nothing.';
-const updated = '2026-05-15';
+const updated = '2026-06-05';
 
 const sections = [
   { id: 'scope', label: 'Scope' },
@@ -50,9 +50,8 @@ const sections = [
           Last updated <time datetime={updated}>{updated}</time>
         </p>
         <p class="mt-6 text-lg text-text-dim max-w-2xl mx-auto leading-relaxed">
-          We respect your data because we'd want the same. This page explains
-          what this website (gpui-starter.hmziq.xyz) collects, what it doesn't,
-          and your rights.
+          Short version: we collect nothing. This page spells out the details,
+          covers what the website and desktop app each do, and lists your rights.
         </p>
       </div>
     </div>
@@ -104,17 +103,17 @@ const sections = [
           </h2>
           <div class="space-y-3 text-text-dim leading-relaxed text-[0.95rem]">
             <p>
-              This privacy policy covers <strong class="text-text"
-                >the gpui-starter marketing website</strong
-              > hosted at <code
+              This policy covers two things: <strong class="text-text"
+                >the gpui-starter website</strong
+              > at <code
                 class="font-mono text-amber bg-amber/10 px-1.5 py-0.5 rounded text-[0.85em]"
                 >gpui-starter.hmziq.xyz</code
-              >.
+              > and the gpui-starter desktop application.
             </p>
             <p>
-              It also covers the gpui-starter desktop application. The app runs
-              entirely on your machine, makes no outbound connections of its own,
-              and collects no telemetry.
+              The app runs locally on your machine. It makes no outbound network
+              calls and collects no telemetry. What happens on your computer stays
+              on your computer.
             </p>
           </div>
         </div>
@@ -127,9 +126,10 @@ const sections = [
             <span class="font-mono text-amber mr-2">02</span>Data we collect
           </h2>
           <p class="text-text-dim leading-relaxed text-[0.95rem]">
-            <strong class="text-text">None.</strong> This website does not use
-            analytics, tracking scripts, cookies, or any form of data collection.
-            We don't track page views, clicks, or user behavior.
+            <strong class="text-text">Nothing.</strong> No analytics. No tracking
+            scripts. No cookies. No page-view counters, click heatmaps, or
+            behavior profiling. The site is static HTML served from Cloudflare
+            Pages with no server-side logic.
           </p>
         </div>
 
@@ -145,28 +145,27 @@ const sections = [
             <li class="flex gap-3 text-[0.93rem] text-text-dim">
               <span
                 class="flex-shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-cyan-400"
-              ></span>Your name, email, or any personally identifiable
-              information
+              ></span>Name, email, or any other personally identifiable information
             </li>
             <li class="flex gap-3 text-[0.93rem] text-text-dim">
               <span
                 class="flex-shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-cyan-400"
-              ></span>No usage or analytics data
+              ></span>Usage stats or analytics of any kind
             </li>
             <li class="flex gap-3 text-[0.93rem] text-text-dim">
               <span
                 class="flex-shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-cyan-400"
-              ></span>No IP addresses or location data
+              ></span>IP addresses or geolocation
             </li>
             <li class="flex gap-3 text-[0.93rem] text-text-dim">
               <span
                 class="flex-shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-cyan-400"
-              ></span>No cookies or local storage tracking
+              ></span>Cookies or local-storage tracking identifiers
             </li>
             <li class="flex gap-3 text-[0.93rem] text-text-dim">
               <span
                 class="flex-shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-cyan-400"
-              ></span>No cross-site tracking or third-party advertising
+              ></span>Cross-site trackers or third-party ad pixels
             </li>
           </ul>
         </div>
@@ -179,17 +178,18 @@ const sections = [
             <span class="font-mono text-amber mr-2">04</span>Third-party services
           </h2>
           <p class="text-text-dim leading-relaxed text-[0.95rem] mb-4">
-            This site loads resources from a small number of external services:
+            The site loads two external resources. Neither sends data back to us:
           </p>
           <div class="space-y-3">
             <div
               class="flex gap-4 items-start p-4 rounded-xl border border-edge bg-amber/[0.03]"
             >
-              <div class="font-mono text-xs text-amber mt-0.5">→</div>
+              <div class="font-mono text-xs text-amber mt-0.5">&rarr;</div>
               <div>
                 <div class="font-semibold text-text">Google Fonts</div>
                 <p class="text-sm text-text-dim mt-1">
-                  We load Inter and JetBrains Mono from Google's CDN. See the <a
+                  We serve Inter and JetBrains Mono from Google's CDN. Their
+                  privacy practices are documented in the <a
                     href="https://developers.google.com/fonts/faq/privacy"
                     target="_blank"
                     rel="noopener noreferrer"
@@ -202,17 +202,17 @@ const sections = [
             <div
               class="flex gap-4 items-start p-4 rounded-xl border border-edge bg-amber/[0.03]"
             >
-              <div class="font-mono text-xs text-amber mt-0.5">→</div>
+              <div class="font-mono text-xs text-amber mt-0.5">&rarr;</div>
               <div>
                 <div class="font-semibold text-text">GitHub</div>
                 <p class="text-sm text-text-dim mt-1">
-                  External links to <a
+                  Links to <a
                     href="https://github.com/hmziqrs/gpui-boilerplate"
                     target="_blank"
                     rel="noopener"
                     class="text-amber no-underline hover:underline">github.com</a
-                  > redirect there; GitHub's privacy practices apply once you
-                  leave this site.
+                  > take you off this site. GitHub's own privacy policy applies
+                  once you arrive there.
                 </p>
               </div>
             </div>
@@ -227,9 +227,10 @@ const sections = [
             <span class="font-mono text-amber mr-2">05</span>Your rights
           </h2>
           <p class="text-text-dim leading-relaxed text-[0.95rem]">
-            Under GDPR (EU/EEA), CCPA (California), and similar regulations, you
-            have the right to access, correct, and delete your personal data.
-            Since we collect no data, there is nothing to access or delete.
+            Regulations like GDPR (EU/EEA) and CCPA (California) give you the right
+            to access, correct, and delete your personal data. Because we do not
+            collect any personal data in the first place, there is nothing to
+            exercise those rights over. If that ever changes, this page will say so.
           </p>
         </div>
 
@@ -242,14 +243,14 @@ const sections = [
             policy
           </h2>
           <p class="text-text-dim leading-relaxed text-[0.95rem]">
-            If we change this policy materially, we'll update the "last updated"
-            date at the top of this page. The full version history lives in the
-            GitHub repository, so you can <a
+            If we make material changes, the "last updated" date at the top of this
+            page will change. Every revision is tracked in the repo, so you can
+            <a
               href="https://github.com/hmziqrs/gpui-boilerplate/commits/master/web/pages/privacy.astro"
               target="_blank"
               rel="noopener"
               class="text-amber no-underline hover:underline"
-              >audit every change</a
+              >view the full edit history</a
             >.
           </p>
         </div>
@@ -262,12 +263,13 @@ const sections = [
             <span class="font-mono text-amber mr-2">07</span>Contact
           </h2>
           <p class="text-text-dim leading-relaxed text-[0.95rem]">
-            Questions, concerns, or takedown requests? Open an <a
+            Questions or takedown requests? Open an <a
               href="https://github.com/hmziqrs/gpui-boilerplate/issues"
               target="_blank"
               rel="noopener"
               class="text-amber no-underline hover:underline">issue on GitHub</a
-            >. It's the fastest channel and produces a public record we can act on.
+            >. That is the fastest way to reach us and it creates a public record
+            we can act on promptly.
           </p>
           <div class="mt-7 flex flex-wrap gap-3">
             <a

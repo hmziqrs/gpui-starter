@@ -1,6 +1,6 @@
 ---
 title: "Single-instance apps in Rust: preventing duplicate windows"
-description: "How to ensure only one instance of your Rust desktop app runs at a time, with IPC forwarding for deep links."
+description: "Prevent duplicate Rust desktop app instances with file locks and IPC forwarding. Covers cross-platform deep link handling and queue file fallbacks."
 date: 2026-05-23
 tags: [Rust, desktop, architecture]
 draft: false
@@ -8,21 +8,21 @@ draft: false
 
 Double-click an app icon. Nothing happens. Click again. Still nothing. Minimize all windows and discover two copies running side by side, each with its own state, its own open files, its own idea of what "saved" means.
 
-This is the single-instance problem, and it shows up the moment your desktop app handles any kind of persistent state. Config files, local databases, background processes: if two copies of your app can touch the same resource at the same time, you will get corrupted data.
+This is the single-instance problem. It shows up the moment your desktop app handles persistent state. Config files, local databases, background processes. If two copies touch the same resource concurrently, you get corrupted data. I ran into this the first week of shipping [gpui-starter](/docs/getting-started/), and it took down a user's preferences file within hours.
 
 ## Why single-instance matters
 
-Resource contention is the obvious reason. Two processes writing to the same SQLite database, the same preferences file, or the same log output will eventually step on each other. The "eventually" is the dangerous part. It works fine in testing. It fails in production at the worst possible time.
+Resource contention is the obvious problem. Two processes writing to the same SQLite database, the same preferences file, or the same log output will step on each other. The dangerous part is timing. It works fine in testing, then fails in production at the worst moment.
 
-User confusion is harder to quantify but just as real. If someone opens a file from Finder and your app is already running, they expect the file to open in the existing window. Launching a second copy, even briefly, feels broken. The window flashes, disappears, and the user is left wondering whether anything happened at all.
+User confusion is harder to measure but just as real. If someone opens a file from Finder and your app is already running, they expect the file to open in the existing window. Launching a second copy, even briefly, feels broken. The window flashes and disappears, and the user wonders whether anything happened.
 
-The fix is straightforward: detect that an instance is already running, forward any arguments or deep links to it, and exit the second process immediately.
+The fix is to detect that an instance is already running, forward any arguments or deep links to it, and exit the second process immediately.
 
 ## The file-lock approach
 
-On macOS and Linux, the standard technique is a file lock. You pick a well-known path (usually in a runtime or cache directory) and attempt to acquire an exclusive lock on it. If the lock succeeds, you are the first instance. If it fails, someone else got there first.
+On macOS and Linux, the standard technique is a file lock. You pick a well-known path (usually in a runtime or cache directory) and try to acquire an exclusive lock on it. If the lock succeeds, you are the first instance. If it fails, someone else got there first.
 
-The `single_instance` crate wraps this pattern into a clean API:
+The `single_instance` crate wraps this into a straightforward API:
 
 ```rust
 use single_instance::SingleInstance;
@@ -38,13 +38,13 @@ if instance.is_single() {
 }
 ```
 
-The crate uses `flock` on Unix and a named mutex on Windows, so you get cross-platform behavior without platform-specific code. The lock is held for the lifetime of the `SingleInstance` struct. When the process exits, the OS releases the lock automatically.
+The crate uses `flock` on Unix and a named mutex on Windows, giving cross-platform behavior without platform-specific code. The lock is held for the lifetime of the `SingleInstance` struct. When the process exits, the OS releases the lock automatically.
 
 ## Forwarding arguments to the running instance
 
-Detecting a duplicate is only half the problem. The other half is communicating with the instance that is already running. When a user clicks a `myapp://settings` link in a browser, the OS launches your app (or focuses it if it is already running). If your app is already running, the second launch needs to send that URL to the first instance before exiting.
+Detecting a duplicate is half the problem. The other half is communicating with the instance that is already running. When a user clicks a `myapp://settings` link in a browser, the OS launches your app (or focuses it if running). If the app is already running, the second launch needs to send that URL to the first instance before exiting.
 
-There are two common approaches: inter-process communication (IPC) through local sockets, and a filesystem-based queue file as a fallback.
+There are two common approaches: IPC through local sockets, and a filesystem-based queue file as a fallback.
 
 gpui-starter uses both. The IPC path is primary because it is fast and reliable. The queue file exists for environments where local sockets are unavailable or restricted (certain sandboxed macOS setups, some Linux container configurations).
 
@@ -71,7 +71,9 @@ fn resolve_ipc_name(name: &str) -> std::io::Result<Name<'_>> {
 }
 ```
 
-The `GenericNamespaced` check handles the platform split. On Windows and macOS, named pipes work natively. On Linux, the fallback is a Unix domain socket file. The `interprocess` crate abstracts this so the calling code stays clean.
+The `GenericNamespaced` check handles the platform split. On Windows and macOS, named pipes work natively. On Linux, the fallback is a Unix domain socket file. The `interprocess` crate abstracts this so the calling code does not need to branch on its own.
+
+### The listener on the primary instance
 
 The primary instance sets up a listener thread that accepts connections, reads one line per connection, and dispatches the payload as an application event:
 
@@ -96,7 +98,7 @@ fn start_ipc_listener(ipc_name: String, cx: &mut App) {
 }
 ```
 
-One connection, one line, one payload. This keeps the protocol dead simple and avoids framing issues.
+One connection, one line, one payload. This keeps the protocol simple and avoids framing issues.
 
 ## Deep link handling in practice
 
@@ -128,26 +130,28 @@ app.run(move |cx| {
 });
 ```
 
-The `preflight` function does all the work: it checks for a running instance, forwards any deep link if one exists, and returns a struct that tells `main` whether to proceed or exit. This keeps `main.rs` clean. The decision logic lives in one place.
+The `preflight` function does all the work: checks for a running instance, forwards any deep link if one exists, and returns a struct that tells `main` whether to proceed or exit. This keeps `main.rs` small. The decision logic lives in one place.
 
 ## The queue file fallback
 
 When IPC is unavailable, gpui-starter falls back to a queue file in the system cache directory. The second instance appends the deep link to the file and exits. The primary instance polls this file every 450ms, drains any new lines, and dispatches them as events.
 
-It is slower and less elegant than IPC. But it works everywhere, including environments where socket creation is restricted. The implementation marks the IPC capability as "degraded" in the capabilities system, so the app can report this state to the user or to telemetry if needed.
+Slower and less elegant than IPC, but it works everywhere, including environments where socket creation is restricted. The implementation marks the IPC capability as "degraded" in the capabilities system, so the app can report this state to the user or to telemetry.
 
 ## What to watch for
 
 File locks are per-machine, not per-user. If your app supports multiple user accounts running simultaneously, include the user ID in the instance name. Otherwise the second user's launch will silently fail.
 
-On macOS, the system tries to be helpful by sending an `application:openURL:` delegate message to the running instance instead of launching a new process. This is the ideal path, and it means your IPC forwarding code will rarely be exercised on macOS. But it is not guaranteed (terminal launches bypass this), so you need both paths.
+On macOS, the system tries to help by sending an `application:openURL:` delegate message to the running instance instead of launching a new process. This is the ideal path, and it means your IPC forwarding code will rarely run on macOS. But it is not guaranteed (terminal launches bypass this), so you need both paths.
 
 On Linux, make sure your socket path is under `$XDG_RUNTIME_DIR` or `/tmp`. Paths longer than 108 characters (the Unix socket path limit) will silently fail on some kernels.
 
-## Putting it together
+## Closing notes
 
-Single-instance enforcement is one of those things that seems optional until you ship without it. The implementation in gpui-starter is about 300 lines of Rust, handles three platforms, includes a queue file fallback, and wires through the event system so any component can react to forwarded deep links.
+Single-instance enforcement seems optional until you ship without it. The implementation in gpui-starter is about 300 lines of Rust, handles three platforms, includes a queue file fallback, and wires through the event system so any component can react to forwarded deep links.
 
 If you are building a desktop app in Rust, add single-instance support early. It is much harder to retrofit after you have already shipped state management that assumes exclusive access.
 
-Check out the [getting started guide](/docs/getting-started/) to see the full setup in action.
+The [architecture guide](/docs/architecture/) covers how single-instance fits into the broader app lifecycle. For more on the event system that dispatches forwarded links, see the [crash reporting post](/blog/rust-desktop-crash-reporting/), which uses the same event bus pattern.
+
+The [getting started guide](/docs/getting-started/) shows the full setup.

@@ -21,14 +21,27 @@ export async function GET(context: APIContext) {
 
   const entries = sorted
     .map(
-      (post: CollectionEntry<'blog'>) => `  <entry>
+      (post: CollectionEntry<'blog'>) => {
+        const tags = (post.data.tags ?? [])
+          .map((tag: string) => `\n    <category term="${escapeXml(tag)}"/>`)
+          .join('');
+
+        // Include the raw markdown body so feed readers that display
+        // inline content can render it; the type="text/plain" attribute
+        // tells them it is unprocessed Markdown, not HTML.
+        const body = escapeXml(post.body ?? '');
+
+        return `  <entry>
     <title>${escapeXml(post.data.title)}</title>
     <link href="${site}/blog/${post.id}/" rel="alternate" type="text/html"/>
     <id>${site}/blog/${post.id}/</id>
     <updated>${post.data.date.toISOString()}</updated>
     <published>${post.data.date.toISOString()}</published>
-    <summary>${escapeXml(post.data.description)}</summary>${post.data.tags.map((tag: string) => `\n    <category term="${escapeXml(tag)}"/>`).join('')}
-  </entry>`,
+    <summary>${escapeXml(post.data.description)}</summary>${tags}
+    <content type="text/plain">${body}</content>
+    <author><name>hmziqrs</name><uri>https://hmziq.rs</uri></author>
+  </entry>`;
+      },
     )
     .join('\n');
 
@@ -38,10 +51,13 @@ export async function GET(context: APIContext) {
   <subtitle>A production-ready Rust boilerplate for GPUI desktop apps. Build notes, tutorials, and deep dives.</subtitle>
   <link href="${site}/feed.atom" rel="self" type="application/atom+xml"/>
   <link href="${site}/" rel="alternate" type="text/html"/>
+  <link href="${site}/feed.xml" rel="hub" type="application/rss+xml"/>
   <id>${site}/feed.atom</id>
   <updated>${updated}</updated>
-  <author><name>hmziqrs</name></author>
+  <author><name>hmziqrs</name><uri>https://hmziq.rs</uri></author>
   <generator uri="https://astro.build/">Astro</generator>
+  <icon>${site}/favicon.svg</icon>
+  <rights>Copyright ${new Date().getFullYear()} hmziqrs. All rights reserved.</rights>
 ${entries}
 </feed>`;
 

@@ -1,26 +1,26 @@
 ---
 title: "Building a custom title bar in GPUI"
-description: "How to replace the native window chrome with a custom title bar that matches your app design, including drag regions and traffic lights."
+description: "Replace the native macOS, Windows, or Linux title bar with a custom one in GPUI. Covers drag regions, traffic light buttons, and platform quirks."
 date: 2026-05-13
 tags: [GPUI, Rust, design]
 draft: false
 ---
 
-The native title bar on macOS, Windows, and Linux works fine for most apps. But if you're building something with its own visual identity, that strip of system chrome at the top of the window sticks out. A custom title bar gives you control over background color, spacing, and what lives in that space: navigation breadcrumbs, search, actions, whatever your app needs.
+The native title bar on macOS, Windows, and Linux does its job. But when your app has its own theme system with specific colors and spacing, that strip of system chrome at the top of the window looks wrong. A custom title bar lets you control the background, the layout, and what goes in that space: navigation breadcrumbs, a search field, action buttons, or anything else.
 
-gpui-starter ships a fully working custom title bar. Here's how it works.
+gpui-starter ships a working custom title bar. Here is how it works and what I learned building it.
 
-## Why bother
+## Why replace the native title bar
 
-Visual consistency is the obvious motivation. Your app has a theme system with carefully chosen colors and borders. The native title bar ignores all of that. It draws its own background, its own separator line, and its own text style. On a dark-themed app, the native title bar sits there looking like it belongs to a different program.
+The simplest reason is visual consistency. Your app picks colors and borders from a theme. The native title bar ignores all of that. It draws its own background, its own separator line, its own text style. On a dark-themed app, the native title bar sits there looking like it was pasted in from Finder.
 
-The title bar is also prime real estate. In a code editor, it holds the file path and git branch. In a design tool, it holds zoom controls. In gpui-starter, it holds the app menu, a settings dropdown, a search button, and a notifications button. That is five things that would otherwise need their own toolbar row.
+The other reason is space. The title bar is the widest horizontal strip in your window, and the native version wastes most of it on centered text you cannot interact with. In Zed, the title bar holds the file path and git branch. In Figma, it holds zoom controls and sharing buttons. In gpui-starter, it holds the app menu, a settings dropdown, a search button, and a notifications button. Five things that would otherwise need their own toolbar row.
 
-And for apps that people use for hours, the chrome around the content matters. The title bar is the first thing users see.
+If you spend hours in an app, the chrome around the content matters more than you think. The title bar is the first thing your eyes land on.
 
-## Setting up the transparent title bar
+## Making the native title bar transparent
 
-The first step is telling GPUI to make the native title bar invisible. You do this in your window options when opening the window.
+You tell GPUI to hide the native title bar in your window options:
 
 ```rust
 let options = WindowOptions {
@@ -35,7 +35,7 @@ let options = WindowOptions {
 };
 ```
 
-The `title_bar_options()` function returns configuration that tells GPUI to render the title bar as transparent and position the macOS traffic light buttons at a specific offset:
+The `title_bar_options()` function returns configuration that tells GPUI to render the title bar as transparent and positions the macOS traffic light buttons:
 
 ```rust
 pub fn title_bar_options() -> TitlebarOptions {
@@ -47,13 +47,13 @@ pub fn title_bar_options() -> TitlebarOptions {
 }
 ```
 
-On macOS, `appears_transparent: true` hides the native title text and background while keeping the close/minimize/zoom buttons (the traffic lights) visible. On Linux, you also need to set `window_decorations: Some(gpui::WindowDecorations::Client)` to switch to client-side decorations. The title bar component handles the difference internally.
+On macOS, `appears_transparent: true` hides the native title text and background but keeps the close, minimize, and zoom buttons visible. On Linux, you also need `window_decorations: Some(gpui::WindowDecorations::Client)` to switch to client-side decorations. The [getting started guide](/docs/docs/getting-started) covers the full window setup if you need more context there.
 
-## The drag region problem
+## Recreating the drag region
 
-When you remove the native title bar, you lose the thing users drag to move the window around. You need to recreate that behavior yourself.
+Once you remove the native title bar, users have nothing to grab to move the window. You have to rebuild that yourself.
 
-The GPUI title bar component solves this with mouse event tracking and `window.start_window_move()`:
+The GPUI title bar component handles this with mouse event tracking and `window.start_window_move()`:
 
 ```rust
 div()
@@ -73,19 +73,25 @@ div()
     }))
 ```
 
-This tracks whether the user is holding the mouse button down. On the first mouse move event while the button is held, it calls `start_window_move()`, which hands control back to the operating system's window move behavior. The `should_move` flag is then set to false immediately so the move only starts once per drag.
+This works in three steps. First, mouse down sets a `should_move` flag. On the first mouse move while the flag is set, the code calls `start_window_move()` and clears the flag immediately. This hands control to the operating system's built-in window move behavior, so the drag feels native. Clearing the flag right away means the move only starts once per drag gesture.
 
-Interactive elements inside the title bar (buttons, menus) need to call `cx.stop_propagation()` on their mouse down events. This prevents the drag handler from firing when the user is trying to click a button. Without this, clicking your search button would also start a window drag.
+Interactive elements inside the title bar (buttons, menus, dropdowns) must call `cx.stop_propagation()` on their mouse down events. Without this, clicking your search button would also trigger a window drag. I have lost more time to missing `stop_propagation()` calls than I want to admit.
 
-## Platform differences
+## Handling each platform
 
-The title bar component is 34 pixels tall on all platforms. The left padding is different: 80 pixels on macOS to leave room for the traffic lights, 12 pixels on Linux and Windows.
+The title bar is 34 pixels tall on all platforms. The left padding differs: 80 pixels on macOS to leave room for the traffic lights, 12 pixels on Linux and Windows.
 
-On macOS, the traffic light buttons are rendered by the system. GPUI positions them with `traffic_light_position` and they just work. Double-clicking the title bar calls `window.titlebar_double_click()`, which triggers the macOS system behavior (either minimize or zoom, depending on System Settings).
+### macOS
 
-On Windows, the component renders its own control buttons (minimize, maximize, close) using the `WindowControlArea` API. Each button is mapped to the correct window action through GPUI.
+The traffic light buttons are rendered by the system. GPUI positions them with `traffic_light_position` and they work without extra code. Double-clicking the title bar calls `window.titlebar_double_click()`, which triggers the macOS system behavior (minimize or zoom, depending on what the user configured in System Settings).
 
-On Linux, the component renders control buttons manually and handles click events directly:
+### Windows
+
+The component renders its own control buttons: minimize, maximize, close. Each button is wired to the correct window action through GPUI's `WindowControlArea` API.
+
+### Linux
+
+Linux needs the most manual work. The component renders control buttons and handles click events directly:
 
 ```rust
 .when(is_linux, |this| {
@@ -106,7 +112,9 @@ On Linux, the component renders control buttons manually and handles click event
 
 Right-clicking the title bar on Linux also shows the window menu via `window.show_window_menu()`.
 
-## The AppTitleBar in gpui-starter
+If you want to understand how the title bar fits into the full view hierarchy, the [architecture doc](/docs/docs/architecture) has a diagram of the component tree.
+
+## How gpui-starter puts it together
 
 The `AppTitleBar` struct wraps the generic `TitleBar` component and adds app-specific content: the menu bar on the left, settings and action buttons on the right.
 
@@ -118,13 +126,13 @@ pub struct AppTitleBar {
 }
 ```
 
-The render method puts the menu bar in one flex child and the right-side controls in another. The right section has a fixed `on_mouse_down` handler that stops propagation, so clicking anywhere in that area doesn't trigger a window drag. This is the pattern you want: partition the title bar into a drag zone and an interactive zone.
+The render method puts the menu bar in one flex child and the right-side controls in another. The right section has a fixed `on_mouse_down` handler that stops propagation, so clicking anywhere in that area does not start a window drag. This is the pattern I recommend: partition the title bar into a drag zone and an interactive zone. Keep it simple.
 
-The `child` field is a closure that returns an `AnyElement`. This lets different pages inject custom content into the title bar without the title bar knowing about them. It's a simple form of dependency injection that keeps the component flexible.
+The `child` field is a closure that returns an `AnyElement`. Different pages inject custom content into the title bar without the title bar knowing about them. It is a lightweight form of dependency injection that keeps the component flexible.
 
-The `SettingsDropdown` is a focus-tracked div that uses the dropdown menu system to let users change font size and border radius at runtime. Changes go through `Theme::global_mut(cx)` and trigger a window refresh.
+The `SettingsDropdown` is a focus-tracked div that uses the dropdown menu system to let users change font size and border radius at runtime. Changes go through `Theme::global_mut(cx)` and trigger a window refresh. For more on how theme tokens like `title_bar` and `title_bar_border` work, see the [themes guide](/docs/docs/themes).
 
-## How the pieces connect
+## Wiring it into the root layout
 
 In `root.rs`, the `AppRoot` creates the title bar during initialization:
 
@@ -142,14 +150,16 @@ v_flex()
     .child(/* status bar */)
 ```
 
-The title bar is an entity, not a function call that returns an element. This means it manages its own state and re-renders independently when its focus handle or dropdown state changes. The rest of the layout doesn't need to care about title bar updates.
+The title bar is an entity, not a function call that returns an element. It manages its own state and re-renders independently when its focus handle or dropdown state changes. The rest of the layout does not care about title bar updates. If you are new to GPUI entities, the [GPUI entity system explained](/blog/gpui-entity-system-explained) post breaks down how they work.
 
-## What to watch for
+## Gotchas
 
-The biggest gotcha is the `stop_propagation()` calls. If you add a new interactive element to the title bar and forget to stop propagation on its mouse down, clicking it will start a window drag instead. Test every button, every dropdown, every clickable thing in the title bar.
+The biggest one is the `stop_propagation()` calls. If you add a new interactive element to the title bar and forget to stop propagation on its mouse down, clicking it will start a window drag instead of doing what you intended. Test every button, every dropdown, every clickable thing you add to the title bar.
 
-Another thing: the title bar height is a constant at 34 pixels. If you change it, you also need to update the `traffic_light_position` on macOS so the buttons stay vertically centered.
+The title bar height is a constant at 34 pixels. If you change it, you also need to update the `traffic_light_position` on macOS so the buttons stay vertically centered. These two values are coupled and there is no way around that.
 
-The [architecture docs](/docs/architecture/) cover how the title bar fits into the overall view hierarchy. For the theme tokens that control title bar colors (`title_bar`, `title_bar_border`), see the [themes guide](/docs/themes/).
+On Linux, client-side decorations mean your app is responsible for drawing and handling its own window controls. If you skip this, your users get a borderless window with no way to minimize or close it except the keyboard.
 
-If you're starting a new GPUI project, [gpui-starter](/docs/getting-started/) has all of this wired up and ready to go.
+## Next steps
+
+If you are building a GPUI app from scratch, [gpui-starter](/docs/docs/getting-started) has the custom title bar, drag regions, platform-specific handling, and theme integration all wired up. You can also read about how the [sidebar navigation](/blog/sidebar-navigation-gpui) and [theme system](/blog/theme-system-deep-dive) work in gpui-starter to see how the title bar ties into the rest of the UI.

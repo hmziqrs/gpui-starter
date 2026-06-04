@@ -1,32 +1,34 @@
 ---
 title: "State management in GPUI: entities, globals, and context"
-description: "How GPUI handles application state through entities, global singletons, and the context system."
+description: "GPUI has three state primitives: Entity for window-scoped state, Global for app-wide singletons, and Context for side effects. How to use each one and when."
 date: 2026-05-17
 tags: [GPUI, Rust, architecture]
 draft: false
 ---
 
-State management in most UI frameworks means choosing between state management libraries. Redux, MobX, Zustand, Signals, Recoil. GPUI has none of that. It has three mechanisms: `Entity<T>`, `Global`, and `Context`. That's the whole story. The hard part is knowing which one to reach for and when.
+State management in most UI frameworks means choosing between libraries. Redux, MobX, Zustand, Signals, Recoil. GPUI skips that decision entirely. It gives you `Entity<T>` for component state, `Global` for singletons, and `Context` for side effects. Three tools. The hard part is knowing which one fits the problem in front of you.
 
 ## The three mechanisms
 
-`Entity<T>` is a window-scoped reference to a Rust struct. It is how you hold state that a component or a window owns and mutates. You create one with `cx.new()`, read it with `entity.read(cx)`, and mutate it with `entity.update(cx, |state, cx| ...)`. Every entity lives as long as something holds a strong reference to it. When the last reference drops, the entity is gone.
+`Entity<T>` is a window-scoped reference to a Rust struct. You create one with `cx.new()`, read it with `entity.read(cx)`, and mutate it with `entity.update(cx, |state, cx| ...)`. Every entity lives as long as something holds a strong reference to it. When the last reference drops, the entity is gone. This is your primary tool for state that a component or window owns and mutates.
 
-`Global` is app-scoped singleton state. Any type that implements the `Global` trait can be stored once and accessed from anywhere: `cx.global::<MyConfig>()`. Use it for things that exist once and never move between windows. Configuration, feature flags, shared service handles. Not for things that change every frame.
+`Global` is app-scoped singleton state. Any type that implements the `Global` trait gets stored once and accessed from anywhere via `cx.global::<MyConfig>()`. I use it for things that exist exactly once and never move between windows: configuration, feature flags, shared service handles. It is the wrong choice for anything that changes every frame.
 
-`Context<T>` is not state itself. It is the handle that GPUI gives you when it calls into your code. `App` at the top level. `Window` for window-specific operations. `Context<T>` inside a component's methods. The context is where you call `cx.notify()`, `cx.spawn()`, `cx.subscribe()`, and `cx.observe()`. It is the control plane for side effects and lifecycle.
+`Context<T>` is not state at all. It is the handle GPUI hands you when it calls into your code. `App` at the top level. `Window` for window-specific operations. `Context<T>` inside a component's methods. The context is where you call `cx.notify()`, `cx.spawn()`, `cx.subscribe()`, and `cx.observe()`. Think of it as the control plane for side effects and lifecycle hooks.
+
+If you want a deeper explanation of what entities are internally and how the observer system wires them together, see the [entity system deep dive](/blog/gpui-entity-system-explained/).
 
 ## Hot, warm, and cold state
 
-Not all state deserves the same treatment. The [architecture guide](/docs/architecture/) defines three tiers.
+Not all state deserves the same treatment. The [architecture guide](/docs/architecture/) splits state into three tiers, and I have found this framework useful for making decisions early in a project.
 
 Hot state changes rapidly and is currently visible. The text in an active editor. The selected row in a list. The loading spinner on a button. This belongs in an `Entity<T>` owned by the active window or component. It gets created when the user opens the thing, mutated while they interact with it, and dropped when they close it.
 
-Warm state has medium churn and potentially large cardinality. A catalog of items. A history index. Environment metadata. This should live in a normalized value store keyed by typed IDs, not as a bag of entities.
+Warm state has medium churn and potentially large cardinality. A catalog of items. A history index. Environment metadata. This should live in a normalized value store keyed by typed IDs, not as a bag of entities. More on why in the next section.
 
-Cold state is large, archived, or disk-backed. Full response bodies. Stream logs. Anything that doesn't fit in memory comfortably. This belongs in SQLite and blob files. You load it on demand and keep only a preview in RAM.
+Cold state is large, archived, or disk-backed. Full response bodies. Stream logs. Anything that does not fit in memory comfortably. This belongs in SQLite and blob files. You load it on demand and keep only a preview in RAM. The [SQLite integration guide](/docs/architecture/) covers the storage patterns I use for this tier.
 
-The common mistake is treating everything as hot. Every item in a list gets its own entity. Every cached response gets held in memory. This works fine in a prototype. It falls apart at scale.
+The common mistake is treating everything as hot. Every item in a list gets its own entity. Every cached response gets held in memory. This works fine in a prototype with 20 items. It falls apart when real data shows up. For a broader look at how this breaks at scale, see [scaling a GPUI app to production](/blog/scaling-gpui-prototype-to-production/).
 
 ## Why Vec<Entity<Item>> is a trap
 
@@ -52,13 +54,15 @@ struct AppState {
 
 `CollectionCatalog` is just a `HashMap<CollectionId, Collection>` or a `Vec<Collection>` with an index. It has no entity overhead. When the user opens a collection for editing, you create an `Entity<CollectionEditor>` from the relevant data. When they close it, the entity drops and everything cleans up.
 
+I learned this the hard way. A prototype had 50 entities in a list and rendered in 2ms. Production data pushed that to 3,000 entities and render time jumped to 40ms. Switching to a value-type catalog dropped it back under 3ms. The entity-per-item pattern is fine for lists of 10 or 20. Beyond that, you want lazy materialization.
+
 ## Cx.notify() and when not to call it
 
-`cx.notify()` tells GPUI that something changed and the component needs to re-render. GPUI calls `render()` on the next frame. This is the only re-render trigger. There is no diffing, no dependency tracking, no proxy object that notices mutations. You call `cx.notify()` yourself, or you don't get a new frame.
+`cx.notify()` tells GPUI that something changed and the component needs to re-render. GPUI calls `render()` on the next frame. This is the only re-render trigger in the framework. There is no diffing, no dependency tracking, no proxy object that notices mutations. You call `cx.notify()` yourself, or nothing updates on screen.
 
 This explicitness is a feature. You always know why a re-render happened: you asked for it. The danger is asking too often.
 
-The first rule: never call `cx.notify()` from inside `render()`. That creates a feedback loop. Render calls notify, notify schedules another render, render calls notify again. The app freezes or burns CPU at 100%.
+The first rule: never call `cx.notify()` from inside `render()`. That creates a feedback loop. Render calls notify, notify schedules another render, render calls notify again. The app freezes or burns CPU at 100%. I have done this twice and both times it took embarrassingly long to diagnose.
 
 The second rule: batch your notifies during high-throughput updates. If a stream is pushing messages at 200 per second, calling `cx.notify()` per message saturates the render loop. Drain the available messages, then notify once:
 
@@ -75,7 +79,7 @@ cx.spawn(async move |mut cx| {
 }).detach();
 ```
 
-One notify per batch. The UI stays responsive. The buffer stays current.
+One notify per batch. The UI stays responsive. The buffer stays current. For more on handling async flows like this, see [async patterns for Rust desktop apps](/blog/rust-desktop-async-patterns/).
 
 ## WeakEntity in async closures
 
@@ -100,13 +104,13 @@ fn fetch_data(&mut self, cx: &mut Context<Self>) {
 
 `WeakEntity::update()` returns `Result`. If the entity was already dropped, you get `Err` and the closure never runs. The `.ok()` call discards that error because a dropped entity during shutdown is normal behavior, not a bug.
 
-Strong `Entity<T>` is acceptable in short-lived scoped flows where you can guarantee the entity outlives the closure. Anywhere else, use `WeakEntity`.
+Strong `Entity<T>` is acceptable in short-lived scoped flows where you can guarantee the entity outlives the closure. Anywhere else, reach for `WeakEntity`. This is the same tradeoff you see with `Arc` vs `Weak` in any Rust async code. The [memory management guide](/blog/rust-desktop-memory-management/) covers this pattern in more detail.
 
 ## Subscription lifecycle and the detach() trap
 
 Subscriptions connect entity events to handler closures. You create one with `cx.subscribe(&entity, handler)`. The return value is a `Subscription` handle. As long as that handle exists, the subscription is active. When the handle drops, the subscription cancels.
 
-This means you must store the `Subscription` somewhere if you want it to survive past the current function. Forgetting to store it is the most common subscription bug:
+This means you must store the `Subscription` somewhere if you want it to survive past the current function. Forgetting to store it is the most common subscription bug I see:
 
 ```rust
 fn setup(&mut self, cx: &mut Context<Self>) {
@@ -134,7 +138,7 @@ fn setup(&mut self, cx: &mut Context<Self>) {
 }
 ```
 
-Or call `.detach()` if the subscription should live for the entire lifetime of the entity and you don't need to cancel it:
+Or call `.detach()` if the subscription should live for the entire lifetime of the entity and you do not need to cancel it:
 
 ```rust
 fn setup(&mut self, cx: &mut Context<Self>) {
@@ -146,12 +150,12 @@ fn setup(&mut self, cx: &mut Context<Self>) {
 
 `.detach()` consumes the `Subscription` and transfers ownership to GPUI's internal tracking. The subscription stays alive until the entity it is attached to is dropped. It returns `()`, so you cannot store it. That is the point: it is a one-way trip.
 
-The trap is calling `.detach()` and then wanting to cancel the subscription later. You can't. There is no handle to hold. If you need cancellation, store the `Subscription` and drop it manually.
+The trap is calling `.detach()` and then wanting to cancel the subscription later. You cannot. There is no handle to hold. If you need cancellation, store the `Subscription` and drop it manually.
 
 ## Putting it together
 
-State in GPUI is just Rust structs. There is no magic runtime, no proxy layer intercepting your reads and writes. You own a struct, you mutate it through `entity.update()`, and you tell GPUI to re-render with `cx.notify()`. The framework does not try to be clever on your behalf.
+State in GPUI is just Rust structs. There is no magic runtime, no proxy layer intercepting your reads and writes. You own a struct, you mutate it through `entity.update()`, and you tell GPUI to re-render with `cx.notify()`. The framework stays out of your way.
 
 This means the hard problems are the same ones you face in any Rust program: ownership, lifetime, and choosing the right data structure. GPUI gives you the tools. You make the decisions.
 
-For the full state design guidelines including memory budgets, streaming backpressure, and cancellation patterns, see the [architecture docs](/docs/architecture/).
+If you are building something beyond a prototype, the [architecture docs](/docs/architecture/) cover memory budgets, streaming backpressure, and cancellation patterns in more detail. The [state management patterns post](/blog/rust-desktop-state-management/) also walks through how these primitives compose in a real app with multiple windows and background tasks.

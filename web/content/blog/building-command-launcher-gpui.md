@@ -1,24 +1,24 @@
 ---
 title: "Building a command launcher (Cmd+K) in GPUI"
-description: "How gpui-starter implements a VS Code-style command palette as a floating popup window in GPUI."
+description: "Walk through how gpui-starter implements a VS Code-style command palette as a floating popup in GPUI with search filtering and cross-window events."
 date: 2026-05-27
 tags: [GPUI, Rust, desktop]
 draft: false
 ---
 
-You know the drill. Hit Cmd+K in VS Code, type a few characters, and you're where you need to be. Spotlight does it on macOS. Raycast built an entire product around it. Every serious desktop app needs a fast way to reach any action without reaching for the mouse.
+You know the drill. Hit Cmd+K in VS Code, type a few characters, and you're where you need to be. Spotlight does it on macOS. Raycast built an entire product around it. Every serious desktop app needs a fast way to reach any action without grabbing the mouse.
 
-gpui-starter ships with a command launcher that works the same way. Press Cmd+K (or `/`), start typing, and the list filters in real time. This post walks through how it's built using GPUI's window system, action dispatch, and global state.
+gpui-starter ships with a command launcher that works the same way. Press Cmd+K (or `/`), start typing, and the list filters as you go. Here's how it's built using [GPUI's window system](/docs/architecture/), action dispatch, and global state.
 
-## The two pieces: a popup window and a command list
+## Two pieces: a popup window and a command list
 
-The launcher is split into two concerns. First, there's the command registry: a static list of actions the app knows about. Second, there's the popup window: a floating overlay that appears on top of the main app, shows a search input, and lets the user pick a command.
+The launcher splits into two concerns. First, the command registry: a static list of actions the app knows about. Second, the popup window: a floating overlay that appears on top of the main app, shows a search input, and lets the user pick a command.
 
-This split is deliberate. The registry doesn't know anything about windows or UI. The popup doesn't know anything about what commands do. They communicate through a thin event layer and GPUI's global state.
+The registry knows nothing about windows or UI. The popup knows nothing about what commands actually do. They talk through a thin event layer and GPUI's global state.
 
 ## Registering commands
 
-Commands are defined in `src/commands.rs`. Each command has an ID (an enum variant), a display title, a subtitle, and an icon. The `registry()` function returns the full list:
+Commands live in `src/commands.rs`. Each command has an ID (an enum variant), a display title, a subtitle, and an icon. The `registry()` function returns the full list:
 
 ```rust
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -51,7 +51,7 @@ pub fn registry() -> Vec<CommandSpec> {
 }
 ```
 
-This is a simple approach. Every command is a variant of `CommandId`. The `execute()` function pattern-matches on the ID and runs the corresponding logic:
+Every command is a variant of `CommandId`. The `execute()` function pattern-matches on the ID and runs the corresponding logic:
 
 ```rust
 pub fn execute(id: CommandId, cx: &mut App) {
@@ -68,11 +68,11 @@ pub fn execute(id: CommandId, cx: &mut App) {
 }
 ```
 
-There's also an `availability()` function that checks whether a command should be greyed out. "Copy Diagnostics" is disabled when the clipboard backend isn't available. "Undo" is disabled when there's nothing on the undo stack. This keeps the UI honest.
+There's also an `availability()` function that checks whether a command should show as greyed out. "Copy Diagnostics" is disabled when the clipboard backend isn't available. "Undo" is disabled when there's nothing on the undo stack. This keeps the UI honest: you can't click something that won't work.
 
 ## Opening a floating popup window
 
-GPUI has a `WindowKind::PopUp` variant that creates a floating window. It has no titlebar, renders on top of other windows, and supports a blurred background. This is what makes the launcher feel like a native overlay rather than a separate window.
+GPUI has a `WindowKind::PopUp` variant that creates a floating window. No titlebar, renders on top of other windows, and supports a blurred background. This is what makes the launcher feel like a native overlay instead of a separate window.
 
 The `open_launcher()` function in `src/launcher.rs` handles the setup:
 
@@ -118,7 +118,7 @@ pub fn open_launcher(cx: &mut App) {
 }
 ```
 
-A few things worth noting. `WindowBackgroundAppearance::Blurred` gives the popup that frosted-glass look. The window is centered on the primary display at 12% from the top, which feels natural for a launcher. And the `LauncherOpen` global prevents the user from spawning multiple popups.
+`WindowBackgroundAppearance::Blurred` gives the popup that frosted-glass effect on macOS. The window centers on the primary display at 12% from the top, which feels natural for a launcher (too high and it's in the menu bar; too low and you're scanning down). The `LauncherOpen` global prevents spawning duplicate popups if someone mashes Cmd+K.
 
 ## Searching and filtering
 
@@ -145,7 +145,7 @@ fn refilter(&mut self, cx: &mut Context<Self>) {
 }
 ```
 
-Right now this uses simple substring matching. It's fast enough for the number of commands in a typical desktop app (gpui-starter has about 15). If you wanted fuzzy matching, you'd swap the `contains` call for a fuzzy scoring function and sort by score. The architecture doesn't change.
+Right now this uses plain substring matching. That's fast enough for the number of commands in a typical desktop app (gpui-starter has about 15). If you wanted fuzzy matching, you'd swap the `contains` call for a fuzzy scoring function and sort by score. The rest of the architecture stays the same. I went with substring matching because it's predictable: users see exactly what they type. Fuzzy matching can feel magical when it works and confusing when it doesn't.
 
 The filtered list renders each item as a row with an icon, title, and subtitle. Arrow keys cycle through the list. Mouse hover updates the selection. Clicking or pressing Enter triggers the action.
 
@@ -171,13 +171,13 @@ cx.observe_global::<AppEventQueue>(|this, cx| {
 }).detach();
 ```
 
-The main window observes the `AppEventQueue` global. When the launcher emits a navigation event, the main window picks it up on the next render cycle and updates the active page. For theme changes, `execute()` calls `set_theme_mode()` directly through the shared `App` context, which works because theme state is stored as a global, not scoped to a particular window.
+The main window observes the `AppEventQueue` global. When the launcher emits a navigation event, the main window picks it up on the next render cycle and updates the active page. For theme changes, `execute()` calls `set_theme_mode()` directly through the shared `App` context. That works because theme state lives in a global, not scoped to a particular window.
 
-This is a pragmatic pattern. GPUI globals act as a shared bus. The launcher window doesn't need a reference to the main window. It just mutates global state and trusts the main window to react.
+This is a pragmatic pattern. GPUI globals act as a shared bus. The launcher window doesn't hold a reference to the main window. It mutates global state and trusts the main window to react. For a launcher that opens and closes in under a second, this is plenty.
 
 ## Wiring the keyboard shortcut
 
-The whole thing is triggered by a key binding registered during app initialization:
+The keyboard shortcut is registered during app initialization:
 
 ```rust
 // src/app.rs
@@ -187,12 +187,12 @@ cx.bind_keys([
 ]);
 ```
 
-The main `AppRoot` view handles the `ToggleSearch` action by calling `crate::launcher::open_launcher(cx)`. Two shortcuts, one action. Cmd+K for muscle memory from VS Code, `/` for quick access.
+The main `AppRoot` view handles the `ToggleSearch` action by calling `crate::launcher::open_launcher(cx)`. Two shortcuts, one action. Cmd+K for muscle memory from VS Code, `/` for quick access when your hands are already on the keyboard.
 
-## What you can take from this
+## Where to go from here
 
-The command launcher in gpui-starter is about 440 lines of Rust. It covers a pattern you'll see in most GPUI apps: register actions, open a popup window, filter with a search input, communicate through globals. If you're building a desktop app with GPUI, this is a good starting point.
+The command launcher in gpui-starter is about 440 lines of Rust. It covers a pattern you'll see in most GPUI apps: register actions, open a popup window, filter with a search input, communicate through globals. If you're building a desktop app with GPUI, this is a reasonable starting point.
 
-You can extend it by adding fuzzy matching, grouping commands by category, or showing recently used commands at the top. The registry pattern stays the same.
+Some ideas for extending it: add fuzzy matching with a crate like `fuzzy-matcher`, group commands by category so the list isn't flat, or track recently used commands and pin them to the top. The registry pattern stays the same regardless.
 
-Grab [gpui-starter](/docs/getting-started/) and run `cargo run` to try the launcher yourself. Press Cmd+K and search for any command in the app.
+Grab [gpui-starter](/docs/getting-started/) and run `cargo run` to try the launcher yourself. Press Cmd+K and search for any command in the app. If you want more context on how the window system works, check out [the architecture guide](/docs/architecture/) or my earlier post on [building multi-page navigation in GPUI](/blog/building-multi-page-navigation-gpui/).

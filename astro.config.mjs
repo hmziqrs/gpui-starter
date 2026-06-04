@@ -76,6 +76,21 @@ export default defineConfig({
             { slug: "docs/command-launcher" },
             { slug: "docs/notifications" },
             { slug: "docs/secure-storage" },
+            { slug: "docs/gpui-query" },
+            { slug: "docs/auto-updater" },
+            { slug: "docs/crash-reporting" },
+            { slug: "docs/diagnostics" },
+            { slug: "docs/telemetry" },
+            { slug: "docs/undo-redo" },
+            { slug: "docs/single-instance" },
+            { slug: "docs/websocket" },
+            { slug: "docs/error-boundaries" },
+          ],
+        },
+        {
+          label: "Guides",
+          items: [
+            { slug: "forms" },
           ],
         },
         {

@@ -1,13 +1,15 @@
 ---
 title: Performance
-description: Preventing render loops and idle CPU in GPUI apps
+description: How to prevent render loops, eliminate idle CPU usage, and keep GPUI apps responsive. Nine patterns for avoiding the most common performance traps.
 ---
 
+GPUI apps tend to be fast until they are not. The framework handles layout, painting, and GPU batching for you. The performance problems I see in production GPUI code all come from the same root cause: code in `render()` that schedules more renders. This page documents the nine patterns I use to keep frame times low and CPU idle when the user is not doing anything.
 
-## Core Rule: render() is a pure projection
+If you want to understand why GPUI works this way, the [rendering pipeline deep dive](/blog/gpui-rendering-pipeline-deep-dive/) explains the frame lifecycle. For the broader state model that these patterns build on, see the [architecture guide](/docs/architecture/) and the [entity system explained](/blog/gpui-entity-system-explained/).
 
-`render()` must read state and return elements: nothing else.
-Any mutation inside `render()` that causes `cx.notify()` creates a feedback loop.
+## Core rule: render() is a pure projection
+
+`render()` must read state and return elements. Nothing else. Any mutation inside `render()` that triggers `cx.notify()` creates a feedback loop. The app re-renders, hits the same mutation, re-renders again, and never stops.
 
 ```rust
 // BAD: entity.update() inside render schedules another render
@@ -19,8 +21,8 @@ fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement
     div()
 }
 
-// BETTER: dirty flag makes it fire once per data change, not every frame
-// This is a narrow, acceptable exception for one-time initialization.
+// BETTER: dirty flag fires once per data change, not every frame
+// This is a narrow exception for one-time initialization.
 // Prefer pushing data from the event handler itself (see Pattern 1).
 fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
     if self.rows_dirty {
@@ -34,29 +36,32 @@ fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement
 }
 ```
 
-The prohibited list inside `render()` is broader than just `entity.update()`:
-`set_value`, `cx.notify()`, `cx.subscribe()`, `cx.observe()`, `cx.spawn()`, and any entity
-`update()` that emits events. Each can trigger handlers that schedule another render.
-`cx.subscribe()` and `cx.observe()` are especially easy to miss: called every frame, they
-accumulate subscriptions without bound.
+The prohibited list inside `render()` is broader than just `entity.update()`. All of these can trigger handlers that schedule another render:
 
----
+- `set_value` on an input or similar widget
+- `cx.notify()`
+- `cx.subscribe()` or `cx.observe()` (called every frame, they accumulate subscriptions without bound)
+- `cx.spawn()`
+- Any entity `update()` that emits events
 
-## Pattern 1: Dirty Flags for One-Time Data Push
+The `cx.subscribe()` and `cx.observe()` case is easy to miss because the code looks harmless. But if you call them inside `render()`, you are registering a new subscription on every frame. After a few hundred frames you have hundreds of redundant callbacks, each one potentially calling `cx.notify()`.
 
-The cleanest approach is to push data from the event handler that caused the change 
-no render involvement at all:
+## Pattern 1: Dirty flags for one-time data push
+
+The cleanest approach is to push data from the event handler that caused the change. No render involvement at all.
 
 ```rust
 fn on_data_received(&mut self, data: Data, cx: &mut Context<Self>) {
     self.rows = build_rows(&data);
-    self.table.update(cx, |t, cx| { t.set_rows(self.rows.clone()); t.refresh(cx); });
+    self.table.update(cx, |t, cx| {
+        t.set_rows(self.rows.clone());
+        t.refresh(cx);
+    });
     cx.notify();
 }
 ```
 
-When that isn't feasible (e.g., the data must be computed from render context), use a
-dirty flag. The flag is set in the event handler, cleared in render before the push:
+When that is not feasible (for instance, the data must be computed from render context), use a dirty flag. Set the flag in the event handler. Clear it in render before the push.
 
 ```rust
 struct MyView {
@@ -66,7 +71,10 @@ struct MyView {
 
 // In render: narrow exception; flag cleared before update so re-renders won't re-enter
 if std::mem::take(&mut self.data_dirty) {
-    self.table.update(cx, |t, cx| { t.set_rows(self.rows.clone()); t.refresh(cx); });
+    self.table.update(cx, |t, cx| {
+        t.set_rows(self.rows.clone());
+        t.refresh(cx);
+    });
 }
 
 // In the event handler
@@ -77,14 +85,11 @@ fn on_data_received(&mut self, data: Data, cx: &mut Context<Self>) {
 }
 ```
 
-**Key:** `std::mem::take` reads and clears atomically. Clearing BEFORE the update means
-a re-render triggered by the update won't re-enter the block.
+The important detail: `std::mem::take` reads and clears in one step. Clearing before the update means a re-render triggered by the update will not re-enter the block.
 
----
+## Pattern 2: Guard every notify() against no-op changes
 
-## Pattern 2: Guard Every notify() Against No-Op Changes
-
-Every `cx.notify()` schedules a full re-render. Only call it when state actually changed.
+Every `cx.notify()` schedules a full re-render. Call it only when state actually changed.
 
 ```rust
 // BAD: re-renders even when value is identical
@@ -102,7 +107,7 @@ fn on_something(&mut self, new_val: String, cx: &mut Context<Self>) {
 }
 ```
 
-Same rule for `cx.observe()` callbacks that reload external data:
+The same rule applies to `cx.observe()` callbacks that reload external data:
 
 ```rust
 cx.observe(&session, |this, _, cx| {
@@ -114,12 +119,11 @@ cx.observe(&session, |this, _, cx| {
 });
 ```
 
----
+This pattern is especially important in views that observe entities from the [architecture guide's](/docs/architecture/) hot state tier. A keystroke in a text input can trigger dozens of entity notifications per second. Without guards, each one becomes a full re-render with all the work that entails.
 
-## Pattern 3: Bidirectional Sync Must Be Event-Driven
+## Pattern 3: Bidirectional sync must be event-driven
 
-When two UI elements stay in sync (e.g., a URL bar and a params editor), each direction
-must live in its own event handler. Never centralize sync in `render()`.
+When two UI elements stay in sync (for example, a URL bar and a params editor), each direction must live in its own event handler. Never centralize sync in `render()`.
 
 ```rust
 // BAD: sync in render creates: render → set_value → Change → notify → render → ...
@@ -151,17 +155,13 @@ fn new(cx: &mut Context<Self>) -> Self {
 }
 ```
 
-**`ReentrancyGuard` is a mitigation, not a cure.** A guard can suppress immediate
-re-entrancy during a one-time init sync, but if the root cause (sync running in render)
-is not removed, the deferred `cx.notify()` the guard emits fires on the next frame and
-restarts the cycle. Fix the root cause first; treat the guard as a last-resort safety net.
+### ReentrancyGuard is a safety net, not a fix
 
----
+A guard can suppress immediate re-entrancy during a one-time init sync. But if the root cause (sync running in render) is not removed, the deferred `cx.notify()` the guard emits fires on the next frame and restarts the cycle. Fix the root cause first. Use the guard as a last resort.
 
-## Pattern 4: Subscription Cleanup on Row Rebuild
+## Pattern 4: Subscription cleanup on row rebuild
 
-When you rebuild a list of child entities (e.g., KV editor rows), clear the old subscriptions
-first. Dropped entity handles become no-ops but the `Subscription` objects still live in memory.
+When you rebuild a list of child entities (for example, KV editor rows), clear the old subscriptions first. Dropped entity handles become no-ops, but the `Subscription` objects still live in memory.
 
 ```rust
 struct MyView {
@@ -179,15 +179,11 @@ fn rebuild_rows(&mut self, data: &[Row], cx: &mut Context<Self>) {
 }
 ```
 
-Without the `clear()`, each rebuild adds 2N new subscriptions forever.
+Without the `clear()`, each rebuild adds 2N new subscriptions that never go away. After ten rebuilds of a 20-row editor, you have 400 active subscriptions pointing at entities that no longer exist in the view. This is a common cause of slow memory growth in long-running sessions. For more on this class of problem, see the [memory management patterns](/blog/rust-desktop-memory-management/) post.
 
----
+## Pattern 5: Observe precisely, not broadly
 
-## Pattern 5: Observe Precisely, Not Broadly
-
-Observe the entity that owns the data you care about. Observing a wide entity (e.g., a parent
-view) and doing expensive work (DB reads, full tree rebuilds) on every notification is the
-fastest way to create per-keystroke SQLite queries.
+Observe the entity that owns the data you care about. Observing a wide entity (such as a parent view) and doing expensive work on every notification is the fastest way to create per-keystroke SQLite queries.
 
 ```rust
 // BAD: AppRoot observes every RequestTabView, reloads catalog on each keystroke
@@ -216,12 +212,11 @@ cx.observe(&request_tab, |this, tab, cx| {
 });
 ```
 
----
+This ties into the hot/warm/cold state model from the [architecture guide](/docs/architecture/). If the data you are reloading is warm state (catalogs, indexes, metadata), you should reload it only when the source of truth actually changes, not on every frame.
 
-## Pattern 6: External Side Effects in Render
+## Pattern 6: Cache external side effects in render
 
-External calls inside `render()`: webview loads, file reads, D-Bus calls: bypass GPUI's
-change detection and run every frame.
+External calls inside `render()` bypass GPUI's change detection and run every frame. WebView loads, file reads, D-Bus calls: all of these execute unconditionally.
 
 ```rust
 // BAD: repaints WKWebView even when HTML is identical
@@ -240,16 +235,11 @@ fn render_preview(&mut self, cx: &mut Context<Self>) -> Div {
 }
 ```
 
-Same principle applies to file watchers: debounce the callback and check whether the loaded
-content actually differs from the currently applied value before notifying observers.
+The same principle applies to file watchers. Debounce the callback and check whether the loaded content actually differs from the currently applied value before notifying observers.
 
----
+## Pattern 7: Explicit async task lifecycle
 
-## Pattern 7: Async Task Hygiene
-
-**Task lifecycle must be explicit.** Dropping a `Task<T>` handle cancels the task silently.
-Either store it on the owning entity (long-lived operations) or call `.detach()` (true
-fire-and-forget). Never accidentally drop a Task by letting it fall out of scope.
+Dropping a `Task<T>` handle cancels the task silently. Either store it on the owning entity (for long-lived operations) or call `.detach()` (for true fire-and-forget). Never let a task fall out of scope by accident.
 
 ```rust
 struct MyView {
@@ -263,8 +253,7 @@ fn start_op(&mut self, cx: &mut Context<Self>) {
 }
 ```
 
-When consuming a channel in a spawned task, break on entity drop and guard with
-`operation_id` to drop stale results from cancelled operations:
+When consuming a channel in a spawned task, break on entity drop and guard with an `operation_id` to discard stale results from cancelled operations:
 
 ```rust
 while let Some(event) = rx.recv().await {
@@ -277,12 +266,11 @@ while let Some(event) = rx.recv().await {
 }
 ```
 
----
+For a deeper treatment of async patterns in GPUI including backpressure and cancellation strategies, see the [async patterns guide](/blog/rust-desktop-async-patterns/).
 
-## Pattern 8: Batch Notify for High-Throughput Streams
+## Pattern 8: Batch notify for high-throughput streams
 
-Per-message `cx.notify()` in a WebSocket or streaming HTTP response causes UI invalidation
-on every incoming frame. At high throughput this saturates the render loop.
+Per-message `cx.notify()` in a WebSocket or streaming HTTP response causes UI invalidation on every incoming frame. At high throughput this saturates the render loop.
 
 ```rust
 // BAD: notify on every message
@@ -294,7 +282,6 @@ while let Some(msg) = stream.next().await {
 }
 
 // GOOD: batch into a ring buffer, notify on flush cadence
-// Network reader → bounded channel → UI flush task
 let (tx, mut rx) = mpsc::channel::<Message>(256);
 
 // Flush task: drain up to N messages, then notify once
@@ -311,20 +298,16 @@ cx.spawn(async move {
 }).detach();
 ```
 
-Also keep the visible message buffer bounded (ring buffer, not `Vec`) to prevent RSS growth
-during long sessions.
+Also keep the visible message buffer bounded. Use a ring buffer, not a `Vec`, to prevent RSS growth during long sessions. This is the same class of leak described in the [memory management patterns](/blog/rust-desktop-memory-management/) post: a 1MB/hour leak becomes 168MB after a week.
 
----
+## Pattern 9: Avoid entity reentrancy
 
-## Pattern 9: Entity Reentrancy
-
-Do not re-enter a mutable update on the same entity from within its own active update path.
-GPUI will panic or silently no-op depending on context. Defer follow-up work instead:
+Do not re-enter a mutable update on the same entity from within its own active update path. GPUI will panic or silently no-op depending on context. Defer follow-up work instead.
 
 ```rust
 // BAD: calls entity.update() on self from within self's update closure
 fn do_work(&mut self, cx: &mut Context<Self>) {
-    self.helper(cx); // if helper calls cx.update on Self, that's a re-entrant update
+    self.helper(cx); // if helper calls cx.update on Self, that's re-entrant
 }
 
 // GOOD: schedule follow-up via cx.notify() or a spawned task
@@ -334,19 +317,19 @@ fn do_work(&mut self, cx: &mut Context<Self>) {
 }
 ```
 
----
+If you find yourself needing to call `entity.update()` from inside another `entity.update()` on the same entity, restructure so the state change happens directly and the render picks it up. The [state management guide](/blog/state-management-gpui-entities/) covers entity access patterns in more detail.
 
 ## Checklist
 
-Before shipping a new view or subscriber:
+Run through this before shipping a new view or subscriber. I keep a printed copy at my desk because these are easy to forget under deadline pressure.
 
-- [ ] `render()` contains no `entity.update()`, `cx.notify()`, `cx.subscribe()`, `cx.observe()`, `cx.spawn()`, or external I/O
-- [ ] Every `cx.notify()` is inside an `if value_changed` guard
-- [ ] Bidirectional sync uses event handlers, not render; no `ReentrancyGuard` as a substitute fix
-- [ ] Row-rebuild helpers call `subscriptions.clear()` before creating new rows
-- [ ] Observers read only from the narrowest entity that carries the changed data
-- [ ] External side effects (webview, file, DB) are cached and compared before re-applying
-- [ ] High-throughput streams batch into a bounded buffer and call `cx.notify()` once per flush
-- [ ] Every `Task<T>` is either stored on an entity field or explicitly `.detach()`ed
-- [ ] Async tasks `break` on entity-drop error and check `operation_id` for staleness
-- [ ] No re-entrant mutable updates on the same entity within a single update path
+- `render()` contains no `entity.update()`, `cx.notify()`, `cx.subscribe()`, `cx.observe()`, `cx.spawn()`, or external I/O
+- Every `cx.notify()` is inside an `if value_changed` guard
+- Bidirectional sync uses event handlers, not render; no `ReentrancyGuard` as a substitute fix
+- Row-rebuild helpers call `subscriptions.clear()` before creating new rows
+- Observers read only from the narrowest entity that carries the changed data
+- External side effects (webview, file, DB) are cached and compared before re-applying
+- High-throughput streams batch into a bounded buffer and call `cx.notify()` once per flush
+- Every `Task<T>` is either stored on an entity field or explicitly `.detach()`ed
+- Async tasks `break` on entity-drop error and check `operation_id` for staleness
+- No re-entrant mutable updates on the same entity within a single update path

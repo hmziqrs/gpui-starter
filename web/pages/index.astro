@@ -4,7 +4,8 @@ import AppPreview from '../components/AppPreview.astro';
 ---
 
 <MarketingLayout
-  title="gpui-starter: Build desktop apps with GPUI"
+  title="gpui-starter: Rust desktop app boilerplate for GPUI"
+  description="Ship a Rust desktop app with GPUI in minutes, not weeks. 21 themes, i18n, form validation, Cmd+K launcher, SQLite persistence, auto-updater, and macOS tray out of the box."
   jsonLd={{
     '@context': 'https://schema.org',
     '@type': 'WebSite',
@@ -19,17 +20,17 @@ import AppPreview from '../components/AppPreview.astro';
 >
 
   <!-- ==================== HERO ==================== -->
-  <section class="relative pt-32 pb-20 px-6 overflow-hidden">
+  <section id="hero" class="relative pt-32 pb-20 px-6 overflow-hidden">
     <div class="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
       <div>
         <span class="eyebrow">Rust + GPUI</span>
         <h1 class="mt-6 text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1]">
-          Build desktop apps<br /><span class="gradient-text">with GPUI.</span>
+          Ship a Rust desktop app<br /><span class="gradient-text">on GPUI, fast.</span>
         </h1>
         <p class="mt-6 text-lg text-text-dim max-w-lg leading-relaxed">
-          A production-ready Rust boilerplate for GPUI. Multi-page navigation,
-          command launcher, 21 built-in themes, i18n, form validation, and a
-          macOS tray icon — all out of the box.
+          Production-ready GPUI boilerplate with multi-page routing, 21 themes,
+          Cmd+K command launcher, i18n, form validation, SQLite persistence,
+          auto-updater, and macOS tray. Clone it and start building your actual product.
         </p>
         <div class="mt-4 flex flex-wrap gap-3 text-sm text-text-dim">
           <span class="flex items-center gap-1.5">
@@ -38,22 +39,27 @@ import AppPreview from '../components/AppPreview.astro';
           </span>
           <span class="flex items-center gap-1.5">
             <svg class="w-4 h-4 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
-            21 themes included
+            21 themes, hot-reload
           </span>
           <span class="flex items-center gap-1.5">
             <svg class="w-4 h-4 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
-            i18n ready (en + zh-CN)
+            SQLite + auto-updater
           </span>
         </div>
         <div class="mt-8 flex flex-wrap gap-4">
           <a href="/docs/" class="btn-primary">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
-            Get Started
+            Start Building
           </a>
           <a href="https://github.com/hmziqrs/gpui-boilerplate" target="_blank" rel="noopener" class="btn-secondary">
             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.4-4-1.4-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2 0 1.9 1.2 1.9 1.2 1.1 1.9 2.9 1.4 3.6 1 .1-.8.4-1.4.8-1.7-2.7-.3-5.5-1.3-5.5-6 0-1.3.5-2.4 1.2-3.2-.1-.3-.6-1.5.1-3.2 0 0 1-.3 3.3 1.2A11.5 11.5 0 0 1 12 5.8c1 0 2 .1 3 .4 2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.7-5.5 6 .5.4.9 1.1.9 2.3v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3" /></svg>
             GitHub
           </a>
+        </div>
+        <div class="mt-4 flex flex-wrap gap-5 text-sm text-text-dim">
+          <a href="/blog/" class="no-underline hover:text-amber transition-colors">Blog</a>
+          <a href="/faq/" class="no-underline hover:text-amber transition-colors">FAQ</a>
+          <a href="/docs/getting-started/" class="no-underline hover:text-amber transition-colors">Getting Started</a>
         </div>
       </div>
 
@@ -63,11 +69,11 @@ import AppPreview from '../components/AppPreview.astro';
   </section>
 
   <!-- ==================== APP PREVIEW ==================== -->
-  <section class="py-20 px-6 reveal">
+  <section id="app-preview" class="py-20 px-6 reveal">
     <div class="max-w-3xl mx-auto text-center">
       <span class="eyebrow">See it in action</span>
-      <h2 class="mt-4 text-3xl font-extrabold tracking-tight">Your next desktop app,<br /><span class="gradient-text">built in minutes.</span></h2>
-      <p class="mt-4 text-text-dim max-w-md mx-auto">gpui-starter comes with everything you need — themes, i18n, forms, command launcher, and tray icon.</p>
+      <h2 class="mt-4 text-3xl font-extrabold tracking-tight">A working GPUI app,<br /><span class="gradient-text">not a hello-world.</span></h2>
+      <p class="mt-4 text-text-dim max-w-md mx-auto">Six pages, sidebar routing, theme switching, form validation, and a command palette. Running out of the box after cargo run.</p>
       <div class="mt-12">
         <AppPreview />
       </div>
@@ -75,10 +81,10 @@ import AppPreview from '../components/AppPreview.astro';
   </section>
 
   <!-- ==================== INSTALL ==================== -->
-  <section class="py-20 px-6 reveal">
+  <section id="quick-start" class="py-20 px-6 reveal">
     <div class="max-w-3xl mx-auto text-center">
       <span class="eyebrow">Quick Start</span>
-      <h2 class="mt-4 text-3xl font-bold">Clone. Build. Run.</h2>
+      <h2 class="mt-4 text-3xl font-bold">Three commands to a running app</h2>
       <div class="mt-8 terminal text-left">
         <div class="terminal-header">
           <span class="terminal-dot" style="background:#ff5f57"></span>
@@ -92,111 +98,229 @@ import AppPreview from '../components/AppPreview.astro';
         </div>
       </div>
       <p class="mt-4 text-sm text-text-mute">
-        Requires Rust 1.85+. macOS (native), Linux (X11 + Wayland), Windows.
+        Requires Rust 1.85+. Runs on macOS (Metal), Linux (X11 + Wayland), and Windows.
       </p>
     </div>
   </section>
 
   <!-- ==================== STATS ==================== -->
-  <section class="py-12 px-6">
-    <div class="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center reveal">
+  <section id="stats" class="py-12 px-6">
+    <div class="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-5 gap-6 text-center reveal">
       <div>
         <div class="stat-num text-3xl font-extrabold">21</div>
-        <div class="text-sm text-text-mute mt-1">Built-in themes</div>
+        <div class="text-sm text-text-mute mt-1">Themes, hot-reload</div>
       </div>
       <div>
         <div class="stat-num text-3xl font-extrabold">6</div>
-        <div class="text-sm text-text-mute mt-1">App pages</div>
+        <div class="text-sm text-text-mute mt-1">Pages with sidebar</div>
       </div>
       <div>
         <div class="stat-num text-3xl font-extrabold">2</div>
-        <div class="text-sm text-text-mute mt-1">Languages</div>
+        <div class="text-sm text-text-mute mt-1">Languages (en, zh-CN)</div>
       </div>
       <div>
         <div class="stat-num text-3xl font-extrabold">Cmd+K</div>
-        <div class="text-sm text-text-mute mt-1">Command launcher</div>
+        <div class="text-sm text-text-mute mt-1">Command palette</div>
+      </div>
+      <div>
+        <div class="stat-num text-3xl font-extrabold">gpui-query</div>
+        <div class="text-sm text-text-mute mt-1">Async data crate</div>
       </div>
     </div>
   </section>
 
+  <!-- ==================== QUICK NAV ==================== -->
+  <section class="py-10 px-6">
+    <div class="max-w-4xl mx-auto flex flex-wrap justify-center gap-4 text-sm">
+      <a href="/docs/" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-edge text-text-dim no-underline hover:border-amber hover:text-amber transition-colors">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+        Docs
+      </a>
+      <a href="/blog/" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-edge text-text-dim no-underline hover:border-amber hover:text-amber transition-colors">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>
+        Blog
+      </a>
+      <a href="/faq/" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-edge text-text-dim no-underline hover:border-amber hover:text-amber transition-colors">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        FAQ
+      </a>
+      <a href="/changelog/" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-edge text-text-dim no-underline hover:border-amber hover:text-amber transition-colors">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+        Changelog
+      </a>
+    </div>
+  </section>
+
   <!-- ==================== FEATURES ==================== -->
-  <section class="py-20 px-6">
+  <section id="features" class="py-20 px-6">
     <div class="max-w-6xl mx-auto">
       <div class="text-center mb-12 reveal">
         <span class="eyebrow">Features</span>
         <h2 class="mt-4 text-3xl font-bold">
-          Everything you need to <span class="gradient-text">ship fast</span>
+          The plumbing is done. <span class="gradient-text">Ship your product.</span>
         </h2>
+        <div class="mt-4 flex flex-wrap justify-center gap-3 text-xs">
+          <a href="#feature-routing" class="no-underline text-text-mute hover:text-amber transition-colors">Routing</a>
+          <span class="text-text-mute">/</span>
+          <a href="#feature-themes" class="no-underline text-text-mute hover:text-amber transition-colors">Themes</a>
+          <span class="text-text-mute">/</span>
+          <a href="#feature-i18n" class="no-underline text-text-mute hover:text-amber transition-colors">i18n</a>
+          <span class="text-text-mute">/</span>
+          <a href="#feature-command-palette" class="no-underline text-text-mute hover:text-amber transition-colors">Cmd+K</a>
+          <span class="text-text-mute">/</span>
+          <a href="#feature-forms" class="no-underline text-text-mute hover:text-amber transition-colors">Forms</a>
+          <span class="text-text-mute">/</span>
+          <a href="#feature-tray" class="no-underline text-text-mute hover:text-amber transition-colors">Tray</a>
+          <span class="text-text-mute">/</span>
+          <a href="#feature-gpui-query" class="no-underline text-text-mute hover:text-amber transition-colors">Query</a>
+          <span class="text-text-mute">/</span>
+          <a href="#feature-auto-updater" class="no-underline text-text-mute hover:text-amber transition-colors">Updates</a>
+          <span class="text-text-mute">/</span>
+          <a href="#feature-undo-redo" class="no-underline text-text-mute hover:text-amber transition-colors">Undo</a>
+        </div>
       </div>
 
       <div class="grid md:grid-cols-3 gap-5 reveal">
         <!-- Big card: Multi-page app with 3D orb -->
-        <div class="glass rounded-2xl p-8 md:col-span-2 md:row-span-2 relative overflow-hidden" data-three="bento-orb">
+        <div id="feature-routing" class="glass rounded-2xl p-8 md:col-span-2 md:row-span-2 relative overflow-hidden" data-three="bento-orb">
           <div class="relative z-10">
             <div class="icon-box mb-4">
               <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
             </div>
             <h3 class="text-2xl font-bold mb-3">Multi-page architecture</h3>
             <p class="text-text-dim max-w-md leading-relaxed">
-              Resizable sidebar with navigation. Six pages out of the box:
-              Home, Form, Settings, About, Diagnostics, and Notifications. Add new pages by implementing
-              a single Render trait.
+              Resizable sidebar, six working pages (Home, Form, Settings, About,
+              Diagnostics, Notifications), and route-based navigation. Adding a new page
+              means implementing one Render trait and registering the route. That is it.
             </p>
+            <a href="/docs/architecture/" class="mt-3 inline-flex items-center gap-1 text-sm text-amber no-underline hover:underline">Learn about the architecture</a>
           </div>
         </div>
 
         <!-- Theme system with wireframe dodecahedron -->
-        <div class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="dodec">
+        <div id="feature-themes" class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="dodec">
           <div class="relative z-10">
             <div class="icon-box mb-3">
               <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>
             </div>
-            <h3 class="text-lg font-bold mb-2">21 themes</h3>
-            <p class="text-sm text-text-dim">Catppuccin, Dracula, Tokyo Night, and 18 more. Hot-reload from JSON files. Runtime light/dark switching.</p>
+            <h3 class="text-lg font-bold mb-2">21 themes with hot-reload</h3>
+            <p class="text-sm text-text-dim">Catppuccin, Dracula, Tokyo Night, Solarized, Nord, and 16 more. Edit the JSON file, save, see changes instantly. Switch between light and dark at runtime.</p>
+            <a href="/docs/themes/" class="mt-2 inline-flex items-center gap-1 text-xs text-amber no-underline hover:underline">Theme guide</a>
           </div>
         </div>
 
         <!-- i18n with wireframe octahedron -->
-        <div class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="octa">
+        <div id="feature-i18n" class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="octa">
           <div class="relative z-10">
             <div class="icon-box mb-3">
               <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" /></svg>
             </div>
             <h3 class="text-lg font-bold mb-2">Internationalization</h3>
-            <p class="text-sm text-text-dim">es-fluent with English + Simplified Chinese. Fluent message format for forms and UI. Easy to add languages.</p>
+            <p class="text-sm text-text-dim">Built on es-fluent (Fluent message format). Ships with English and Simplified Chinese. Add a new .ftl file and the app picks it up. Error messages included.</p>
+            <a href="/docs/i18n/" class="mt-2 inline-flex items-center gap-1 text-xs text-amber no-underline hover:underline">i18n setup</a>
           </div>
         </div>
 
         <!-- Command Launcher with wireframe icosahedron -->
-        <div class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="ico">
+        <div id="feature-command-palette" class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="ico">
           <div class="relative z-10">
             <div class="icon-box mb-3">
               <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
             </div>
-            <h3 class="text-lg font-bold mb-2">Command launcher</h3>
-            <p class="text-sm text-text-dim">Cmd+K spotlight search. Navigate pages, switch themes. Floating popup window with keyboard navigation.</p>
+            <h3 class="text-lg font-bold mb-2">Command palette</h3>
+            <p class="text-sm text-text-dim">Cmd+K opens a floating popup with fuzzy search. Navigate to any page, switch themes, or trigger actions without touching the mouse. Full keyboard navigation.</p>
+            <a href="/docs/command-palette/" class="mt-2 inline-flex items-center gap-1 text-xs text-amber no-underline hover:underline">Command palette docs</a>
           </div>
         </div>
 
         <!-- Form validation with wireframe tetrahedron -->
-        <div class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="tetra">
+        <div id="feature-forms" class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="tetra">
           <div class="relative z-10">
             <div class="icon-box mb-3">
               <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
             </div>
             <h3 class="text-lg font-bold mb-2">Form validation</h3>
-            <p class="text-sm text-text-dim">gpui-form + koruma validators. Email, phone, URL, non-empty. Fluent-localized error messages.</p>
+            <p class="text-sm text-text-dim">gpui-form handles input binding, koruma handles validation rules (email, phone, URL, required). Error messages are localized through Fluent, so your Chinese users see Chinese errors.</p>
+            <a href="/docs/forms/" class="mt-2 inline-flex items-center gap-1 text-xs text-amber no-underline hover:underline">Forms guide</a>
           </div>
         </div>
 
         <!-- macOS tray with wireframe box -->
-        <div class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="box">
+        <div id="feature-tray" class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="box">
           <div class="relative z-10">
             <div class="icon-box mb-3">
               <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
             </div>
-            <h3 class="text-lg font-bold mb-2">macOS tray icon</h3>
-            <p class="text-sm text-text-dim">Menu bar icon with click-to-open launcher. Option+Space global hotkey. Platform-specific when needed.</p>
+            <h3 class="text-lg font-bold mb-2">macOS tray and global hotkeys</h3>
+            <p class="text-sm text-text-dim">Menu bar icon with a click-to-open launcher. Option+Space as a global hotkey that works from any app. Single-instance enforcement so you never get duplicate windows.</p>
+          </div>
+        </div>
+
+        <!-- gpui-query with wireframe icosahedron -->
+        <div id="feature-gpui-query" class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="ico">
+          <div class="relative z-10">
+            <div class="icon-box mb-3">
+              <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+            </div>
+            <h3 class="text-lg font-bold mb-2">gpui-query</h3>
+            <p class="text-sm text-text-dim">TanStack Query-inspired library for GPUI. Fetch, cache, and sync async data with stale-while-revalidate, automatic refetching, and query invalidation. Ships as a separate crate.</p>
+            <a href="/docs/gpui-query/" class="mt-2 inline-flex items-center gap-1 text-xs text-amber no-underline hover:underline">gpui-query docs</a>
+          </div>
+        </div>
+
+        <!-- Auto-updater with wireframe tetrahedron -->
+        <div id="feature-auto-updater" class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="tetra">
+          <div class="relative z-10">
+            <div class="icon-box mb-3">
+              <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" /></svg>
+            </div>
+            <h3 class="text-lg font-bold mb-2">Auto-updater</h3>
+            <p class="text-sm text-text-dim">Ed25519-signed manifests ensure the update your app downloads is the one you published. Works with GitHub Releases. The user gets a prompt; you control the flow.</p>
+            <a href="/docs/auto-updater/" class="mt-2 inline-flex items-center gap-1 text-xs text-amber no-underline hover:underline">Auto-updater setup</a>
+          </div>
+        </div>
+
+        <!-- Crash reporting with wireframe box -->
+        <div id="feature-crash-reporting" class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="box">
+          <div class="relative z-10">
+            <div class="icon-box mb-3">
+              <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            </div>
+            <h3 class="text-lg font-bold mb-2">Crash reporting</h3>
+            <p class="text-sm text-text-dim">Panic hooks capture stack traces and write structured crash reports to disk. Next launch, your app can surface them or upload them.</p>
+          </div>
+        </div>
+
+        <!-- Diagnostics with wireframe dodecahedron -->
+        <div id="feature-diagnostics" class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="dodec">
+          <div class="relative z-10">
+            <div class="icon-box mb-3">
+              <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            </div>
+            <h3 class="text-lg font-bold mb-2">Diagnostics page</h3>
+            <p class="text-sm text-text-dim">Live view of app state: active entities, subsystem health, theme metadata, and debug actions. Useful during development and for user support.</p>
+          </div>
+        </div>
+
+        <!-- Telemetry with wireframe octahedron -->
+        <div id="feature-telemetry" class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="octa">
+          <div class="relative z-10">
+            <div class="icon-box mb-3">
+              <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+            </div>
+            <h3 class="text-lg font-bold mb-2">Telemetry</h3>
+            <p class="text-sm text-text-dim">Three modes: disabled, local-only, or remote. The consent gate is explicit. You decide what to collect and where it goes.</p>
+          </div>
+        </div>
+
+        <!-- Undo/Redo with wireframe icosahedron -->
+        <div id="feature-undo-redo" class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="ico">
+          <div class="relative z-10">
+            <div class="icon-box mb-3">
+              <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a5 5 0 010 10H9" /><path stroke-linecap="round" stroke-linejoin="round" d="M3 10l4-4m-4 4l4 4" /></svg>
+            </div>
+            <h3 class="text-lg font-bold mb-2">Undo/Redo</h3>
+            <p class="text-sm text-text-dim">Command pattern with keyboard shortcuts (Cmd+Z / Cmd+Y). Stack-based, works across any operation. One trait to implement per action.</p>
           </div>
         </div>
       </div>
@@ -204,19 +328,25 @@ import AppPreview from '../components/AppPreview.astro';
   </section>
 
   <!-- ==================== CTA ==================== -->
-  <section class="py-20 px-6 reveal">
+  <section id="cta" class="py-20 px-6 reveal">
     <div class="max-w-3xl mx-auto text-center relative h-[300px] overflow-hidden" data-three="cta-shape">
       <div class="relative z-10">
         <h2 class="text-4xl font-extrabold mb-4">
-          Build your next <span class="gradient-text">desktop app.</span>
+          Stop wiring boilerplate.<br /><span class="gradient-text">Start shipping your app.</span>
         </h2>
         <p class="text-text-dim mb-8 max-w-md mx-auto">
-          Start with a working multi-page app. Customize the pages, add your
-          features, ship your product.
+          You get a working multi-page GPUI app with themes, persistence,
+          auto-updates, and accessibility. Delete the pages you do not need and
+          build what matters.
         </p>
         <div class="flex flex-wrap justify-center gap-4">
           <a href="/docs/" class="btn-primary">Read the docs</a>
-          <a href="https://github.com/hmziqrs/gpui-boilerplate" target="_blank" rel="noopener" class="btn-secondary">View on GitHub</a>
+          <a href="https://github.com/hmziqrs/gpui-boilerplate" target="_blank" rel="noopener" class="btn-secondary">Clone on GitHub</a>
+        </div>
+        <div class="mt-6 flex flex-wrap justify-center gap-6 text-sm text-text-dim">
+          <a href="/blog/" class="no-underline hover:text-amber transition-colors">Read the blog</a>
+          <a href="/faq/" class="no-underline hover:text-amber transition-colors">Common questions</a>
+          <a href="/changelog/" class="no-underline hover:text-amber transition-colors">What is new</a>
         </div>
       </div>
     </div>

@@ -3,14 +3,15 @@
  * Generate OG images for blog posts on the fly.
  *
  * Usage:
- *   bun scripts/generate-og.ts                  # generate all posts
- *   bun scripts/generate-og.ts <slug>            # generate one post
- *   bun scripts/generate-og.ts --out ./dist/og   # custom output dir
+ *   bun scripts/generate-og.ts                       # generate all posts
+ *   bun scripts/generate-og.ts <slug>                # generate one post
+ *   bun scripts/generate-og.ts --out ./dist/og       # custom output dir
+ *   bun scripts/generate-og.ts --only-missing        # skip already-generated
  *
  * Output: public/og/blog/<slug>.png (or --out dir)
  */
 
-import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from 'fs';
 import { join, resolve, basename } from 'path';
 import satori from 'satori';
 import { Resvg } from '@resvg/resvg-js';
@@ -22,6 +23,7 @@ const DEFAULT_OUT = join(ROOT, 'public/og/blog');
 // --- arg parsing ---
 const args = process.argv.slice(2);
 const outIdx = args.indexOf('--out');
+const onlyMissing = args.includes('--only-missing');
 const outDir = outIdx !== -1 ? resolve(args[outIdx + 1]) : DEFAULT_OUT;
 const slugArg = args.filter((a) => !a.startsWith('--') && (outIdx === -1 || args.indexOf(a) !== outIdx + 1))[0];
 
@@ -223,7 +225,7 @@ async function renderOG(title: string, description: string, tag: string): Promis
 async function main() {
   mkdirSync(outDir, { recursive: true });
 
-  const files = slugArg
+  let files = slugArg
     ? [join(BLOG_DIR, `${slugArg}.md`)]
     : readdirSync(BLOG_DIR)
         .filter((f) => f.endsWith('.md'))
@@ -232,6 +234,21 @@ async function main() {
   if (files.length === 0) {
     console.error(`No blog posts found${slugArg ? ` for slug "${slugArg}"` : ''}.`);
     process.exit(1);
+  }
+
+  if (onlyMissing) {
+    const before = files.length;
+    files = files.filter((f) => {
+      const slug = basename(f, '.md');
+      return !existsSync(join(outDir, `${slug}.png`));
+    });
+    const skipped = before - files.length;
+    if (skipped > 0) console.log(`  skipping ${skipped} already-generated image(s)`);
+  }
+
+  if (files.length === 0) {
+    console.log('All OG images already up to date.');
+    return;
   }
 
   for (const file of files) {

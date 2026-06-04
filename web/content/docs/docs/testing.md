@@ -1,31 +1,48 @@
 ---
-title: "Testing"
-description: "Testing strategies for GPUI apps including unit tests, entity tests, and integration harnesses"
+title: "Testing GPUI Applications"
+description: "Strategies for testing Rust desktop apps built with GPUI: unit tests, entity tests, snapshot tests, and integration harnesses using TestAppContext"
 ---
 
-## Overview
+Testing in gpui-starter splits into two tracks: plain `#[test]` for logic that runs without GPUI, and `#[gpui::test]` when you need the app context, entity system, or async executor. The [architecture](/docs/architecture) page explains how these layers connect. This page covers the specifics of writing and organizing tests for each layer.
 
-gpui-starter uses two levels of testing: plain `#[test]` for logic-only code and `#[gpui::test]` for tests that need GPUI's app context, async executor, or window support. The `src/testing.rs` module provides fake implementations of external services so tests run without network, filesystem, or OS keyring dependencies.
+If you are new to the project, start with [getting started](/docs/getting-started) to get the build running, then come back here.
 
-## Test attribute reference
+## Choosing the right test attribute
 
-| Attribute | Use case | Context parameter |
-|-----------|----------|-------------------|
-| `#[test]` | Pure logic, parsing, validation | None |
-| `#[gpui::test]` | Entity operations, globals, async | `&mut TestAppContext` |
-| `#[gpui::test]` async | Async tasks, timers, channels | `&mut TestAppContext` |
-| `#[gpui::test(iterations = 10)]` | Property testing with random data | `&mut TestAppContext`, `mut StdRng` |
+GPUI provides two test attributes. Pick based on what your test touches:
 
-If a test does not need windows or rendering, plain `#[test]` is sufficient. Reserve `#[gpui::test]` for code that calls `cx.new()`, `cx.spawn()`, or reads globals.
+| Attribute | When to use | What you get |
+|-----------|------------|--------------|
+| `#[test]` | Pure logic, parsing, validation, data transforms | Nothing extra. Standard Rust test. |
+| `#[gpui::test]` | Entity creation (`cx.new()`), globals, subscriptions | `&mut TestAppContext` with a deterministic executor |
+| `#[gpui::test] async` | Background tasks, timers, channels | `&mut TestAppContext` that can `run_until_parked()` |
+| `#[gpui::test(iterations = 10)]` | Randomized property tests | `&mut TestAppContext` + `mut StdRng` |
 
-## Unit testing entity logic
+The rule is simple: if your test calls `cx.new()`, `cx.spawn()`, reads a global, or opens a window, it needs `#[gpui::test]`. Everything else is plain `#[test]`.
 
-Test data models, validation, and state transitions without GPUI context. These are standard Rust tests that run fast and need no setup.
+## Unit tests: logic without GPUI
+
+Pure data models, validation rules, and state machines do not need a GPUI context. These are regular Rust tests. They compile fast and run in milliseconds.
+
+The undo system in gpui-starter uses an internal `UndoModel` struct that tracks past and future stacks. Testing it is a plain `#[test]` because the model is a plain struct with no GPUI dependency:
 
 ```rust
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn sample_entry() -> UndoEntry {
+        UndoEntry {
+            label: "Switch Theme".to_string(),
+            undo_label: "Undo Theme Switch".to_string(),
+            redo_label: "Redo Theme Switch".to_string(),
+            created_at: AppTimestamp::now(),
+            kind: UndoKind::ThemeMode {
+                before: ThemeMode::Light,
+                after: ThemeMode::Dark,
+            },
+        }
+    }
 
     #[test]
     fn record_clears_redo_history() {
@@ -39,34 +56,37 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unknown_deep_links() {
-        assert!(AppRoute::parse_deep_link("https://example.com").is_err());
-        assert!(AppRoute::parse_deep_link("gpui-starter://missing").is_err());
+    fn pop_undo_sets_rejected_reason_when_empty() {
+        let mut model = UndoModel::default();
+        assert!(model.pop_undo().is_none());
+        assert_eq!(model.last_rejected.as_deref(), Some("nothing to undo"));
     }
 }
 ```
 
-Tests that touch the filesystem should use `tempfile::tempdir()` for isolated directories:
+When your test touches the filesystem, use `tempfile::tempdir()` so each test gets an isolated directory. The storage initialization tests in `tests/e2e_lifecycle.rs` do this for SQLite:
 
 ```rust
 #[test]
-fn corrupt_config_is_quarantined() {
-    let dir = tempdir().unwrap();
-    let state_file = dir.path().join("state.json");
-    std::fs::write(&state_file, "{not-json").unwrap();
+fn test_storage_initializes() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let db_path = dir.path().join("app.db");
 
-    let (loaded, err) = load_config(&state_file);
-
-    assert_eq!(loaded, AppConfig::default());
-    assert!(err.is_some());
-    assert!(!state_file.exists());
-    assert!(state_file.with_extension("json.bad").exists());
+    let conn = rusqlite::Connection::open(&db_path).expect("open connection");
+    let version = gpui_starter::db_migrations::run_migrations(&conn).expect("run migrations");
+    assert_eq!(version, 2, "migrations should bring schema to version 2");
 }
 ```
 
-## Testing with GPUI's test context
+The temp directory cleans up automatically when the `TempDir` value drops. No manual cleanup needed.
 
-`TestAppContext` provides a single-threaded deterministic executor. Use it for entity creation, updates, subscriptions, and async tasks.
+## Testing with TestAppContext
+
+`TestAppContext` gives you a single-threaded, deterministic executor. No threads, no race conditions. Entity creation, updates, and reads all work the same as production code.
+
+### Entity state
+
+Create an entity, update it, and read it back:
 
 ```rust
 #[gpui::test]
@@ -86,9 +106,15 @@ fn test_entity_state(cx: &mut TestAppContext) {
 }
 ```
 
-For window-dependent tests, open a window and convert to `VisualTestContext`:
+The [architecture](/docs/architecture) page has more detail on how entities work in GPUI if you need background.
+
+### Window-dependent tests
+
+Tests that render views or dispatch actions need a window. Open one and convert to `VisualTestContext`:
 
 ```rust
+use gpui::VisualTestContext;
+
 #[gpui::test]
 fn test_with_window(cx: &mut TestAppContext) {
     let window = cx.update(|cx| {
@@ -103,9 +129,11 @@ fn test_with_window(cx: &mut TestAppContext) {
 }
 ```
 
-## Async testing
+The `tests/support/rendering.rs` module wraps this pattern into reusable helpers. `open_visual_context(cx)` creates a minimal window, and `open_window_with_root(cx, |window, cx| MyView::new(window, cx))` opens one with your own root entity.
 
-Async tests use `#[gpui::test]` on an `async fn`. Call `cx.run_until_parked()` to flush pending tasks and timers.
+## Async tests
+
+Async GPUI tests use `#[gpui::test]` on an `async fn`. The main method to know is `cx.run_until_parked()`, which flushes all pending tasks and timers until nothing is left to run.
 
 ```rust
 #[gpui::test]
@@ -114,7 +142,7 @@ async fn test_async_task(cx: &mut TestAppContext) {
 
     entity.update(cx, |comp, cx| comp.start_background_update(cx));
 
-    // detached tasks don't run until you yield
+    // Detached tasks have not run yet.
     let before = entity.read_with(cx, |comp, _| comp.value);
     assert_eq!(before, 0);
 
@@ -125,20 +153,22 @@ async fn test_async_task(cx: &mut TestAppContext) {
 }
 ```
 
-For tests involving external I/O (real threads, OS sockets), call `cx.executor().allow_parking()` so the executor can block on external events.
+A common mistake is forgetting `run_until_parked()` and then asserting on state that has not been computed yet. If your test fails on a value that should have been set by a spawned task, add `cx.run_until_parked()` before the assertion.
 
-## Mocking globals and external services
+For tests involving real threads or OS sockets (not just GPUI tasks), call `cx.executor().allow_parking()` so the executor can block on external events without deadlocking.
 
-The `src/testing.rs` module provides fakes for every external dependency. Each fake is a plain struct with no GPUI dependency, making it usable in both `#[test]` and `#[gpui::test]` contexts.
+## Mocking external services
 
-| Fake | Methods | Purpose |
-|------|---------|---------|
-| `FakeTelemetrySink` | `record_event`, `record_error`, `flush` | Tracks telemetry calls in memory |
-| `FakeConnectivityProbe` | `probe()` | Returns `Ok` or `Err` based on `next_ok` field |
-| `FakeNotificationBackend` | `send` | Records sent notifications; `fail_send` toggles errors |
-| `FakeSecureStorage` | `set`, `get`, `delete` | In-memory secret storage |
+The `src/testing.rs` module ships fake implementations for every external dependency. Each fake is a plain struct with no GPUI dependency, so they work in both `#[test]` and `#[gpui::test]` contexts.
 
-Construct a fake, configure it for the test scenario, and pass it to the code under test:
+| Fake | Key fields | What it does |
+|------|-----------|--------------|
+| `FakeTelemetrySink` | `events: VecDeque<String>`, `flushed: bool` | Records events and errors in memory |
+| `FakeConnectivityProbe` | `next_ok: bool` | Returns `Ok` or `Err` based on the flag |
+| `FakeNotificationBackend` | `sent: VecDeque<String>`, `fail_send: bool` | Records sent notifications; toggle errors |
+| `FakeSecureStorage` | (internal `Option<String>`) | In-memory secret storage with set/get/delete |
+
+Build a fake, configure it, and pass it to the code under test. The fakes have their own tests in `src/testing.test.rs`:
 
 ```rust
 #[test]
@@ -153,11 +183,11 @@ fn fake_notification_backend_success_and_failure() {
 }
 ```
 
-For GPUI globals, tests can call `set_global` to install a fake and `remove_global` to clean up between test cases. Globals are not permanent for the app lifetime and can be replaced freely in test setups.
+For GPUI globals, call `cx.set_global()` to install a fake and `cx.remove_global()` to clean up. Globals are scoped to the test context, not permanent. Replace them freely between test cases.
 
 ## Testing form validation
 
-Form structs derive `Koruma` which provides a `validate()` method. Test validation rules on plain struct instances without GPUI context:
+Form structs derive `Koruma` via the `gpui-form` + `koruma` integration. Each field gets a `validate()` method generated at compile time. You can test validation on plain struct instances without GPUI. See the [forms](/docs/forms) docs for the full setup.
 
 ```rust
 #[test]
@@ -180,9 +210,11 @@ fn valid_form_passes() {
 }
 ```
 
-## Testing state transitions and commands
+Each validator (`NonEmptyValidation`, `EmailValidation`, `PhoneNumberValidation`, `UrlValidation`) is tested independently. The [form validation with Koruma](/blog/form-validation-koruma-rust) blog post walks through adding custom validators.
 
-Test action dispatching through a window's focus handle:
+## Testing actions and commands
+
+Actions are dispatched through a window's focus handle. This requires a `VisualTestContext`:
 
 ```rust
 actions!(my_app, [Increment]);
@@ -208,20 +240,11 @@ fn test_action_dispatch(cx: &mut TestAppContext) {
 }
 ```
 
-For state machines like `UndoModel`, test each transition in isolation:
-
-```rust
-#[test]
-fn pop_undo_sets_rejected_reason_when_empty() {
-    let mut model = UndoModel::default();
-    assert!(model.pop_undo().is_none());
-    assert_eq!(model.last_rejected.as_deref(), Some("nothing to undo"));
-}
-```
+The [command launcher](/docs/command-launcher) docs cover how actions get bound to keyboard shortcuts in the real app. For tests, you dispatch them directly.
 
 ## Testing event subscriptions
 
-Subscribe to entity events and verify the handler receives them:
+Entities that implement `EventEmitter<T>` can emit typed events. Subscribe during construction and verify the handler receives them:
 
 ```rust
 #[derive(Clone)]
@@ -248,46 +271,89 @@ fn test_event_emission(cx: &mut TestAppContext) {
 }
 ```
 
-## Integration test patterns
+## Snapshot tests
 
-Integration tests live in the `tests/` directory. They exercise cross-module behavior such as config persistence, deep link routing, or IPC forwarding:
+gpui-starter uses `insta` for snapshot testing serializable structures. Snapshot tests are useful when you want to lock down the shape of serialized output (JSON, YAML) and catch regressions when the structure changes.
+
+The `tests/snapshot_tests.rs` file covers config serialization, route parsing, theme file structure, and update manifests:
 
 ```rust
-// tests/qa_docs.rs
+#[test]
+fn test_config_default_serialization() {
+    let config = AppConfig::default();
+    insta::assert_yaml_snapshot!("config_default", &config);
+}
+
+#[test]
+fn test_config_roundtrip() {
+    let original = AppConfig {
+        version: 1,
+        theme: "Gruvbox Dark".to_string(),
+        locale: "en".to_string(),
+        // ... other fields
+    };
+    let json = serde_json::to_string(&original).expect("serialize config");
+    let restored: AppConfig = serde_json::from_str(&json).expect("deserialize config");
+    assert_eq!(original, restored);
+    insta::assert_yaml_snapshot!("config_roundtrip", &serde_json::to_value(&original).unwrap());
+}
+```
+
+Run `cargo insta review` after adding or modifying snapshot tests to accept or reject changes. Snapshots live in `tests/snapshots/` as `.snap` files checked into git.
+
+## Integration tests
+
+Integration tests live in the `tests/` directory at the crate root. They exercise cross-module behavior that unit tests cannot reach.
+
+### Documentation and QA checks
+
+The `tests/qa_docs.rs` file verifies that documentation files exist and contain expected sections. This catches silent regressions in docs:
+
+```rust
 #[test]
 fn qa_matrix_contains_core_cases() {
     let content = std::fs::read_to_string("docs/qa-matrix.md").expect("read qa matrix");
     let normalized = content.to_lowercase();
     assert!(normalized.contains("second-instance forwarding"));
     assert!(normalized.contains("open logs folder"));
+    assert!(normalized.contains("secure storage unavailable path"));
 }
 ```
 
-For tests that cross process boundaries (single-instance IPC), use `tempdir()` for the queue file and a real local socket with a unique name:
+### Navigation and routing
+
+The `tests/e2e_navigation.rs` file tests deep-link parsing and sidebar page registration without launching GPUI:
 
 ```rust
 #[test]
-fn forwarded_links_roundtrip_in_order() {
-    let dir = tempdir().expect("tempdir");
-    let queue = dir.path().join("forward.queue");
+fn test_route_parsing() {
+    let cases = &[
+        ("gpui-starter://home", AppRoute::Page(Page::Home)),
+        ("gpui-starter://form", AppRoute::Page(Page::Form)),
+        ("gpui-starter://settings", AppRoute::Page(Page::Settings)),
+    ];
 
-    append_forwarded_link(&queue, "gpui-starter://settings");
-    append_forwarded_link(&queue, "gpui-starter://notifications");
-
-    let links = drain_forwarded_links(&queue);
-    assert_eq!(links, vec![
-        "gpui-starter://settings".to_string(),
-        "gpui-starter://notifications".to_string()
-    ]);
-    assert!(drain_forwarded_links(&queue).is_empty());
+    for (url, expected) in cases {
+        let parsed = AppRoute::parse_deep_link(url)
+            .unwrap_or_else(|e| panic!("failed to parse {url}: {e}"));
+        assert_eq!(parsed, *expected);
+    }
 }
 ```
 
+The [routing](/docs/routing) page explains the deep-link scheme and route matching in detail.
+
+### Lifecycle tests
+
+The `tests/e2e_lifecycle.rs` file tests app initialization without the GPUI event loop: panic hooks, crash markers, config loading, and database migration.
+
 ## Property testing
 
-Use `#[gpui::test(iterations = N)]` with a `mut rng: StdRng` parameter to run randomized tests:
+Use `#[gpui::test(iterations = N)]` with a `mut rng: StdRng` parameter to run randomized tests. Each iteration gets a fresh seed:
 
 ```rust
+use rand::rngs::StdRng;
+
 #[gpui::test(iterations = 10)]
 fn test_counter_random_operations(cx: &mut TestAppContext, mut rng: StdRng) {
     let counter = cx.new(|cx| Counter::new(cx));
@@ -304,6 +370,8 @@ fn test_counter_random_operations(cx: &mut TestAppContext, mut rng: StdRng) {
 }
 ```
 
+For a broader look at how testing fits into the development workflow, see [testing strategies for Rust desktop apps](/blog/rust-desktop-testing-strategies).
+
 ## Running tests
 
 ```bash
@@ -314,41 +382,59 @@ cargo test
 cargo test routes::tests
 
 # Run a single test by name
-cargo test corrupt_config_is_quarantined
+cargo test pop_undo_sets_rejected_reason
 
-# Show println output
+# Show println output (hidden by default)
 cargo test -- --nocapture
 
 # Run with backtrace on failure
 RUST_BACKTRACE=1 cargo test
+
+# Run only snapshot tests and review changes
+cargo test --test snapshot_tests
+cargo insta review
+
+# Run the integration suite
+cargo test --test e2e_lifecycle --test e2e_navigation --test qa_docs
 ```
 
 ## Test organization
 
-Group related tests into submodules within each source file. Use helper functions for common setup:
+Group related tests into `mod tests` within each source file. Use helper functions for repeated setup. The pattern in gpui-starter is `#[cfg(test)] #[path = "module_name.test.rs"] mod module_name_test;` to keep test code in a separate file:
 
 ```rust
+// src/services/undo_stack.rs
 #[cfg(test)]
-mod tests {
-    use super::*;
+#[path = "undo_stack.test.rs"]
+mod undo_stack_test;
+```
 
-    fn sample_entry() -> UndoEntry {
-        UndoEntry {
-            kind: UndoKind::ThemeChanged {
-                before: ThemeMode::Light,
-                after: ThemeMode::Dark,
-            },
-        }
-    }
+```rust
+// src/services/undo_stack.test.rs
+use super::*;
 
-    #[test]
-    fn record_clears_redo_history() {
-        let mut model = UndoModel {
-            future: vec![sample_entry()],
-            ..UndoModel::default()
-        };
-        model.record(sample_entry());
-        assert!(model.future.is_empty());
+fn sample_entry() -> UndoEntry {
+    UndoEntry {
+        label: "Switch Theme".to_string(),
+        undo_label: "Undo Theme Switch".to_string(),
+        redo_label: "Redo Theme Switch".to_string(),
+        created_at: AppTimestamp::now(),
+        kind: UndoKind::ThemeMode {
+            before: ThemeMode::Light,
+            after: ThemeMode::Dark,
+        },
     }
 }
+
+#[test]
+fn record_clears_redo_history() {
+    let mut model = UndoModel {
+        future: vec![sample_entry()],
+        ..UndoModel::default()
+    };
+    model.record(sample_entry());
+    assert!(model.future.is_empty());
+}
 ```
+
+This keeps production source files clean while putting tests right next to the code they exercise.
