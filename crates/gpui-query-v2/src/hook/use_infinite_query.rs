@@ -221,7 +221,7 @@ where
 
         if let Some(request_id) = request_id {
             let weak = entity.downgrade();
-            let fetcher = fetch_next.clone();
+            let fetcher = fetch_next;
             let retry = entity.read_with(cx, |r, _| r.retry_policy().clone());
             cx.spawn(async move |_this, cx| {
                 run_fetch_next_page_with_id(
@@ -309,12 +309,9 @@ pub fn fetch_next_page_infinite<T, E, C, FNext, Fut>(
     // from Idle/Success to Loading.
 
     if let Some(request_id) = request_id {
-        let f = fetcher.clone();
-        // #fix #10: Read the retry policy from the entity instead of using
-        // RetryPolicy::default(). The policy was stored by use_infinite_query.
         let retry_policy = entity.read_with(cx, |r, _| r.retry_policy().clone());
         cx.spawn(async move |_this, cx| {
-            run_fetch_next_page_with_id(&weak, &f, request_id, &retry_policy, cx).await;
+            run_fetch_next_page_with_id(&weak, &fetcher, request_id, &retry_policy, cx).await;
             Ok::<_, ()>(())
         })
         .detach();
@@ -368,11 +365,9 @@ pub fn fetch_previous_page_infinite<T, E, C, FPrev, Fut>(
     // handles re-rendering on status transitions.
 
     if let Some(request_id) = request_id {
-        let f = fetcher.clone();
-        // #fix #10: Read retry policy from entity.
         let retry_policy = entity.read_with(cx, |r, _| r.retry_policy().clone());
         cx.spawn(async move |_this, cx| {
-            run_fetch_previous_page_with_id(&weak, &f, request_id, &retry_policy, cx).await;
+            run_fetch_previous_page_with_id(&weak, &fetcher, request_id, &retry_policy, cx).await;
             Ok::<_, ()>(())
         })
         .detach();

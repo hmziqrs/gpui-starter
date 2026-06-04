@@ -997,14 +997,10 @@ pub fn mutate<V, T, E, C, F, Fut>(
 
     let retry_policy = entity.read_with(cx, |r, _| r.retry_policy().clone());
     let weak = entity.downgrade();
-    let mutator_clone = mutator.clone();
-
-    // Audit fix #3: Wrap variables in Arc so the retry loop only does Arc::clone
-    // per attempt instead of cloning the full variables payload.
     let variables_arc = Arc::new(variables);
 
     cx.spawn(async move |_this, cx| {
-        run_mutation_loop(&weak, variables_arc, &mutator_clone, &retry_policy, cx).await;
+        run_mutation_loop(&weak, variables_arc, &mutator, &retry_policy, cx).await;
         Ok::<_, ()>(())
     })
     .detach();
@@ -1053,16 +1049,13 @@ pub fn mutate_with_callbacks<V, T, E, C, F, Fut>(
 
     let retry_policy = entity.read_with(cx, |r, _| r.retry_policy().clone());
     let weak = entity.downgrade();
-    let mutator_clone = mutator.clone();
-
-    // Audit fix #3: Wrap variables in Arc for cheap retry clones.
     let variables_arc = Arc::new(variables);
 
     cx.spawn(async move |_this, cx| {
         run_mutation_loop_with_callbacks(
             &weak,
             variables_arc,
-            &mutator_clone,
+            &mutator,
             &retry_policy,
             callbacks,
             cx,

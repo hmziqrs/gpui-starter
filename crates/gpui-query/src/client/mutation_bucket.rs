@@ -84,20 +84,27 @@ impl<V: 'static, T: 'static, E: 'static> MutationBucket<V, T, E> {
 
     /// Garbage-collect idle mutation resources.
     ///
-    /// Removes resources that are not in the `Loading` state and whose
-    /// last interaction is older than `gc_time_ms`. Resources with active
-    /// signals (loading) are always retained.
-    pub fn gc(&mut self, cx: &mut App, _now_ms: u128, _gc_time_ms: u64) {
+    /// A resource is **retained** when any of the following is true:
+    ///
+    /// - It is currently in the `Loading` state (in-flight work).
+    /// - It was created within the last `gc_time_ms` milliseconds.
+    ///
+    /// All other resources are removed. This mirrors the GC policy used by
+    /// [`QueryBucket::gc`](crate::client::bucket::QueryBucket::gc) but uses
+    /// the mutation's `created_at` timestamp instead of `last_updated_at`,
+    /// since mutations track their creation time rather than a generic update
+    /// timestamp.
+    pub fn gc(&mut self, cx: &mut App, now_ms: u128, gc_time_ms: u64) {
         self.resources.retain(|_key, entity| {
             let r = entity.read(cx);
-            // Keep if currently loading
+            // Keep if currently loading — in-flight work must not be collected.
             if r.is_loading() {
                 return true;
             }
-            // Keep if no signal (idle with no active work) but recently created
-            // Mutations don't track last_updated_at the same way queries do,
-            // so we use signal presence and status as heuristics.
-            true
+            // Keep if the resource was created within the GC window.
+            let created_at = r.created_at() as u128;
+            let age = now_ms.saturating_sub(created_at);
+            age <= gc_time_ms as u128
         });
     }
 }

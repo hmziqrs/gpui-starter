@@ -18,7 +18,7 @@ fn test_mutation_new_is_idle() {
 #[test]
 fn test_mutation_begin_sets_loading() {
     let mut m: MutationResource<String, String> = MutationResource::new(RetryPolicy::no_retries());
-    m.begin("my-vars".to_string());
+    m.begin("my-vars".to_string(), 0);
 
     assert!(m.is_loading());
     assert_eq!(m.status(), MutationStatus::Loading);
@@ -30,7 +30,7 @@ fn test_mutation_begin_sets_loading() {
 #[test]
 fn test_mutation_success_sets_data() {
     let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::no_retries());
-    m.begin("vars".to_string());
+    m.begin("vars".to_string(), 0);
     m.complete_success(42);
 
     assert!(m.is_success());
@@ -44,7 +44,7 @@ fn test_mutation_success_sets_data() {
 #[test]
 fn test_mutation_failure_sets_error() {
     let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::no_retries());
-    m.begin("vars".to_string());
+    m.begin("vars".to_string(), 0);
     m.complete_failure(QueryError::response("bad"));
 
     assert!(m.is_failure());
@@ -59,7 +59,7 @@ fn test_mutation_failure_sets_error() {
 fn test_mutation_retry_on_failure() {
     let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::new(2));
 
-    m.begin("vars".to_string());
+    m.begin("vars".to_string(), 0);
     m.complete_failure(QueryError::response("fail 1"));
 
     assert!(m.is_failure());
@@ -78,7 +78,7 @@ fn test_mutation_retry_on_failure() {
 fn test_mutation_retry_respects_max_retries() {
     let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::new(1));
 
-    m.begin("vars".to_string());
+    m.begin("vars".to_string(), 0);
     m.complete_failure(QueryError::response("fail 1"));
     assert_eq!(m.retry_count(), 1);
     assert!(!m.should_retry()); // max_retries=1, 1 is not < 1
@@ -92,7 +92,7 @@ fn test_mutation_retry_respects_max_retries() {
 fn test_mutation_reset() {
     let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::new(3));
 
-    m.begin("vars".to_string());
+    m.begin("vars".to_string(), 0);
     m.complete_success(99);
     m.reset();
 
@@ -107,7 +107,7 @@ fn test_mutation_reset() {
 #[test]
 fn test_mutation_cancel() {
     let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::no_retries());
-    m.begin("vars".to_string());
+    m.begin("vars".to_string(), 0);
 
     let signal = m.signal().unwrap().clone();
     assert!(!signal.is_cancelled());
@@ -125,7 +125,7 @@ fn test_mutation_signal_created_on_begin() {
     let mut m: MutationResource<String, String> = MutationResource::new(RetryPolicy::no_retries());
     assert!(m.signal().is_none(), "no signal before begin");
 
-    m.begin("vars".to_string());
+    m.begin("vars".to_string(), 0);
 
     let signal = m
         .signal()
@@ -139,7 +139,7 @@ fn test_mutation_signal_created_on_begin() {
 #[test]
 fn test_mutation_signal_cancelled_on_cancel() {
     let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::no_retries());
-    m.begin("vars".to_string());
+    m.begin("vars".to_string(), 0);
 
     let signal_clone = m.signal().unwrap().clone();
     assert!(!signal_clone.is_cancelled());
@@ -161,7 +161,7 @@ fn test_mutation_retry_only_from_failure_status() {
     assert!(!m.retry());
 
     // Cannot retry from Loading
-    m.begin("vars".to_string());
+    m.begin("vars".to_string(), 0);
     assert!(!m.retry());
 
     // Can retry from Failure
@@ -175,7 +175,7 @@ fn test_mutation_retry_only_from_failure_status() {
 #[test]
 fn test_mutation_retry_creates_fresh_signal() {
     let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::new(2));
-    m.begin("vars".to_string());
+    m.begin("vars".to_string(), 0);
 
     let old_signal = m.signal().unwrap().clone();
     m.complete_failure(QueryError::response("fail"));

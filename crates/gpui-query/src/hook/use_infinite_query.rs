@@ -34,7 +34,6 @@ use gpui::{AppContext as _, Context, Entity, Subscription};
 
 use crate::core::{
     CachePolicy, InfiniteQueryResource, QueryKey, QueryStatus, RequestId, RequestPolicy,
-    RequestSequencer,
 };
 
 use super::current_time_ms;
@@ -192,14 +191,13 @@ pub fn fetch_next_page_infinite<T, E, C, FNext, Fut>(
 {
     let weak = entity.downgrade();
 
-    // Begin the fetch on the entity
+    // Begin the fetch on the entity using the persistent sequencer stored
+    // inside the resource. This ensures monotonically-increasing RequestIds
+    // across all fetch calls so that staleness detection under LatestWins
+    // policy works correctly.
     entity.update(cx, |resource, _| {
-        // We use a static sequencer scope per entity. Since the entity is the
-        // authority, we create a transient sequencer and call begin_fetch_next.
-        // The sequencer is only used to generate unique RequestIds.
-        let mut seq = RequestSequencer::new();
         let now_ms = current_time_ms();
-        resource.begin_fetch_next(&mut seq, now_ms);
+        resource.begin_fetch_next_auto(now_ms);
     });
 
     cx.notify();
@@ -231,9 +229,8 @@ pub fn fetch_previous_page_infinite<T, E, C, FPrev, Fut>(
     let weak = entity.downgrade();
 
     entity.update(cx, |resource, _| {
-        let mut seq = RequestSequencer::new();
         let now_ms = current_time_ms();
-        resource.begin_fetch_previous(&mut seq, now_ms);
+        resource.begin_fetch_previous_auto(now_ms);
     });
 
     cx.notify();

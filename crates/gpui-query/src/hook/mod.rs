@@ -550,16 +550,14 @@ pub fn mutate<V, T, E, C, F, Fut>(
 {
     // Begin the mutation: transition to Loading
     entity.update(cx, |resource, cx| {
-        resource.begin(variables.clone());
+        resource.begin(variables.clone(), current_time_ms() as u64);
         cx.notify();
     });
 
     let retry_policy = entity.read_with(cx, |r, _| r.retry_policy().clone());
     let weak = entity.downgrade();
-    let mutator_clone = mutator.clone();
-
     cx.spawn(async move |_this, cx| {
-        run_mutation_loop(&weak, variables, &mutator_clone, &retry_policy, cx).await;
+        run_mutation_loop(&weak, variables, &mutator, &retry_policy, cx).await;
         Ok::<_, ()>(())
     })
     .detach();
@@ -585,19 +583,17 @@ pub fn mutate_with_callbacks<V, T, E, C, F, Fut>(
 {
     // Begin the mutation
     entity.update(cx, |resource, cx| {
-        resource.begin(variables.clone());
+        resource.begin(variables.clone(), current_time_ms() as u64);
         cx.notify();
     });
 
     let retry_policy = entity.read_with(cx, |r, _| r.retry_policy().clone());
     let weak = entity.downgrade();
-    let mutator_clone = mutator.clone();
-
     cx.spawn(async move |_this, cx| {
         run_mutation_loop_with_callbacks(
             &weak,
             variables,
-            &mutator_clone,
+            &mutator,
             &retry_policy,
             callbacks,
             cx,

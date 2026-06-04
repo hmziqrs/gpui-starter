@@ -1234,7 +1234,7 @@ fn test_client_mutation_resource(cx: &mut TestAppContext) {
 
         // Begin a mutation
         entity.update(cx, |m, _| {
-            m.begin("new-name".to_string());
+            m.begin("new-name".to_string(), 0);
         });
         assert!(entity.read(cx).is_loading());
         assert_eq!(
@@ -1294,7 +1294,7 @@ fn test_client_mutation_retry_lifecycle(cx: &mut TestAppContext) {
 
         // Begin and fail first attempt
         entity.update(cx, |m, _| {
-            m.begin("data".to_string());
+            m.begin("data".to_string(), 0);
             m.complete_failure(QueryError::response("timeout"));
         });
         assert!(entity.read(cx).is_failure());

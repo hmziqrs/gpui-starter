@@ -52,6 +52,17 @@ pub struct InfiniteQueryResource<T, E = super::QueryError> {
     max_pages: Option<usize>,
     #[serde(skip)]
     signal: Option<QuerySignal>,
+    /// Persistent sequencer that produces monotonically-increasing `RequestId`s
+    /// across all fetch calls (initial, next-page, previous-page).
+    ///
+    /// Must live inside the entity so that every `begin_fetch_*` call advances
+    /// the same counter. If a new `RequestSequencer` were created per call,
+    /// every fetch would receive `scope_id=1, sequence=1`, making it impossible
+    /// for `complete_page_success` / `complete_page_failure` to distinguish a
+    /// stale in-flight response from the current one — effectively defeating
+    /// the `LatestWins` cancellation policy.
+    #[serde(skip)]
+    sequencer: RequestSequencer,
 }
 
 // ── Constructor ──────────────────────────────────────────────────────────
@@ -85,6 +96,7 @@ impl<T, E> InfiniteQueryResource<T, E> {
             is_fetching_previous_page: false,
             max_pages: None,
             signal: None,
+            sequencer: RequestSequencer::new(),
         }
     }
 }
@@ -364,6 +376,29 @@ impl<T, E> InfiniteQueryResource<T, E> {
         self.signal = Some(QuerySignal::new());
 
         Some(request_id)
+    }
+
+    /// Convenience wrapper around [`begin_fetch_next`](Self::begin_fetch_next) that
+    /// uses the resource's own persistent [`RequestSequencer`].
+    ///
+    /// This is the preferred entry point for the hook layer — callers don't need
+    /// to manage a separate sequencer instance.
+    pub fn begin_fetch_next_auto(&mut self, now_ms: u128) -> Option<RequestId> {
+        // Take the sequencer out to avoid borrowing `self` and `self.sequencer`
+        // mutably at the same time.
+        let mut seq = std::mem::take(&mut self.sequencer);
+        let result = self.begin_fetch_next(&mut seq, now_ms);
+        self.sequencer = seq;
+        result
+    }
+
+    /// Convenience wrapper around [`begin_fetch_previous`](Self::begin_fetch_previous)
+    /// that uses the resource's own persistent [`RequestSequencer`].
+    pub fn begin_fetch_previous_auto(&mut self, now_ms: u128) -> Option<RequestId> {
+        let mut seq = std::mem::take(&mut self.sequencer);
+        let result = self.begin_fetch_previous(&mut seq, now_ms);
+        self.sequencer = seq;
+        result
     }
 
     /// Complete a page fetch with success.
