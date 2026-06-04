@@ -1,0 +1,11 @@
+{
+  "version": "0.3.0",
+  "release_notes": "Sample release for testing the auto-updater",
+  "platforms": {
+    "macos-aarch64": {
+      "url": "https://releases.example.com/gpui-starter-0.3.0-macos-aarch64.tar.gz",
+      "signature": "",
+      "size": 0
+    }
+  }
+}

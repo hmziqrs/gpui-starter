@@ -1,0 +1,231 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. 0.2.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  # -----------------------------------------------------------------------
+  # Build the macOS .app bundle, optionally codesign + notarize, create DMG.
+  # -----------------------------------------------------------------------
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@nightly
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo
+            target/
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-release-
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            # Strip leading 'v' from tag.
+            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Create .app bundle
+        id: appbundle
+        run: |
+          APP_PATH="$(./scripts/create-release-app.sh "${{ steps.version.outputs.value }}")"
+          echo "path=$APP_PATH" >> "$GITHUB_OUTPUT"
+
+      # --- Codesigning ---------------------------------------------------
+      # Import Developer ID certificate when available; otherwise ad-hoc sign.
+
+      - name: Import signing certificate
+        if: env.APPLE_DEV_CERT_P12 != ''
+        env:
+          APPLE_DEV_CERT_P12: ${{ secrets.APPLE_DEV_CERT_P12 }}
+          APPLE_DEV_CERT_PASSWORD: ${{ secrets.APPLE_DEV_CERT_PASSWORD }}
+        run: |
+          CERT_PATH="$RUNNER_TEMP/developer-id.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 16)"
+
+          echo "$APPLE_DEV_CERT_P12" | base64 --decode > "$CERT_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          security import "$CERT_PATH" \
+            -P "$APPLE_DEV_CERT_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -k "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
+
+          # Add to keychain search list so codesign can find it.
+          security list-keychains -d user -s "$KEYCHAIN_PATH" "$(security list-keychains -d user | tr -d '"')"
+
+      - name: Codesign with Developer ID
+        if: env.APPLE_DEV_CERT_P12 != ''
+        env:
+          APPLE_DEV_CERT_P12: ${{ secrets.APPLE_DEV_CERT_P12 }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          IDENTITY="${APPLE_SIGNING_IDENTITY:-'Developer ID Application'}"
+          codesign --force --deep --options runtime --timestamp --sign "$IDENTITY" \
+            "${{ steps.appbundle.outputs.path }}"
+
+      - name: Ad-hoc codesign
+        if: env.APPLE_DEV_CERT_P12 == ''
+        run: |
+          codesign --force --deep --sign - "${{ steps.appbundle.outputs.path }}"
+
+      # --- Notarization --------------------------------------------------
+
+      - name: Notarize
+        if: env.APPLE_DEV_CERT_P12 != '' && env.APPLE_ID != ''
+        env:
+          APPLE_DEV_CERT_P12: ${{ secrets.APPLE_DEV_CERT_P12 }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          DMG_PATH="$(./scripts/create-dmg.sh \
+            "${{ steps.appbundle.outputs.path }}" \
+            "target/release/GPUI-Starter-${{ steps.version.outputs.value }}.dmg")"
+
+          # Submit for notarization.
+          xcrun notarytool submit "$DMG_PATH" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+
+          # Staple the notarization ticket.
+          xcrun stapler staple "$DMG_PATH"
+
+          echo "notarized_dmg=$DMG_PATH" >> "$GITHUB_ENV"
+
+      # --- DMG creation (when not already created during notarization) ---
+
+      - name: Create DMG
+        if: env.notarized_dmg == ''
+        run: |
+          ./scripts/create-dmg.sh \
+            "${{ steps.appbundle.outputs.path }}" \
+            "target/release/GPUI-Starter-${{ steps.version.outputs.value }}.dmg"
+
+      - name: Determine final DMG path
+        id: dmg
+        run: |
+          if [ -n "${notarized_dmg:-}" ]; then
+            echo "path=${notarized_dmg}" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=target/release/GPUI-Starter-${{ steps.version.outputs.value }}.dmg" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GPUI-Starter-${{ steps.version.outputs.value }}.dmg
+          path: ${{ steps.dmg.outputs.path }}
+          if-no-files-found: error
+
+  # -----------------------------------------------------------------------
+  # Create GitHub Release and publish the update manifest to gh-pages.
+  # -----------------------------------------------------------------------
+  publish-release:
+    name: Publish Release
+    needs: build-macos
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download DMG artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: GPUI-Starter-${{ steps.version.outputs.value }}.dmg
+          path: ./artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.value }}
+          name: v${{ steps.version.outputs.value }}
+          generate_release_notes: true
+          files: |
+            ./artifacts/GPUI-Starter-${{ steps.version.outputs.value }}.dmg
+
+      - name: Generate and publish update manifest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          GITHUB_REPO="${{ github.repository }}"
+
+          # Generate manifest JSON from the GitHub Release assets.
+          ./scripts/generate-manifest.sh \
+            "${{ steps.version.outputs.value }}" \
+            "$GITHUB_REPO" \
+            manifest.json
+
+          cat manifest.json
+
+          # Publish manifest.json to the gh-pages branch.
+          # Clone or init gh-pages, place manifest, and push.
+          GH_PAGES_DIR="$(mktemp -d)"
+          trap 'rm -rf "$GH_PAGES_DIR"' EXIT
+
+          git clone --branch gh-pages --depth 1 \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPO}.git" \
+            "$GH_PAGES_DIR" 2>/dev/null || {
+              # gh-pages branch does not exist yet — create an orphan branch.
+              git init "$GH_PAGES_DIR"
+              cd "$GH_PAGES_DIR"
+              git checkout --orphan gh-pages
+              cd -
+            }
+
+          cp manifest.json "$GH_PAGES_DIR/manifest.json"
+
+          cd "$GH_PAGES_DIR"
+          git add manifest.json
+          git -c user.name="github-actions[bot]" \
+              -c user.email="github-actions[bot]@users.noreply.github.com" \
+              commit -m "Update manifest.json for v${{ steps.version.outputs.value }}" \
+              --allow-empty
+          git push origin gh-pages
+          cd -
