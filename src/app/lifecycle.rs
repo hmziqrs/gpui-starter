@@ -87,6 +87,34 @@ pub fn set_shutdown_error(error: impl Into<String>, cx: &mut App) {
 
 static LAST_PANIC_SUMMARY: OnceLock<Mutex<Option<String>>> = OnceLock::new();
 
+/// Application data directory, set once during startup so the panic hook can
+/// write crash report files without needing GPUI context.
+static APP_DATA_DIR: OnceLock<PathBuf> = OnceLock::new();
+
+/// Ring buffer of recent error messages, populated by
+/// [`track_recent_error`] so the panic handler can attach them to the
+/// crash report.
+static RECENT_ERRORS: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
+
+/// Set the application data directory for use by the panic hook.
+///
+/// Must be called once during startup, after `app_state` is initialized.
+pub fn set_app_data_dir(path: PathBuf) {
+    let _ = APP_DATA_DIR.set(path);
+}
+
+/// Record a recent error message so it can be attached to the next crash
+/// report. Keeps at most 20 entries (oldest are dropped).
+pub fn track_recent_error(msg: String) {
+    let slot = RECENT_ERRORS.get_or_init(|| Mutex::new(Vec::new()));
+    if let Ok(mut guard) = slot.lock() {
+        guard.push(msg);
+        if guard.len() > 20 {
+            guard.remove(0);
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Render-path tracking (thread-local guard)
 // ---------------------------------------------------------------------------
@@ -147,14 +175,49 @@ pub fn install_panic_hook() {
         if let Ok(mut value) = slot.lock() {
             *value = Some(summary.clone());
         }
+
+        let is_render = in_render_path();
+
         // Mark that a render panic occurred so the render loop can show the
         // error boundary view on the next frame instead of re-trying the
         // crashing page.  Only set the flag when the panic originates inside
         // the render path to avoid false error-boundary activation from
         // background tasks, init, etc.
-        if in_render_path() {
+        if is_render {
             RENDER_PANIC_OCCURRED.store(true, Ordering::SeqCst);
         }
+
+        // Write a crash report file if the data directory is configured.
+        if let Some(data_dir) = APP_DATA_DIR.get() {
+            let backtrace = std::backtrace::Backtrace::capture();
+            let bt_string = match backtrace.status() {
+                std::backtrace::BacktraceStatus::Captured => backtrace.to_string(),
+                _ => String::new(),
+            };
+
+            let recent_errors = RECENT_ERRORS
+                .get()
+                .and_then(|slot| slot.lock().ok())
+                .map(|guard| guard.clone())
+                .unwrap_or_default();
+
+            let report = crate::services::crash_report::CrashReport::new(
+                summary.clone(),
+                bt_string,
+                is_render,
+                recent_errors,
+            );
+
+            if let Err(err) =
+                crate::services::crash_report::write_crash_report(&report, data_dir)
+            {
+                // We are inside the panic handler -- best-effort logging only.
+                eprintln!(
+                    "[gpui_starter::lifecycle] failed to write crash report: {err}"
+                );
+            }
+        }
+
         tracing::error!(
             target: "gpui_starter::lifecycle",
             panic = %summary,
@@ -224,3 +287,7 @@ pub fn remove_crash_marker() {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "lifecycle.test.rs"]
+mod lifecycle_test;

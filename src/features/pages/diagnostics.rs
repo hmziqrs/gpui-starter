@@ -2,7 +2,7 @@ use gpui::{prelude::*, *};
 use gpui_component::{button::Button, v_flex};
 
 use crate::{
-    accessibility, app_state, capabilities, commands, connectivity, desktop_actions, error_surface,
+    accessibility, app_state, capabilities, commands, connectivity, crash_report, desktop_actions, error_surface,
     lifecycle::{LifecycleStage, LifecycleState},
     logging, notifications, secure_storage, session, shortcuts, storage, telemetry, undo_stack,
 };
@@ -70,6 +70,12 @@ impl DiagnosticsPage {
                 cx.notify();
             },
         ));
+        subscriptions.push(cx.observe_global_in::<crash_report::CrashReportSnapshot>(
+            window,
+            |_, _, cx| {
+                cx.notify();
+            },
+        ));
         Self {
             _subscriptions: subscriptions,
         }
@@ -96,6 +102,7 @@ impl Render for DiagnosticsPage {
         let desktop_actions = desktop_actions::snapshot(cx);
         let undo = undo_stack::snapshot(cx);
         let latest_error = error_surface::latest(cx);
+        let crash_snap = crash_report::snapshot(cx);
         let command_registry = commands::registry();
         let mut command_titles = Vec::with_capacity(command_registry.len());
         let mut command_states = Vec::with_capacity(command_registry.len());
@@ -338,6 +345,26 @@ impl Render for DiagnosticsPage {
                     .map(|error| error.message.as_str())
                     .unwrap_or("None"),
             ),
+            row(
+                "Crash Reports Pending",
+                &crash_snap.pending_count.to_string(),
+            ),
+            row(
+                "Crash Reports Last Timestamp",
+                crash_snap.last_crash_timestamp.as_deref().unwrap_or("None"),
+            ),
+            row(
+                "Crash Reports Upload Endpoint",
+                if crash_snap.upload_endpoint.is_empty() {
+                    "None"
+                } else {
+                    &crash_snap.upload_endpoint
+                },
+            ),
+            row(
+                "Crash Reports Last Upload Error",
+                crash_snap.last_upload_error.as_deref().unwrap_or("None"),
+            ),
         ];
 
         if let Some(app_state) = &state {
@@ -442,6 +469,14 @@ impl Render for DiagnosticsPage {
                         if let Some(error) = crate::error_surface::latest(cx) {
                             crate::error_surface::dismiss(error.id, cx);
                         }
+                    }),
+            )
+            .child(
+                Button::new("diagnostics-retry-crash-upload")
+                    .outline()
+                    .label("Retry Crash Upload")
+                    .on_click(|_, _, cx| {
+                        crate::crash_report::upload_pending_reports(cx);
                     }),
             )
             .when(cfg!(debug_assertions), |this| {

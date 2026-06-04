@@ -176,6 +176,7 @@ fn install_otlp_tracer(
     endpoint: &str,
 ) -> Result<opentelemetry_sdk::trace::TracerProvider, TelemetryError> {
     use opentelemetry::KeyValue;
+    use opentelemetry_otlp::WithExportConfig;
     use opentelemetry_sdk::Resource;
     use opentelemetry_sdk::propagation::TraceContextPropagator;
     use opentelemetry_sdk::runtime::Tokio;
@@ -190,7 +191,7 @@ fn install_otlp_tracer(
         .with_trace_config(opentelemetry_sdk::trace::Config::default().with_resource(
             Resource::new(vec![KeyValue::new("service.name", SERVICE_NAME)]),
         ))
-        .install_batch::<Tokio>()
+        .install_batch(Tokio)
         .map_err(|e| TelemetryError::Otlp(Box::new(e)))?;
 
     global::set_text_map_propagator(TraceContextPropagator::new());

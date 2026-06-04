@@ -495,3 +495,7 @@ fn result_inline(text: &str, cx: &App) -> Div {
         .border_color(color)
         .child(text.to_string())
 }
+
+#[cfg(test)]
+#[path = "error_playground.test.rs"]
+mod error_playground_test;

@@ -1,3 +1,5 @@
+#![recursion_limit = "512"]
+
 pub mod app;
 pub mod features;
 pub mod foundation;
@@ -26,8 +28,9 @@ pub use platform::network::websocket;
 pub use platform::process::single_instance;
 pub use runtime::{capabilities, events};
 pub use services::{
-    accessibility, commands, connectivity, desktop_actions, error_surface, first_run, http_lab,
-    i18n, logging, notifications, secure_storage, session, storage, tasks, telemetry, undo_stack,
+    accessibility, commands, connectivity, crash_report, desktop_actions, error_surface,
+    first_run, http_lab, i18n, logging, notifications, secure_storage, session, storage, tasks,
+    telemetry, undo_stack,
 };
 pub use shell::route as routes;
 pub use shell::{app_menu, menus, root, sidebar, status_bar, title_bar};

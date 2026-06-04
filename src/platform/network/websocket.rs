@@ -104,6 +104,7 @@ impl ReconnectPolicy {
 mod live {
     use super::*;
     use futures_util::stream::SplitSink;
+    use futures_util::{SinkExt, StreamExt};
     use std::sync::Arc;
     use tokio::sync::Mutex;
     use tokio_tungstenite::{connect_async, tungstenite::protocol::CloseFrame};
@@ -286,7 +287,7 @@ mod live {
 
                         // Read messages until the stream closes or errors.
                         while let Some(msg) =
-                            tokio_stream::StreamExt::next(&mut read).await
+                            StreamExt::next(&mut read).await
                         {
                             match msg {
                                 Ok(Message::Text(text)) => {

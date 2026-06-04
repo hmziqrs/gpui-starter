@@ -29,6 +29,15 @@ pub trait StorageBackend: Send + Sync {
         &self,
         limit: usize,
     ) -> rusqlite::Result<Vec<crate::error_surface::ErrorRecord>>;
+    fn persist_crash_report(
+        &self,
+        report: &crate::services::crash_report::CrashReport,
+    ) -> rusqlite::Result<()>;
+    fn load_pending_crash_reports(
+        &self,
+        limit: usize,
+    ) -> rusqlite::Result<Vec<crate::services::crash_report::CrashReport>>;
+    fn mark_crash_report_uploaded(&self, id: &str, uploaded_at: &str) -> rusqlite::Result<()>;
 }
 
 /// SQLite-backed storage that holds a single shared connection rather than
@@ -185,6 +194,96 @@ impl StorageBackend for SqliteStorage {
             });
         }
         Ok(records)
+    }
+
+    fn persist_crash_report(
+        &self,
+        report: &crate::services::crash_report::CrashReport,
+    ) -> rusqlite::Result<()> {
+        let conn = self.conn();
+        let recent_errors_json = serde_json::to_string(&report.recent_errors)
+            .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
+        conn.execute(
+            "INSERT OR IGNORE INTO crash_reports (id, panic_message, backtrace, app_version, os, arch, timestamp, render_path, recent_errors)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            rusqlite::params![
+                report.id,
+                report.panic_message,
+                report.backtrace,
+                report.app_version,
+                report.os,
+                report.arch,
+                report.timestamp,
+                report.render_path,
+                recent_errors_json,
+            ],
+        )?;
+        Ok(())
+    }
+
+    fn load_pending_crash_reports(
+        &self,
+        limit: usize,
+    ) -> rusqlite::Result<Vec<crate::services::crash_report::CrashReport>> {
+        let conn = self.conn();
+        let mut stmt = conn.prepare(
+            "SELECT id, panic_message, backtrace, app_version, os, arch, timestamp, render_path, recent_errors
+             FROM crash_reports
+             WHERE uploaded = 0
+             ORDER BY timestamp DESC
+             LIMIT ?1",
+        )?;
+        let rows = stmt
+            .query_map([limit], |row| {
+                let id: String = row.get(0)?;
+                let panic_message: String = row.get(1)?;
+                let backtrace: String = row.get(2)?;
+                let app_version: String = row.get(3)?;
+                let os: String = row.get(4)?;
+                let arch: String = row.get(5)?;
+                let timestamp: String = row.get(6)?;
+                let render_path: bool = row.get(7)?;
+                let recent_errors_json: String = row.get(8)?;
+                Ok((
+                    id,
+                    panic_message,
+                    backtrace,
+                    app_version,
+                    os,
+                    arch,
+                    timestamp,
+                    render_path,
+                    recent_errors_json,
+                ))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+
+        let mut reports = Vec::with_capacity(rows.len());
+        for (id, panic_message, backtrace, app_version, os, arch, timestamp, render_path, recent_errors_json) in rows {
+            let recent_errors: Vec<String> = serde_json::from_str(&recent_errors_json)
+                .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
+            reports.push(crate::services::crash_report::CrashReport {
+                id,
+                panic_message,
+                backtrace,
+                app_version,
+                os,
+                arch,
+                timestamp,
+                render_path,
+                recent_errors,
+            });
+        }
+        Ok(reports)
+    }
+
+    fn mark_crash_report_uploaded(&self, id: &str, uploaded_at: &str) -> rusqlite::Result<()> {
+        let conn = self.conn();
+        conn.execute(
+            "UPDATE crash_reports SET uploaded = 1, uploaded_at = ?1 WHERE id = ?2",
+            rusqlite::params![uploaded_at, id],
+        )?;
+        Ok(())
     }
 }
 
@@ -377,10 +476,28 @@ fn init_db(path: &PathBuf) -> rusqlite::Result<i64> {
         );
         CREATE INDEX IF NOT EXISTS idx_error_log_occurred_at
             ON error_log (occurred_at DESC);
+        CREATE TABLE IF NOT EXISTS crash_reports (
+            id TEXT PRIMARY KEY,
+            panic_message TEXT NOT NULL,
+            backtrace TEXT NOT NULL,
+            app_version TEXT NOT NULL,
+            os TEXT NOT NULL,
+            arch TEXT NOT NULL,
+            timestamp TEXT NOT NULL,
+            render_path BOOLEAN NOT NULL DEFAULT 0,
+            recent_errors TEXT NOT NULL DEFAULT "[]",
+            uploaded BOOLEAN NOT NULL DEFAULT 0,
+            uploaded_at TEXT,
+            upload_error TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_crash_reports_timestamp
+            ON crash_reports (timestamp DESC);
+        CREATE INDEX IF NOT EXISTS idx_crash_reports_uploaded
+            ON crash_reports (uploaded);
     "#,
     )?;
 
-    let current_version = 2_i64;
+    let current_version = 3_i64;
     conn.execute(
         "INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?1, datetime('now'))",
         [current_version],

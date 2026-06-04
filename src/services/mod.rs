@@ -1,6 +1,7 @@
 pub mod accessibility;
 pub mod commands;
 pub mod connectivity;
+pub mod crash_report;
 pub mod desktop_actions;
 pub mod error_surface;
 pub mod first_run;

@@ -10,6 +10,9 @@ use std::collections::HashSet;
 
 use gpui_starter::app_state::{AppConfig, PersistedWindowBounds};
 use gpui_starter::routes::AppRoute;
+use gpui_starter::services::updater::{
+    PlatformAsset, UpdateManifest, UpdateSnapshot, UpdateStatus,
+};
 use gpui_starter::sidebar::Page;
 
 // ---------------------------------------------------------------------------
@@ -55,6 +58,8 @@ fn test_config_roundtrip() {
         }),
         granted_permissions: HashSet::from(["camera".to_string(), "microphone".to_string()]),
         denied_permissions: HashSet::new(),
+        update_channel: "stable".to_string(),
+        last_update_check: None,
     };
 
     let json = serde_json::to_string(&original).expect("serialize config");
@@ -197,4 +202,85 @@ fn test_theme_structure() {
     };
 
     insta::assert_yaml_snapshot!("theme_gruvbox_structure", &summary);
+}
+
+// ---------------------------------------------------------------------------
+// 6. UpdateManifest serialization
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_update_manifest_serialization() {
+    let mut platforms = std::collections::HashMap::new();
+    platforms.insert(
+        "macos-aarch64".to_string(),
+        PlatformAsset {
+            url: "https://releases.example.com/app-2.0.0.tar.gz".to_string(),
+            signature: "deadbeef".to_string(),
+            size: 42_000_000,
+        },
+    );
+    let manifest = UpdateManifest {
+        version: "2.0.0".to_string(),
+        release_notes: "Major release with new features.".to_string(),
+        platforms,
+    };
+
+    insta::assert_yaml_snapshot!("update_manifest", &manifest);
+}
+
+// ---------------------------------------------------------------------------
+// 7. UpdateStatus serialization
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_update_status_serialization() {
+    #[derive(serde::Serialize)]
+    struct StatusVariants {
+        idle: UpdateStatus,
+        checking: UpdateStatus,
+        up_to_date: UpdateStatus,
+        available: UpdateStatus,
+        downloading: UpdateStatus,
+        downloaded: UpdateStatus,
+        ready_to_install: UpdateStatus,
+        error: UpdateStatus,
+    }
+
+    let variants = StatusVariants {
+        idle: UpdateStatus::Idle,
+        checking: UpdateStatus::Checking,
+        up_to_date: UpdateStatus::UpToDate,
+        available: UpdateStatus::Available {
+            version: "2.0.0".to_string(),
+            notes: "Bug fixes".to_string(),
+        },
+        downloading: UpdateStatus::Downloading { progress: 42 },
+        downloaded: UpdateStatus::Downloaded {
+            version: "2.0.0".to_string(),
+            path: "/tmp/update.tar.gz".to_string(),
+        },
+        ready_to_install: UpdateStatus::ReadyToInstall,
+        error: UpdateStatus::Error("network timeout".to_string()),
+    };
+
+    insta::assert_yaml_snapshot!("update_status_variants", &variants);
+}
+
+// ---------------------------------------------------------------------------
+// 8. UpdateSnapshot serialization
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_update_snapshot_serialization() {
+    let snapshot = UpdateSnapshot {
+        status: UpdateStatus::Available {
+            version: "2.1.0".to_string(),
+            notes: "New features".to_string(),
+        },
+        current_version: "2.0.0".to_string(),
+        last_check: Some("2026-06-04T12:00:00Z".to_string()),
+        update_channel: "stable".to_string(),
+    };
+
+    insta::assert_yaml_snapshot!("update_snapshot", &snapshot);
 }

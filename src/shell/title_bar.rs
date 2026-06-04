@@ -5,7 +5,6 @@ use gpui::{
     InteractiveElement as _, IntoElement, MouseButton, ParentElement as _,
     Render, SharedString, Styled as _, Window, div, px,
 };
-use gpui::prelude::FluentBuilder as _;
 use gpui_component::{
     ActiveTheme as _, IconName, Sizable as _, Theme, TitleBar,
     button::{Button, ButtonVariants as _},
@@ -15,7 +14,6 @@ use gpui_component::{
 
 use crate::app::{SelectFont, SelectRadius};
 use crate::app_menu;
-use crate::notifications::inbox;
 
 type TitleBarChild = Rc<dyn Fn(&mut Window, &mut App) -> AnyElement>;
 
@@ -54,8 +52,6 @@ impl AppTitleBar {
 
 impl Render for AppTitleBar {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let unread = inbox::unread_count(cx);
-
         TitleBar::new()
             .child(
                 div()
@@ -63,51 +59,8 @@ impl Render for AppTitleBar {
                     .items_center()
                     .gap_2()
                     .child(self.app_menu_bar.clone())
-                    // Notification bell with unread badge (left side)
-                    .child(
-                        div()
-                            .relative()
-                            .child(
-                                Button::new("bell")
-                                    .small()
-                                    .ghost()
-                                    .compact()
-                                    .icon(IconName::Bell)
-                                    .on_click(|_, _, cx| {
-                                        crate::events::emit(
-                                            crate::events::AppEventKind::Navigate(
-                                                crate::routes::AppRoute::page(
-                                                    crate::sidebar::Page::Notifications,
-                                                ),
-                                            ),
-                                            cx,
-                                        );
-                                    }),
-                            )
-                            .when(unread > 0, |el| {
-                                el.child(
-                                    div()
-                                        .absolute()
-                                        .top(px(-2.))
-                                        .right(px(-2.))
-                                        .rounded_full()
-                                        .bg(cx.theme().danger)
-                                        .min_w(px(16.))
-                                        .h(px(16.))
-                                        .flex()
-                                        .items_center()
-                                        .justify_center()
-                                        .text_color(cx.theme().danger_foreground)
-                                        .text_size(px(10.))
-                                        .line_height(px(10.))
-                                        .child(if unread > 99 {
-                                            "99+".to_string()
-                                        } else {
-                                            unread.to_string()
-                                        }),
-                                )
-                            }),
-                    ),
+                    // Step 1: just an empty div — does this hang?
+                    .child(div()),
             )
             .child(
                 div()
@@ -132,6 +85,23 @@ impl Render for AppTitleBar {
                             .icon(IconName::Search)
                             .on_click(|_, _, cx| {
                                 crate::launcher::open_launcher(cx);
+                            }),
+                    )
+                    .child(
+                        Button::new("bell")
+                            .small()
+                            .ghost()
+                            .compact()
+                            .icon(IconName::Bell)
+                            .on_click(|_, _, cx| {
+                                crate::events::emit(
+                                    crate::events::AppEventKind::Navigate(
+                                        crate::routes::AppRoute::page(
+                                            crate::sidebar::Page::Notifications,
+                                        ),
+                                    ),
+                                    cx,
+                                );
                             }),
                     ),
             )

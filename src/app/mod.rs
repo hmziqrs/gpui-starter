@@ -96,7 +96,8 @@ pub fn init(cx: &mut App) {
 
     // Crash marker: write on startup, detect previous crash
     crate::lifecycle::write_crash_marker();
-    if let Some(marker) = crate::lifecycle::check_previous_crash() {
+    let previous_crash = crate::lifecycle::check_previous_crash();
+    if let Some(marker) = &previous_crash {
         tracing::warn!(
             target: "gpui_starter::lifecycle",
             marker = %marker,
@@ -116,6 +117,9 @@ pub fn init(cx: &mut App) {
     let step_t = std::time::Instant::now();
     crate::app_state::initialize(cx);
     tracing::info!(target: "gpui_starter::startup", elapsed_ms = step_t.elapsed().as_millis() as u64, "app_state_init done");
+
+    // Set the data directory for the panic hook crash report writer.
+    crate::lifecycle::set_app_data_dir(crate::app_state::paths(cx).data_dir.clone());
 
     crate::lifecycle::set_startup_step("logging_init", cx);
     let step_t = std::time::Instant::now();
@@ -319,6 +323,10 @@ pub fn init(cx: &mut App) {
 
     crate::telemetry::initialize(cx);
     tracing::info!(target: "gpui_starter::startup", elapsed_ms = step_t.elapsed().as_millis() as u64, "runtime_services_init done");
+    crate::crash_report::initialize(cx);
+    if previous_crash.is_some() {
+        crate::crash_report::upload_pending_reports(cx);
+    }
     crate::telemetry::record_event("app_runtime_initialized", cx);
     crate::notifications::inbox::initialize(cx);
     crate::notifications::initialize(cx);
@@ -372,6 +380,8 @@ pub fn init(cx: &mut App) {
                 crate::telemetry::shutdown(cx);
                 crate::lifecycle::set_shutdown_step("flush_logs", cx);
                 crate::logging::shutdown(cx);
+                crate::lifecycle::set_shutdown_step("flush_crash_reports", cx);
+                crate::crash_report::shutdown(cx);
                 crate::lifecycle::set_shutdown_step("remove_crash_marker", cx);
                 crate::lifecycle::remove_crash_marker();
                 crate::lifecycle::set_shutdown_step("quit", cx);

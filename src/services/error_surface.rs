@@ -84,6 +84,10 @@ pub fn report(
     };
     let id = record.id;
     let record_clone = record.clone();
+    let message_str = record.message.clone();
+
+    // Track the error message so the panic handler can attach it to crash reports.
+    crate::lifecycle::track_recent_error(message_str);
 
     cx.update_global::<ErrorSurfaceState, _>(|state, cx| {
         state.records.insert(0, record);

@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
 use gpui::{App, BorrowAppContext as _, Global};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub enum UpdateStatus {
     Idle,
     Checking,
@@ -33,7 +33,7 @@ impl Default for UpdateStatus {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize)]
 pub struct UpdateSnapshot {
     pub status: UpdateStatus,
     pub current_version: String,
@@ -47,30 +47,33 @@ impl Global for UpdateSnapshot {}
 // Manifest types
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Deserialize)]
-struct UpdateManifest {
-    version: String,
+#[derive(Debug, Deserialize, serde::Serialize)]
+pub struct UpdateManifest {
+    pub version: String,
     #[serde(default)]
-    release_notes: String,
+    pub release_notes: String,
     #[serde(default)]
-    platforms: std::collections::HashMap<String, PlatformAsset>,
+    pub platforms: std::collections::HashMap<String, PlatformAsset>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, serde::Serialize)]
 #[allow(dead_code)]
-struct PlatformAsset {
-    url: String,
+pub struct PlatformAsset {
+    pub url: String,
     #[serde(default)]
-    signature: String,
+    pub signature: String,
     #[serde(default)]
-    size: u64,
+    pub size: u64,
 }
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const DEFAULT_MANIFEST_URL: &str = "https://releases.example.com/manifest.json";
+const DEFAULT_MANIFEST_URL: &str = match option_env!("GPUI_UPDATE_MANIFEST_URL") {
+    Some(url) => url,
+    None => "https://releases.example.com/manifest.json",
+};
 
 fn platform_key() -> String {
     let os = if cfg!(target_os = "macos") {
@@ -835,3 +838,7 @@ fn verify_codesign(path: &std::path::Path) -> Result<(), String> {
         Err(format!("codesign verification failed: {stderr}"))
     }
 }
+
+#[cfg(test)]
+#[path = "updater.test.rs"]
+mod updater_test;

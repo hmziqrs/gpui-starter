@@ -24,6 +24,16 @@ use crate::{
 // RTL locale detection
 // ---------------------------------------------------------------------------
 
+/// Slow-frame threshold in microseconds (4 ms). Frames whose render
+/// preparation takes longer than this are logged at WARN level.
+const SLOW_FRAME_THRESHOLD_US: u64 = 4_000;
+
+/// Returns `true` when the elapsed render-preparation time exceeds the
+/// slow-frame threshold.
+pub(crate) fn is_slow_frame(elapsed_us: u64) -> bool {
+    elapsed_us > SLOW_FRAME_THRESHOLD_US
+}
+
 /// Returns `true` when the given locale string corresponds to an RTL script.
 ///
 /// Recognized RTL locales: Arabic (ar*), Hebrew (he*), Farsi (fa*), Urdu (ur*).
@@ -138,6 +148,9 @@ impl AppRoot {
                         cx.notify();
                     }
                     AppEventKind::DiagnosticsChanged => {}
+                    AppEventKind::Test { message } => {
+                        tracing::info!(target: "gpui_starter::root", message, "test event received");
+                    }
                 }
             }
         })
@@ -524,8 +537,7 @@ impl Render for AppRoot {
             "AppRoot render prepared"
         );
 
-        const SLOW_FRAME_THRESHOLD_US: u64 = 4_000; // 4ms
-        if elapsed_us > SLOW_FRAME_THRESHOLD_US {
+        if is_slow_frame(elapsed_us) {
             tracing::warn!(
                 target: "gpui_starter::root::render",
                 route = %self.active_route.title(),
@@ -545,3 +557,7 @@ impl Render for AppRoot {
             .children(notification_layer)
     }
 }
+
+#[cfg(test)]
+#[path = "root.test.rs"]
+mod root_test;

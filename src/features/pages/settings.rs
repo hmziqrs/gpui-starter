@@ -23,6 +23,8 @@ pub struct SettingsPage {
     dark_mode: bool,
     locale: SharedString,
     notifications: NotificationRuntimeSnapshot,
+    /// Log of received event descriptions for the Event Emitter test section.
+    event_log: Vec<String>,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -47,12 +49,28 @@ impl SettingsPage {
                 this.notifications = notifications::snapshot(cx);
                 cx.notify();
             }),
+            cx.observe_global_in::<crate::events::AppEventQueue>(window, |this, _, cx| {
+                // Peek at events without draining — AppRoot owns the drain.
+                if let Some(queue) = cx.try_global::<crate::events::AppEventQueue>() {
+                    for event in &queue.0 {
+                        let desc = format!("{:?} ({})", event.kind, event.id);
+                        this.event_log.push(desc);
+                    }
+                }
+                // Keep only last 20 entries
+                if this.event_log.len() > 20 {
+                    let drain = this.event_log.len() - 20;
+                    this.event_log.drain(0..drain);
+                }
+                cx.notify();
+            }),
         ];
 
         Self {
             dark_mode: cx.theme().mode.is_dark(),
             locale: app::current_locale(cx),
             notifications: notifications::snapshot(cx),
+            event_log: Vec::new(),
             _subscriptions,
         }
     }
@@ -727,6 +745,91 @@ impl Render for SettingsPage {
                                 };
                                 window.push_notification(message, cx);
                             }),
+                    ),
+            )
+            // -- Event Emitter --
+            .child(
+                v_flex()
+                    .gap_3()
+                    .p_4()
+                    .rounded(cx.theme().radius)
+                    .border_1()
+                    .border_color(cx.theme().border)
+                    .child(Label::new("Event Emitter"))
+                    .child(
+                        div()
+                            .text_sm()
+                            .text_color(cx.theme().muted_foreground)
+                            .child("Test the event pipeline. Emit events and verify they are received."),
+                    )
+                    // Emit buttons
+                    .child(
+                        div().flex().flex_wrap().items_center().gap_2()
+                            .child(
+                                Button::new("emit-test-noop")
+                                    .outline()
+                                    .label("Emit Test (No-op)")
+                                    .on_click(|_, _, cx| {
+                                        crate::events::emit(
+                                            crate::events::AppEventKind::Test {
+                                                message: "hello from settings".into(),
+                                            },
+                                            cx,
+                                        );
+                                    }),
+                            )
+                            .child(
+                                Button::new("emit-navigate-home")
+                                    .outline()
+                                    .label("Emit Navigate → Home")
+                                    .on_click(|_, _, cx| {
+                                        crate::events::emit(
+                                            crate::events::AppEventKind::Navigate(
+                                                crate::routes::AppRoute::page(
+                                                    crate::sidebar::Page::Home,
+                                                ),
+                                            ),
+                                            cx,
+                                        );
+                                    }),
+                            )
+                            .child(
+                                Button::new("emit-navigate-notifications")
+                                    .outline()
+                                    .label("Emit Navigate → Notifications")
+                                    .on_click(|_, _, cx| {
+                                        crate::events::emit(
+                                            crate::events::AppEventKind::Navigate(
+                                                crate::routes::AppRoute::page(
+                                                    crate::sidebar::Page::Notifications,
+                                                ),
+                                            ),
+                                            cx,
+                                        );
+                                    }),
+                            ),
+                    )
+                    // Receiver log
+                    .child(Label::new("Event Receiver"))
+                    .child(
+                        v_flex()
+                            .gap_1()
+                            .when(self.event_log.is_empty(), |el| {
+                                el.child(
+                                    div()
+                                        .text_sm()
+                                        .text_color(cx.theme().muted_foreground)
+                                        .child("No events received yet. Click a button above."),
+                                )
+                            })
+                            .children(self.event_log.iter().rev().map(|entry| {
+                                div()
+                                    .text_xs()
+                                    .p_1()
+                                    .rounded(px(4.))
+                                    .bg(cx.theme().muted)
+                                    .child(entry.clone())
+                            })),
                     ),
             )
     }

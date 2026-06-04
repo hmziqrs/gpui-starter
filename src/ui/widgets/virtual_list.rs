@@ -102,3 +102,7 @@ where
 
     container
 }
+
+#[cfg(test)]
+#[path = "virtual_list.test.rs"]
+mod virtual_list_test;
