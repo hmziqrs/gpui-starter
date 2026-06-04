@@ -1,9 +1,14 @@
+use std::rc::Rc;
+
 use gpui::{prelude::*, *};
 use gpui_component::{
     ActiveTheme as _, Disableable, Selectable,
     Icon, IconName,
+    VirtualListScrollHandle,
     button::Button,
-    h_flex, v_flex,
+    h_flex,
+    scroll::{ScrollableElement, ScrollbarAxis},
+    v_flex, v_virtual_list,
 };
 use gpui_query_v2::client::{ClientDiagnostic, QueryClient};
 use gpui_query_v2::core::{MutationStatus, QueryKeyFilter, QueryStatus};
@@ -31,6 +36,8 @@ pub struct QueryDevToolsV2Page {
     /// Status filter: `None` means "show all", `Some(String)` must be a valid
     /// `QueryStatus` variant name (e.g. "Idle", "Success"). See Audit Finding 4.
     status_filter: Option<String>,
+    /// Scroll handle for the virtualized query registry list.
+    scroll_handle: VirtualListScrollHandle,
 }
 
 impl QueryDevToolsV2Page {
@@ -46,6 +53,7 @@ impl QueryDevToolsV2Page {
             expanded_key: None,
             sort_by: QuerySort::Key,
             status_filter: None,
+            scroll_handle: VirtualListScrollHandle::new(),
         }
     }
 }
@@ -54,12 +62,14 @@ impl Render for QueryDevToolsV2Page {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let diagnostic = cx.try_global::<QueryClient>().map(|c| c.diagnostics(cx));
 
+        let scroll_handle = self.scroll_handle.clone();
         let content = if diagnostic.is_some() {
             render_dashboard(
                 &diagnostic,
                 &self.expanded_key,
                 self.sort_by,
                 &self.status_filter,
+                &scroll_handle,
                 cx,
             )
         } else {
@@ -111,6 +121,7 @@ fn render_dashboard(
     expanded_key: &Option<String>,
     sort_by: QuerySort,
     status_filter: &Option<String>,
+    scroll_handle: &VirtualListScrollHandle,
     cx: &mut Context<QueryDevToolsV2Page>,
 ) -> Div {
     let theme = cx.theme();
@@ -204,7 +215,7 @@ fn render_dashboard(
 
     // Query registry table
     let registry =
-        render_query_registry(diagnostic, expanded_key, sort_by, status_filter, cx);
+        render_query_registry(diagnostic, expanded_key, sort_by, status_filter, scroll_handle, cx);
 
     // Mutations table
     let mutations = render_mutations_table(diagnostic, cx);
@@ -351,11 +362,22 @@ fn render_action_bar(cx: &mut Context<QueryDevToolsV2Page>) -> Div {
 // Query Registry (sort/filter controls + table)
 // ---------------------------------------------------------------------------
 
+// Virtual-list geometry. `v_virtual_list` positions items purely from the
+// `item_sizes` we hand it, so the rendered row/detail elements are pinned to
+// these exact heights — otherwise rows would overlap or leave gaps. Keep these
+// in sync with `query_row` / `query_expanded_detail` if their styling changes.
+const REGISTRY_ROW_H: f32 = 38.0; // px_3/py_2 single-line row
+const REGISTRY_DETAIL_H: f32 = 156.0; // 6-field expanded detail (p_3 + gap_1)
+const REGISTRY_ITEM_GAP: f32 = 4.0; // gap_1 between row and detail (expanded)
+const REGISTRY_LIST_GAP: f32 = 2.0; // gap_0p5 between registry items
+const REGISTRY_MAX_LIST_H: f32 = 480.0; // cap before the list itself scrolls
+
 fn render_query_registry(
     diagnostic: &Option<ClientDiagnostic>,
     expanded_key: &Option<String>,
     sort_by: QuerySort,
     status_filter: &Option<String>,
+    scroll_handle: &VirtualListScrollHandle,
     cx: &mut Context<QueryDevToolsV2Page>,
 ) -> Div {
     let theme = cx.theme();
@@ -363,8 +385,6 @@ fn render_query_registry(
     let border = theme.border;
     let muted = theme.muted;
     let muted_foreground = theme.muted_foreground;
-    let secondary = theme.secondary;
-    let radius = theme.radius;
     let _ = theme;
 
     // Sort controls
@@ -473,32 +493,31 @@ fn render_query_registry(
                 .child("Retry Count"),
         ]);
 
-    // Table rows
-    let table_rows: Vec<_> = queries
+    // Virtualize the registry: only the rows in the visible range are laid out
+    // and painted, so adding queries no longer forces a full-tree relayout on
+    // every scroll frame. `v_virtual_list` positions items from `item_sizes`,
+    // so each rendered row/detail is pinned to the height declared here.
+    let queries = Rc::new(queries);
+
+    let item_heights: Vec<f32> = queries
         .iter()
         .map(|q| {
             let is_expanded = expanded_key.as_deref() == Some(q.key.as_str());
-            let row = query_row(q, is_expanded, cx).into_any_element();
-            let detail = if is_expanded {
-                Some(query_expanded_detail(q, radius, secondary).into_any_element())
+            if is_expanded {
+                REGISTRY_ROW_H + REGISTRY_ITEM_GAP + REGISTRY_DETAIL_H
             } else {
-                None
-            };
-            (row, detail)
+                REGISTRY_ROW_H
+            }
         })
         .collect();
 
-    let table = v_flex().gap_0p5().children(
-        table_rows
-            .into_iter()
-            .flat_map(|(row, detail)| {
-                let mut children = vec![row];
-                if let Some(d) = detail {
-                    children.push(d);
-                }
-                children
-            }),
-    );
+    let item_sizes: Rc<Vec<Size<Pixels>>> =
+        Rc::new(item_heights.iter().map(|&h| size(px(0.), px(h))).collect());
+
+    // Snug height: the list only scrolls once content exceeds the cap.
+    let content_h = item_heights.iter().sum::<f32>()
+        + REGISTRY_LIST_GAP * item_heights.len().saturating_sub(1) as f32;
+    let list_h = px(content_h.min(REGISTRY_MAX_LIST_H));
 
     // Empty state within registry
     let registry_content = if queries.is_empty() {
@@ -513,7 +532,50 @@ fn render_query_registry(
                     .child("No queries match the current filter."),
             )
     } else {
-        table
+        let entity = cx.entity();
+        let scroll_handle = scroll_handle.clone();
+        let rows = queries.clone();
+        let expanded = expanded_key.clone();
+
+        let list = v_virtual_list(
+            entity,
+            "v2-registry-rows",
+            item_sizes,
+            move |_this, range, _window, cx| {
+                range
+                    .map(|ix| {
+                        let q = &rows[ix];
+                        let is_expanded = expanded.as_deref() == Some(q.key.as_str());
+                        // Drop the theme borrow before query_row takes `&mut cx`.
+                        let (radius, secondary) = {
+                            let theme = cx.theme();
+                            (theme.radius, theme.secondary)
+                        };
+                        let mut item = v_flex()
+                            .gap_1()
+                            .child(query_row(q, is_expanded, cx).h(px(REGISTRY_ROW_H)));
+                        if is_expanded {
+                            item = item.child(
+                                query_expanded_detail(q, radius, secondary)
+                                    .h(px(REGISTRY_DETAIL_H)),
+                            );
+                        }
+                        item
+                    })
+                    .collect::<Vec<_>>()
+            },
+        )
+        .track_scroll(&scroll_handle)
+        .gap_0p5();
+
+        div().relative().w_full().h(list_h).child(
+            v_flex()
+                .id("v2-registry-list")
+                .relative()
+                .size_full()
+                .child(list)
+                .scrollbar(&scroll_handle, ScrollbarAxis::Vertical),
+        )
     };
 
     div()
