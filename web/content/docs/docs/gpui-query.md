@@ -1,5 +1,5 @@
 ---
-title: gpui-query: Async Data Fetching
+title: "gpui-query: Async Data Fetching"
 description: Fetch, cache, and sync async data in GPUI with stale-while-revalidate and automatic refetching.
 ---
 
