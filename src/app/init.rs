@@ -1,5 +1,5 @@
 use gpui::{App, KeyBinding};
-use gpui_component::{ActiveTheme as _, Root, text::markdown};
+use gpui_component::{ActiveTheme as _, Root, text::markdown, WindowExt as _};
 
 use crate::app::actions::*;
 use crate::app::locale::set_locale;
