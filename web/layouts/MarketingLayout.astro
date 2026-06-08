@@ -189,6 +189,15 @@ if (customJsonLd) jsonLdArray.push(customJsonLd);
     {jsonLdArray.map((schema) => (
       <script type="application/ld+json" set:html={JSON.stringify(schema)} />
     ))}
+    <script is:inline>
+      requestIdleCallback(() => {
+        import('https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js').then(({ initializeApp }) => {
+          const firebaseConfig = { apiKey: 'AIzaSyDI-CutFk3prIj64gQfz332Cnrvh3xeUfc', authDomain: 'gpui-starter.firebaseapp.com', projectId: 'gpui-starter', storageBucket: 'gpui-starter.firebasestorage.app', messagingSenderId: '117315648896', appId: '1:117315648896:web:4291ed5b219b49d7cfd565', measurementId: 'G-9KJX86QRFG' };
+          const app = initializeApp(firebaseConfig);
+          import('https://www.gstatic.com/firebasejs/12.13.0/firebase-analytics.js').then(({ getAnalytics }) => { getAnalytics(app); });
+        });
+      });
+    </script>
     <style is:global>
       @import '../styles/globals.css';
     </style>

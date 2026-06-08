@@ -3,8 +3,8 @@ import Layout from '../layouts/MarketingLayout.astro';
 
 const title = 'Privacy Policy - gpui-starter';
 const description =
-  'How the gpui-starter website handles your data. No analytics, no cookies, no tracking. The desktop app collects nothing.';
-const updated = '2026-06-05';
+  'How the gpui-starter website handles your data. We use Google Analytics for basic page-view stats and nothing else. The desktop app collects nothing.';
+const updated = '2026-06-08';
 
 const sections = [
   { id: 'scope', label: 'Scope' },
@@ -50,8 +50,10 @@ const sections = [
           Last updated <time datetime={updated}>{updated}</time>
         </p>
         <p class="mt-6 text-lg text-text-dim max-w-2xl mx-auto leading-relaxed">
-          Short version: we collect nothing. This page spells out the details,
-          covers what the website and desktop app each do, and lists your rights.
+          Short version: we use Google Analytics (via Firebase) for basic page-view
+          stats with anonymized IPs and nothing else. This page spells out the
+          details, covers what the website and desktop app each do, and lists your
+          rights.
         </p>
       </div>
     </div>
@@ -125,11 +127,36 @@ const sections = [
           >
             <span class="font-mono text-amber mr-2">02</span>Data we collect
           </h2>
-          <p class="text-text-dim leading-relaxed text-[0.95rem]">
-            <strong class="text-text">Nothing.</strong> No analytics. No tracking
-            scripts. No cookies. No page-view counters, click heatmaps, or
-            behavior profiling. The site is static HTML served from Cloudflare
-            Pages with no server-side logic.
+          <p class="text-text-dim leading-relaxed text-[0.95rem] mb-4">
+            The website uses <strong class="text-text">Google Analytics</strong> (via
+            Firebase) to understand basic usage patterns. It automatically collects:
+          </p>
+          <ul class="space-y-2 list-none p-0 m-0">
+            <li class="flex gap-3 text-[0.93rem] text-text-dim">
+              <span
+                class="flex-shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-amber"
+              ></span>Page views (URL, title, referrer)
+            </li>
+            <li class="flex gap-3 text-[0.93rem] text-text-dim">
+              <span
+                class="flex-shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-amber"
+              ></span>Device info (browser, OS, screen resolution)
+            </li>
+            <li class="flex gap-3 text-[0.93rem] text-text-dim">
+              <span
+                class="flex-shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-amber"
+              ></span>Anonymized IP address (last octet zeroed out)
+            </li>
+            <li class="flex gap-3 text-[0.93rem] text-text-dim">
+              <span
+                class="flex-shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-amber"
+              ></span>Session duration and engagement metrics
+            </li>
+          </ul>
+          <p class="text-text-dim leading-relaxed text-[0.95rem] mt-4">
+            No cookies are used for tracking. Firebase Analytics relies on
+            first-party storage. We do not collect names, emails, or any personally
+            identifiable information. The desktop app collects <strong class="text-text">nothing</strong>.
           </p>
         </div>
 
@@ -150,22 +177,12 @@ const sections = [
             <li class="flex gap-3 text-[0.93rem] text-text-dim">
               <span
                 class="flex-shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-cyan-400"
-              ></span>Usage stats or analytics of any kind
-            </li>
-            <li class="flex gap-3 text-[0.93rem] text-text-dim">
-              <span
-                class="flex-shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-cyan-400"
-              ></span>IP addresses or geolocation
-            </li>
-            <li class="flex gap-3 text-[0.93rem] text-text-dim">
-              <span
-                class="flex-shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-cyan-400"
-              ></span>Cookies or local-storage tracking identifiers
-            </li>
-            <li class="flex gap-3 text-[0.93rem] text-text-dim">
-              <span
-                class="flex-shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-cyan-400"
               ></span>Cross-site trackers or third-party ad pixels
+            </li>
+            <li class="flex gap-3 text-[0.93rem] text-text-dim">
+              <span
+                class="flex-shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-cyan-400"
+              ></span>Any data from the desktop application
             </li>
           </ul>
         </div>
@@ -178,9 +195,28 @@ const sections = [
             <span class="font-mono text-amber mr-2">04</span>Third-party services
           </h2>
           <p class="text-text-dim leading-relaxed text-[0.95rem] mb-4">
-            The site loads two external resources. Neither sends data back to us:
+            The site loads the following external resources:
           </p>
           <div class="space-y-3">
+            <div
+              class="flex gap-4 items-start p-4 rounded-xl border border-edge bg-amber/[0.03]"
+            >
+              <div class="font-mono text-xs text-amber mt-0.5">&rarr;</div>
+              <div>
+                <div class="font-semibold text-text">Google Analytics (via Firebase)</div>
+                <p class="text-sm text-text-dim mt-1">
+                  We use Firebase Analytics to collect anonymized page-view data.
+                  The Firebase SDK is loaded from <code
+                    class="font-mono text-amber bg-amber/10 px-1 py-0.5 rounded text-[0.85em]"
+                  >gstatic.com</code>. Their privacy practices are documented in the <a
+                    href="https://policies.google.com/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-amber no-underline hover:underline"
+                    >Google Privacy Policy</a>.
+                </p>
+              </div>
+            </div>
             <div
               class="flex gap-4 items-start p-4 rounded-xl border border-edge bg-amber/[0.03]"
             >
@@ -228,9 +264,16 @@ const sections = [
           </h2>
           <p class="text-text-dim leading-relaxed text-[0.95rem]">
             Regulations like GDPR (EU/EEA) and CCPA (California) give you the right
-            to access, correct, and delete your personal data. Because we do not
-            collect any personal data in the first place, there is nothing to
-            exercise those rights over. If that ever changes, this page will say so.
+            to access, correct, and delete your personal data. Our analytics
+            collection is limited to anonymized, aggregate data — we do not have
+            personal data to return or delete. You can opt out of Google Analytics
+            using the <a
+              href="https://tools.google.com/dlpage/gaoptout"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-amber no-underline hover:underline"
+              >Google Analytics opt-out browser add-on</a
+            >. If that ever changes, this page will say so.
           </p>
         </div>
 

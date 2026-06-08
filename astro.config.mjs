@@ -117,6 +117,10 @@ export default defineConfig({
         { tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
         { tag: 'meta', attrs: { name: 'twitter:site', content: '@hmziqrs' } },
         { tag: 'meta', attrs: { name: 'twitter:creator', content: '@hmziqrs' } },
+        {
+          tag: 'script',
+          content: `requestIdleCallback(()=>{import('https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js').then(({initializeApp})=>{const c={apiKey:'AIzaSyDI-CutFk3prIj64gQfz332Cnrvh3xeUfc',authDomain:'gpui-starter.firebaseapp.com',projectId:'gpui-starter',storageBucket:'gpui-starter.firebasestorage.app',messagingSenderId:'117315648896',appId:'1:117315648896:web:4291ed5b219b49d7cfd565',measurementId:'G-9KJX86QRFG'};const a=initializeApp(c);import('https://www.gstatic.com/firebasejs/12.13.0/firebase-analytics.js').then(({getAnalytics})=>{getAnalytics(a)})})});`,
+        },
       ],
       favicon: "/favicon.svg",
     }),
