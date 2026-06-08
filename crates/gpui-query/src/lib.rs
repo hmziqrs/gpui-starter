@@ -66,5 +66,17 @@ mod core_network_mode;
 
 // Integration tests (require GPUI test-support, available via dev-dep)
 #[cfg(test)]
-#[path = "tests/integration_client.rs"]
-mod integration_client;
+#[path = "tests/integration_client_fixtures.rs"]
+mod integration_client_fixtures;
+
+#[cfg(test)]
+#[path = "tests/integration_client_bucket.rs"]
+mod integration_client_bucket;
+
+#[cfg(test)]
+#[path = "tests/integration_client_client.rs"]
+mod integration_client_client;
+
+#[cfg(test)]
+#[path = "tests/integration_client_advanced.rs"]
+mod integration_client_advanced;
