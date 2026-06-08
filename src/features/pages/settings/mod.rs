@@ -3,7 +3,7 @@ mod notifications_section;
 
 use gpui::{prelude::*, *};
 use gpui_component::{
-    ActiveTheme as _, Selectable as _, Theme, WindowExt as _,
+    ActiveTheme as _, Selectable as _, Theme,
     button::Button,
     label::Label,
     switch::Switch,

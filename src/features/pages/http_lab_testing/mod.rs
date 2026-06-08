@@ -5,7 +5,6 @@ mod ui_helpers;
 
 use std::collections::BTreeMap;
 
-use gpui::{prelude::*, *};
 use tokio_util::sync::CancellationToken;
 
 use gpui_query::{CachePolicy, QueryResource, RequestPolicy, RequestSequencer};

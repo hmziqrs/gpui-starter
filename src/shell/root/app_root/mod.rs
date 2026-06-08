@@ -3,7 +3,7 @@ mod state;
 
 pub use state::AppRoot;
 
-use gpui::{prelude::*, *};
+use gpui::*;
 
 impl Focusable for AppRoot {
     fn focus_handle(&self, _: &App) -> FocusHandle {
@@ -38,5 +38,5 @@ pub fn flush_window_bounds(cx: &mut App) {
 }
 
 #[cfg(test)]
-#[path = "../root.test.rs"]
+#[path = "../../root.test.rs"]
 mod root_test;

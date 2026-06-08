@@ -1,4 +1,4 @@
-use gpui::{prelude::*, *};
+use gpui::*;
 
 use gpui_query::{CachePolicy, QueryError, RequestPolicy};
 

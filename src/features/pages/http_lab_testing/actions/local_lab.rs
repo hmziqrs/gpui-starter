@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use gpui::{prelude::*, *};
+use gpui::*;
 use tokio_util::sync::CancellationToken;
 
 use gpui_query::{QueryBeginResult, QueryError, QueryFetchMode};

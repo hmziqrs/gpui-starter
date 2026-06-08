@@ -1,4 +1,4 @@
-use gpui::{Action, prelude::*};
+use gpui::Action;
 
 /// Navigate directly to a sidebar page by index (0-based).
 #[derive(Action, Clone, PartialEq, Eq, serde::Deserialize)]

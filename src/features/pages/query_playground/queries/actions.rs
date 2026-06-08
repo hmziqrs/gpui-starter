@@ -1,4 +1,3 @@
-use gpui::prelude::*;
 use gpui::*;
 
 use gpui_query_v2::core::{QueryError};

@@ -1,4 +1,4 @@
-use gpui::{prelude::*, *};
+use gpui::*;
 use tokio_util::sync::CancellationToken;
 
 use crate::services::tokio_runtime::TokioRuntimeGlobal;
