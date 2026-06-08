@@ -18,7 +18,7 @@ pub(crate) const TEST_URL: &str = "https://httpbin.org/get";
 pub(crate) const PREVIEW_LIMIT: usize = 8_000;
 
 #[derive(Clone, Debug)]
-enum RawStatus {
+pub(crate) enum RawStatus {
     Idle,
     Sending,
     Completed,
@@ -39,7 +39,7 @@ impl RawStatus {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-struct RawResponse {
+pub(crate) struct RawResponse {
     status: u16,
     final_url: String,
     header_count: usize,
@@ -159,13 +159,13 @@ impl HttpLabTestingPage {
     }
 }
 
-fn query_now_ms() -> u128 {
+pub(crate) fn query_now_ms() -> u128 {
     use std::sync::OnceLock;
     static STARTED_AT: OnceLock<std::time::Instant> = OnceLock::new();
     STARTED_AT.get_or_init(std::time::Instant::now).elapsed().as_millis()
 }
 
-fn fake_response(label: &str) -> RawResponse {
+pub(crate) fn fake_response(label: &str) -> RawResponse {
     RawResponse {
         status: 200,
         final_url: format!("memory://{label}"),
@@ -175,7 +175,7 @@ fn fake_response(label: &str) -> RawResponse {
     }
 }
 
-fn local_lab_resources() -> BTreeMap<HttpLabAction, QueryResource<RawResponse>> {
+pub(crate) fn local_lab_resources() -> BTreeMap<HttpLabAction, QueryResource<RawResponse>> {
     HttpLabAction::all()
         .iter()
         .copied()

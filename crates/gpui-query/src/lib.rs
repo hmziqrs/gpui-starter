@@ -74,9 +74,9 @@ mod integration_client_fixtures;
 mod integration_client_bucket;
 
 #[cfg(test)]
-#[path = "tests/integration_client_client.rs"]
+#[path = "tests/integration_client_client/mod.rs"]
 mod integration_client_client;
 
 #[cfg(test)]
-#[path = "tests/integration_client_advanced.rs"]
+#[path = "tests/integration_client_advanced/mod.rs"]
 mod integration_client_advanced;
