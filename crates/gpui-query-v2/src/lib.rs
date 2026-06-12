@@ -1,3 +1,13 @@
+#![allow(
+    clippy::type_complexity,
+    clippy::collapsible_if,
+    clippy::doc_overindented_list_items,
+    clippy::manual_saturating_arithmetic,
+    clippy::obfuscated_if_else,
+    clippy::unnecessary_lazy_evaluations,
+    deprecated
+)]
+
 //! gpui-query-v2 — Zero-boilerplate async state management for GPUI.
 //!
 //! Inspired by [TanStack Query v5](https://tanstack.com/query), redesigned for

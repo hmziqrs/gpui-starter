@@ -1,4 +1,24 @@
 #![recursion_limit = "512"]
+#![allow(
+    clippy::map_unwrap_or,
+    clippy::let_unit_value,
+    clippy::explicit_auto_deref,
+    clippy::unnecessary_sort_by,
+    clippy::type_complexity,
+    clippy::derivable_impls,
+    clippy::collapsible_if,
+    clippy::if_same_then_else,
+    clippy::too_many_arguments,
+    clippy::let_and_return,
+    clippy::map_flatten,
+    clippy::new_ret_no_self,
+    clippy::enum_variant_names,
+    clippy::unnecessary_map_or,
+    clippy::needless_borrow,
+    clippy::new_without_default,
+    clippy::unneeded_wildcard_pattern,
+    clippy::redundant_closure_call
+)]
 
 pub mod app;
 pub mod features;

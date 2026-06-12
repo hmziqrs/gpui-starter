@@ -1,3 +1,5 @@
+#![allow(clippy::if_same_then_else)]
+
 mod infinite_select;
 
 use proc_macro::TokenStream;

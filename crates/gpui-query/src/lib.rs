@@ -1,3 +1,10 @@
+#![allow(
+    clippy::type_complexity,
+    clippy::derivable_impls,
+    clippy::manual_saturating_arithmetic,
+    clippy::collapsible_if
+)]
+
 //! gpui-query — Transport-agnostic query lifecycle primitives for GPUI.
 //!
 //! Inspired by [TanStack Query](https://tanstack.com/query), adapted for

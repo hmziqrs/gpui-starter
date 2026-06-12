@@ -32,8 +32,8 @@ gpui_platform = { git = "https://github.com/zed-industries/zed", features = [
     "wayland",
     "runtime_shaders",
 ] }
-gpui-component = { git = "https://github.com/longbridge/gpui-component" }
-gpui-component-assets = { git = "https://github.com/longbridge/gpui-component" }
+gpui-component = { git = "https://github.com/longbridge/gpui-component", rev = "da2a9ca7c112" }
+gpui-component-assets = { git = "https://github.com/longbridge/gpui-component", rev = "da2a9ca7c112" }
 
 # Serialization & data
 anyhow = "1"
