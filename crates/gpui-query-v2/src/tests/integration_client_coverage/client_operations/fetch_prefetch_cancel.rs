@@ -34,10 +34,8 @@ fn test_prepare_fetch_query_uses_force_mode_always_starts(cx: &mut TestAppContex
             );
 
             // Data should still be accessible from the first fetch
-            let data = client.get_query_data::<String, QueryError>(
-                &QueryKey::from("cached_key"),
-                cx,
-            );
+            let data =
+                client.get_query_data::<String, QueryError>(&QueryKey::from("cached_key"), cx);
             assert_eq!(data, Some("data".to_string()));
         });
     });
@@ -68,17 +66,13 @@ fn test_prepare_fetch_query_refetch_after_ttl(cx: &mut TestAppContext) {
             prepared.complete_success("old".to_string(), cx);
 
             // Data should be present after first fetch
-            let data = client.get_query_data::<String, QueryError>(
-                &QueryKey::from("ttl_key"),
-                cx,
-            );
+            let data = client.get_query_data::<String, QueryError>(&QueryKey::from("ttl_key"), cx);
             assert_eq!(data, Some("old".to_string()));
 
             // prepare_fetch_query always returns Some (Force mode), even when
             // cache is fresh. This is the core guarantee: it always initiates
             // a fetch, unlike prepare_prefetch_query which respects freshness.
-            let second = client
-                .prepare_fetch_query::<String, QueryError>("ttl_key", cx);
+            let second = client.prepare_fetch_query::<String, QueryError>("ttl_key", cx);
             assert!(
                 second.is_some(),
                 "prepare_fetch_query should always return Some (Force mode), \
@@ -170,8 +164,14 @@ fn test_prepared_fetch_signal_properties(cx: &mut TestAppContext) {
                 .prepare_fetch_query::<String, QueryError>("signal_test", cx)
                 .expect("should start");
 
-            assert!(!prepared.signal.is_cancelled(), "signal should start uncancelled");
-            assert!(prepared.request_id.value() > 0, "request_id should have a positive value");
+            assert!(
+                !prepared.signal.is_cancelled(),
+                "signal should start uncancelled"
+            );
+            assert!(
+                prepared.request_id.value() > 0,
+                "request_id should have a positive value"
+            );
 
             // Complete to clean up
             prepared.complete_success("data".to_string(), cx);
@@ -230,8 +230,12 @@ fn test_cancel_queries_all_filter(cx: &mut TestAppContext) {
             let e1 = client.resource::<String, QueryError>(key1.clone(), cx);
             let e2 = client.resource::<String, QueryError>(key2.clone(), cx);
 
-            let rid1 = client.next_request_id_for_key::<String, QueryError>(&key1).unwrap();
-            let rid2 = client.next_request_id_for_key::<String, QueryError>(&key2).unwrap();
+            let rid1 = client
+                .next_request_id_for_key::<String, QueryError>(&key1)
+                .unwrap();
+            let rid2 = client
+                .next_request_id_for_key::<String, QueryError>(&key2)
+                .unwrap();
 
             e1.update(cx, |r, _| {
                 r.begin_request_with_id(Some(rid1), 1_000, QueryFetchMode::Normal);
@@ -264,7 +268,10 @@ fn test_cancel_queries_skips_idle_infinite_queries(cx: &mut TestAppContext) {
             client.cancel_queries(&QueryKeyFilter::Exact(&key), cx);
 
             let retrieved = client.infinite_query::<String, QueryError>(&key);
-            assert!(retrieved.is_some(), "idle infinite query should still exist");
+            assert!(
+                retrieved.is_some(),
+                "idle infinite query should still exist"
+            );
         });
     });
 }

@@ -57,7 +57,11 @@ fn previous_data_preserved_across_failure() {
     seed_data(&mut r, "v2", 200);
     r.apply_failure("error", 300);
     assert_eq!(r.data(), Some(&"v2"), "failure preserves current data");
-    assert_eq!(r.previous_data(), Some(&"v1"), "failure does not touch previous_data");
+    assert_eq!(
+        r.previous_data(),
+        Some(&"v1"),
+        "failure does not touch previous_data"
+    );
 }
 
 #[test]
@@ -69,7 +73,11 @@ fn rollback_restores_previous_data() {
     assert!(rolled_back);
     assert_eq!(r.data(), Some(&"original"));
     assert_eq!(r.status(), QueryStatus::Success);
-    assert_eq!(r.previous_data(), None, "previous_data cleared after rollback");
+    assert_eq!(
+        r.previous_data(),
+        None,
+        "previous_data cleared after rollback"
+    );
 }
 
 #[test]

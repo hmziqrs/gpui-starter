@@ -270,8 +270,7 @@ mod tests {
 
     #[test]
     fn new_mutation_is_idle() {
-        let m: MutationResource<String, String> =
-            MutationResource::new(RetryPolicy::no_retries());
+        let m: MutationResource<String, String> = MutationResource::new(RetryPolicy::no_retries());
         assert!(m.is_idle());
         assert_eq!(m.status(), MutationStatus::Idle);
     }
@@ -287,8 +286,7 @@ mod tests {
 
     #[test]
     fn complete_success_stores_data() {
-        let mut m: MutationResource<String, i32> =
-            MutationResource::new(RetryPolicy::no_retries());
+        let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::no_retries());
         m.begin("vars".to_string());
         m.complete_success(42);
         assert!(m.is_success());
@@ -297,8 +295,7 @@ mod tests {
 
     #[test]
     fn complete_failure_stores_error() {
-        let mut m: MutationResource<String, i32> =
-            MutationResource::new(RetryPolicy::no_retries());
+        let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::no_retries());
         m.begin("vars".to_string());
         m.complete_failure(QueryError::response("bad"));
         assert!(m.is_failure());
@@ -308,8 +305,7 @@ mod tests {
 
     #[test]
     fn retry_from_failure() {
-        let mut m: MutationResource<String, i32> =
-            MutationResource::new(RetryPolicy::new(2));
+        let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::new(2));
         m.begin("vars".to_string());
         m.complete_failure(QueryError::response("fail"));
         assert!(m.retry());
@@ -318,8 +314,7 @@ mod tests {
 
     #[test]
     fn retry_respects_max() {
-        let mut m: MutationResource<String, i32> =
-            MutationResource::new(RetryPolicy::new(1));
+        let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::new(1));
         m.begin("vars".to_string());
         m.complete_failure(QueryError::response("fail"));
         assert!(!m.should_retry()); // retry_count=1, max=1
@@ -328,8 +323,7 @@ mod tests {
 
     #[test]
     fn reset_clears_everything() {
-        let mut m: MutationResource<String, i32> =
-            MutationResource::new(RetryPolicy::new(3));
+        let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::new(3));
         m.begin("vars".to_string());
         m.complete_success(99);
         m.reset();
@@ -340,8 +334,7 @@ mod tests {
 
     #[test]
     fn cancel_cancels_signal() {
-        let mut m: MutationResource<String, i32> =
-            MutationResource::new(RetryPolicy::no_retries());
+        let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::no_retries());
         m.begin("vars".to_string());
         let signal = m.signal().unwrap().clone();
         assert!(!signal.is_cancelled());
@@ -351,8 +344,7 @@ mod tests {
 
     #[test]
     fn begin_cancels_old_signal() {
-        let mut m: MutationResource<String, i32> =
-            MutationResource::new(RetryPolicy::no_retries());
+        let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::no_retries());
         m.begin("first".to_string());
         let old_signal = m.signal().unwrap().clone();
         assert!(!old_signal.is_cancelled());
@@ -365,8 +357,7 @@ mod tests {
 
     #[test]
     fn complete_failure_clears_previous_data() {
-        let mut m: MutationResource<String, i32> =
-            MutationResource::new(RetryPolicy::new(2));
+        let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::new(2));
         m.begin("vars".to_string());
         m.complete_success(42);
         assert_eq!(m.data(), Some(&42));
@@ -374,13 +365,15 @@ mod tests {
         m.begin("vars2".to_string());
         m.complete_failure(QueryError::response("fail"));
         assert!(m.is_failure());
-        assert!(m.data().is_none(), "data from previous success must be cleared on failure");
+        assert!(
+            m.data().is_none(),
+            "data from previous success must be cleared on failure"
+        );
     }
 
     #[test]
     fn cancel_increments_cancelled_count() {
-        let mut m: MutationResource<String, i32> =
-            MutationResource::new(RetryPolicy::no_retries());
+        let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::no_retries());
         assert_eq!(m.cancelled_count(), 0);
         m.begin("vars".to_string());
         m.cancel(QueryError::cancelled("aborted"));
@@ -392,8 +385,7 @@ mod tests {
 
     #[test]
     fn reset_clears_cancelled_count() {
-        let mut m: MutationResource<String, i32> =
-            MutationResource::new(RetryPolicy::no_retries());
+        let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::no_retries());
         m.begin("vars".to_string());
         m.cancel(QueryError::cancelled("aborted"));
         assert_eq!(m.cancelled_count(), 1);
@@ -403,8 +395,7 @@ mod tests {
 
     #[test]
     fn cancel_on_idle_is_noop() {
-        let mut m: MutationResource<String, i32> =
-            MutationResource::new(RetryPolicy::no_retries());
+        let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::no_retries());
         assert!(m.is_idle());
         m.cancel(QueryError::cancelled("aborted"));
         assert!(m.is_idle(), "cancel on Idle should be a no-op");
@@ -414,8 +405,7 @@ mod tests {
 
     #[test]
     fn cancel_on_success_is_noop() {
-        let mut m: MutationResource<String, i32> =
-            MutationResource::new(RetryPolicy::no_retries());
+        let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::no_retries());
         m.begin("vars".to_string());
         m.complete_success(42);
         m.cancel(QueryError::cancelled("aborted"));
@@ -426,8 +416,7 @@ mod tests {
 
     #[test]
     fn cancel_on_failure_is_noop() {
-        let mut m: MutationResource<String, i32> =
-            MutationResource::new(RetryPolicy::no_retries());
+        let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::no_retries());
         m.begin("vars".to_string());
         m.complete_failure(QueryError::response("fail"));
         m.cancel(QueryError::cancelled("aborted"));
@@ -437,8 +426,7 @@ mod tests {
 
     #[test]
     fn begin_resets_retry_count() {
-        let mut m: MutationResource<String, i32> =
-            MutationResource::new(RetryPolicy::new(2));
+        let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::new(2));
         m.begin("vars".to_string());
         m.complete_failure(QueryError::response("fail"));
         assert_eq!(m.retry_count(), 1);
@@ -449,19 +437,27 @@ mod tests {
 
     #[test]
     fn begin_resets_retry_count_allows_fresh_retries() {
-        let mut m: MutationResource<String, i32> =
-            MutationResource::new(RetryPolicy::new(1));
+        let mut m: MutationResource<String, i32> = MutationResource::new(RetryPolicy::new(1));
         // First invocation: fail, exhaust retries.
         m.begin("vars".to_string());
         m.complete_failure(QueryError::response("fail"));
         assert_eq!(m.retry_count(), 1);
-        assert!(!m.should_retry(), "retries exhausted after first invocation");
+        assert!(
+            !m.should_retry(),
+            "retries exhausted after first invocation"
+        );
         // Second invocation: begin resets retry_count, so retries are fresh.
         m.begin("vars2".to_string());
         assert_eq!(m.retry_count(), 0);
-        assert!(m.should_retry(), "should_retry should be true after begin resets retry_count");
+        assert!(
+            m.should_retry(),
+            "should_retry should be true after begin resets retry_count"
+        );
         m.complete_failure(QueryError::response("fail again"));
         assert_eq!(m.retry_count(), 1);
-        assert!(!m.should_retry(), "retries exhausted after second invocation");
+        assert!(
+            !m.should_retry(),
+            "retries exhausted after second invocation"
+        );
     }
 }

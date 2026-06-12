@@ -101,12 +101,7 @@ fn complete_current_failure_with_data_rejects_stale_id() {
     let _rid2 = begin_request_id(&mut r, &mut s, 200, QueryFetchMode::Normal);
 
     assert!(
-        !r.complete_current_failure_with_data(
-            rid1,
-            "fallback",
-            QueryError::response("stale"),
-            300
-        ),
+        !r.complete_current_failure_with_data(rid1, "fallback", QueryError::response("stale"), 300),
         "stale ID should be rejected"
     );
     assert_eq!(r.ignored_results(), 1);
@@ -297,7 +292,10 @@ fn ignore_while_loading_prevents_previous_page_replacement() {
 
     // Second call with IgnoreWhileLoading should return None
     let id2 = r.begin_fetch_previous(&mut seq, 2_000);
-    assert!(id2.is_none(), "second begin_fetch_previous should be ignored");
+    assert!(
+        id2.is_none(),
+        "second begin_fetch_previous should be ignored"
+    );
     assert_eq!(r.cancelled_count(), 0, "no cancellation on ignore");
 }
 

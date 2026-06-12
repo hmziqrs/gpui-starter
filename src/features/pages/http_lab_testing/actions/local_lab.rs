@@ -7,8 +7,8 @@ use gpui_query::{QueryBeginResult, QueryError, QueryFetchMode};
 
 use crate::services::{http_lab::HttpLabAction, tokio_runtime::TokioRuntimeGlobal};
 
-use super::super::{local_lab_resources, query_now_ms, RawResponse, RawStatus, LOG};
 use super::super::network::run_local_lab_action;
+use super::super::{LOG, RawResponse, RawStatus, local_lab_resources, query_now_ms};
 
 impl super::super::HttpLabTestingPage {
     pub(crate) fn reset_local_lab(&mut self, cx: &mut Context<Self>) {

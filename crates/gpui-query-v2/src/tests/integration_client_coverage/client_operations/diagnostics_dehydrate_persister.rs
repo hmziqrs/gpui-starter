@@ -4,9 +4,7 @@ use std::sync::Mutex;
 
 use gpui::{AppContext as _, BorrowAppContext as _, TestAppContext};
 
-use crate::client::{
-    DehydratedEntry, DehydratedState, QueryClient,
-};
+use crate::client::{DehydratedEntry, DehydratedState, QueryClient};
 use crate::core::*;
 use crate::tests::test_support::*;
 
@@ -40,7 +38,10 @@ fn test_diagnostics_query_status_accuracy(cx: &mut TestAppContext) {
                 .find(|q| q.key == "diag_success")
                 .expect("should find success entry");
             assert_eq!(success_diag.status, QueryStatus::Success);
-            assert!(success_diag.cache_age_ms.is_some(), "success should have cache age");
+            assert!(
+                success_diag.cache_age_ms.is_some(),
+                "success should have cache age"
+            );
         });
     });
 }
@@ -140,10 +141,7 @@ fn test_hydrate_is_noop(cx: &mut TestAppContext) {
             client.hydrate(state, cx);
 
             // No data should be injected (hydrate is a no-op)
-            let data = client.get_query_data::<String, QueryError>(
-                &QueryKey::from("test"),
-                cx,
-            );
+            let data = client.get_query_data::<String, QueryError>(&QueryKey::from("test"), cx);
             assert!(data.is_none(), "hydrate is a no-op, no data injected");
         });
     });

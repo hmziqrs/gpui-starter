@@ -1,19 +1,14 @@
 use std::rc::Rc;
 
 use gpui::{prelude::*, *};
-use gpui_component::{
-    ActiveTheme as _,
-    h_flex,
-    v_flex,
-    VirtualListScrollHandle,
-};
+use gpui_component::{ActiveTheme as _, VirtualListScrollHandle, h_flex, v_flex};
 
 use crate::ui::widgets::{bounded_list_height, render_virtual_list, variable_item_sizes};
 use gpui_query_v2::client::ClientDiagnostic;
 use gpui_query_v2::core::QueryStatus;
 
 use super::dashboard::QueryDevToolsV2Page;
-use super::helpers::{filter_button, format_cache_age, rems_from_px, sort_button, QuerySort};
+use super::helpers::{QuerySort, filter_button, format_cache_age, rems_from_px, sort_button};
 
 // ---------------------------------------------------------------------------
 // Virtual-list geometry constants
@@ -107,52 +102,48 @@ pub(super) fn render_query_registry(
         // Audit Finding 2: use semantic Ord ordering (declaration order) instead
         // of fragile Debug string comparison.
         QuerySort::Status => queries.sort_by(|a, b| a.status.cmp(&b.status)),
-        QuerySort::CacheAge => {
-            queries.sort_by(|a, b| {
-                b.cache_age_ms.unwrap_or(0).cmp(&a.cache_age_ms.unwrap_or(0))
-            })
-        }
+        QuerySort::CacheAge => queries.sort_by(|a, b| {
+            b.cache_age_ms
+                .unwrap_or(0)
+                .cmp(&a.cache_age_ms.unwrap_or(0))
+        }),
         QuerySort::CacheHits => queries.sort_by(|a, b| b.cache_hits.cmp(&a.cache_hits)),
     }
 
     // Header row
-    let header = h_flex()
-        .gap_3()
-        .px_3()
-        .py_2()
-        .children(vec![
-            div().w(rems_from_px(16.0)).child(div()),
-            div()
-                .text_xs()
-                .font_weight(FontWeight::BOLD)
-                .flex_1()
-                .child("Key"),
-            div()
-                .text_xs()
-                .font_weight(FontWeight::BOLD)
-                .flex_1()
-                .child("Status"),
-            div()
-                .text_xs()
-                .font_weight(FontWeight::BOLD)
-                .flex_1()
-                .child("Cache Policy"),
-            div()
-                .text_xs()
-                .font_weight(FontWeight::BOLD)
-                .flex_1()
-                .child("Cache Age"),
-            div()
-                .text_xs()
-                .font_weight(FontWeight::BOLD)
-                .flex_1()
-                .child("Cache Hits"),
-            div()
-                .text_xs()
-                .font_weight(FontWeight::BOLD)
-                .flex_1()
-                .child("Retry Count"),
-        ]);
+    let header = h_flex().gap_3().px_3().py_2().children(vec![
+        div().w(rems_from_px(16.0)).child(div()),
+        div()
+            .text_xs()
+            .font_weight(FontWeight::BOLD)
+            .flex_1()
+            .child("Key"),
+        div()
+            .text_xs()
+            .font_weight(FontWeight::BOLD)
+            .flex_1()
+            .child("Status"),
+        div()
+            .text_xs()
+            .font_weight(FontWeight::BOLD)
+            .flex_1()
+            .child("Cache Policy"),
+        div()
+            .text_xs()
+            .font_weight(FontWeight::BOLD)
+            .flex_1()
+            .child("Cache Age"),
+        div()
+            .text_xs()
+            .font_weight(FontWeight::BOLD)
+            .flex_1()
+            .child("Cache Hits"),
+        div()
+            .text_xs()
+            .font_weight(FontWeight::BOLD)
+            .flex_1()
+            .child("Retry Count"),
+    ]);
 
     // Virtualize the registry: only the rows in the visible range are laid out
     // and painted, so adding queries no longer forces a full-tree relayout on
@@ -176,16 +167,12 @@ pub(super) fn render_query_registry(
 
     // Empty state within registry
     let registry_content = if queries.is_empty() {
-        div()
-            .py_6()
-            .flex()
-            .justify_center()
-            .child(
-                div()
-                    .text_sm()
-                    .text_color(muted_foreground)
-                    .child("No queries match the current filter."),
-            )
+        div().py_6().flex().justify_center().child(
+            div()
+                .text_sm()
+                .text_color(muted_foreground)
+                .child("No queries match the current filter."),
+        )
     } else {
         let scroll_handle = scroll_handle.clone();
         let rows = queries.clone();
@@ -239,17 +226,26 @@ pub(super) fn render_query_registry(
                 .child("Query Registry"),
         )
         .child(
-            v_flex().gap_2().mb_3().child(
-                v_flex()
-                    .gap_1()
-                    .child(div().text_xs().text_color(muted_foreground).child("Sort:"))
-                    .child(sort_controls),
-            ).child(
-                v_flex()
-                    .gap_1()
-                    .child(div().text_xs().text_color(muted_foreground).child("Status:"))
-                    .child(filter_controls),
-            ),
+            v_flex()
+                .gap_2()
+                .mb_3()
+                .child(
+                    v_flex()
+                        .gap_1()
+                        .child(div().text_xs().text_color(muted_foreground).child("Sort:"))
+                        .child(sort_controls),
+                )
+                .child(
+                    v_flex()
+                        .gap_1()
+                        .child(
+                            div()
+                                .text_xs()
+                                .text_color(muted_foreground)
+                                .child("Status:"),
+                        )
+                        .child(filter_controls),
+                ),
         )
         .child(header)
         .child(registry_content)

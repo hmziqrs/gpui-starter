@@ -1,2 +1,2 @@
-mod init;
 mod actions;
+mod init;

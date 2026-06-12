@@ -55,9 +55,8 @@ fn test_multiple_mutations_same_type(cx: &mut TestAppContext) {
             let m1 = cx.new(|_| {
                 MutationResource::<String, User, QueryError>::new(RetryPolicy::no_retries())
             });
-            let m2 = cx.new(|_| {
-                MutationResource::<String, User, QueryError>::new(RetryPolicy::new(3))
-            });
+            let m2 =
+                cx.new(|_| MutationResource::<String, User, QueryError>::new(RetryPolicy::new(3)));
             let m3 = cx.new(|_| {
                 MutationResource::<String, User, QueryError>::new(RetryPolicy::no_retries())
             });
@@ -79,9 +78,8 @@ fn test_mutation_full_lifecycle_with_retries(cx: &mut TestAppContext) {
     setup_query_client(cx);
     cx.update(|cx| {
         cx.update_global::<QueryClient, _>(|client, cx| {
-            let entity = cx.new(|_| {
-                MutationResource::<String, User, QueryError>::new(RetryPolicy::new(2))
-            });
+            let entity =
+                cx.new(|_| MutationResource::<String, User, QueryError>::new(RetryPolicy::new(2)));
             client.register_mutation::<String, User, QueryError>(&entity, cx);
 
             // First attempt: begin -> fail
@@ -173,8 +171,7 @@ fn test_diagnostics_includes_mutations_with_status(cx: &mut TestAppContext) {
             assert_eq!(diag.mutation_count, 3);
             assert_eq!(diag.mutations.len(), 3);
 
-            let statuses: Vec<MutationStatus> =
-                diag.mutations.iter().map(|m| m.status).collect();
+            let statuses: Vec<MutationStatus> = diag.mutations.iter().map(|m| m.status).collect();
             assert!(statuses.contains(&MutationStatus::Idle));
             assert!(statuses.contains(&MutationStatus::Loading));
             assert!(statuses.contains(&MutationStatus::Success));
@@ -200,9 +197,8 @@ fn test_diagnostics_mutation_retry_count(cx: &mut TestAppContext) {
     setup_query_client(cx);
     cx.update(|cx| {
         cx.update_global::<QueryClient, _>(|client, cx| {
-            let entity = cx.new(|_| {
-                MutationResource::<String, String, QueryError>::new(RetryPolicy::new(3))
-            });
+            let entity = cx
+                .new(|_| MutationResource::<String, String, QueryError>::new(RetryPolicy::new(3)));
             client.register_mutation::<String, String, QueryError>(&entity, cx);
 
             entity.update(cx, |m, _| {
@@ -212,7 +208,10 @@ fn test_diagnostics_mutation_retry_count(cx: &mut TestAppContext) {
 
             let diag = client.diagnostics(cx);
             assert_eq!(diag.mutations.len(), 1);
-            assert_eq!(diag.mutations[0].retry_count, 1, "retry_count should be 1 after one failure");
+            assert_eq!(
+                diag.mutations[0].retry_count, 1,
+                "retry_count should be 1 after one failure"
+            );
         });
     });
 }
@@ -242,15 +241,17 @@ fn test_query_observer_observe_succeeds_for_live_entity(cx: &mut TestAppContext)
 fn test_mutation_observer_observe_returns_subscription(cx: &mut TestAppContext) {
     setup_query_client(cx);
     cx.update(|cx| {
-        let entity = cx.new(|_| {
-            MutationResource::<String, User, QueryError>::new(RetryPolicy::no_retries())
-        });
+        let entity = cx
+            .new(|_| MutationResource::<String, User, QueryError>::new(RetryPolicy::no_retries()));
         let mut observer = MutationObserver::<String, User, QueryError>::new(&entity);
 
         struct DummyView;
         let view = cx.new(|_| DummyView);
         let sub = view.update(cx, |_view, cx| observer.observe(cx));
-        assert!(sub.is_some(), "mutation observe should return Some(Subscription)");
+        assert!(
+            sub.is_some(),
+            "mutation observe should return Some(Subscription)"
+        );
     });
 }
 
@@ -258,15 +259,17 @@ fn test_mutation_observer_observe_returns_subscription(cx: &mut TestAppContext) 
 fn test_mutation_observer_weak_entity_pattern(cx: &mut TestAppContext) {
     setup_query_client(cx);
     cx.update(|cx| {
-        let entity = cx.new(|_| {
-            MutationResource::<String, User, QueryError>::new(RetryPolicy::no_retries())
-        });
+        let entity = cx
+            .new(|_| MutationResource::<String, User, QueryError>::new(RetryPolicy::no_retries()));
         let mut observer = MutationObserver::<String, User, QueryError>::new(&entity);
 
         struct DummyView;
         let view = cx.new(|_| DummyView);
         let sub = view.update(cx, |_view, cx| observer.observe(cx));
-        assert!(sub.is_some(), "observe should return Some for live mutation entity");
+        assert!(
+            sub.is_some(),
+            "observe should return Some for live mutation entity"
+        );
     });
 }
 

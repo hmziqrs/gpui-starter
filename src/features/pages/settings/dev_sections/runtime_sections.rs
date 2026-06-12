@@ -1,10 +1,5 @@
 use gpui::{prelude::*, *};
-use gpui_component::{
-    ActiveTheme as _, WindowExt as _,
-    button::Button,
-    label::Label,
-    v_flex,
-};
+use gpui_component::{ActiveTheme as _, WindowExt as _, button::Button, label::Label, v_flex};
 
 use crate::connectivity;
 use crate::desktop_actions;
@@ -118,10 +113,7 @@ pub fn render_desktop_actions_section(
                         .outline()
                         .label("Open Support URL")
                         .on_click(|_, _, cx| {
-                            let _ = desktop_actions::open_url(
-                                "https://example.com/support",
-                                cx,
-                            );
+                            let _ = desktop_actions::open_url("https://example.com/support", cx);
                         }),
                 ),
         )
@@ -229,11 +221,8 @@ pub fn render_runtime_boundaries_section(
                 .outline()
                 .label("Read Secure Value (Demo)")
                 .on_click(|_, window, cx| {
-                    let message = match secure_storage::get_secret(
-                        "gpui-starter",
-                        "demo-token",
-                        cx,
-                    ) {
+                    let message = match secure_storage::get_secret("gpui-starter", "demo-token", cx)
+                    {
                         Ok(Some(_)) => "Secure value exists".to_string(),
                         Ok(None) => "Secure value missing".to_string(),
                         Err(err) => format!("Secure storage read failed: {err}"),

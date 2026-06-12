@@ -92,10 +92,7 @@ impl RetryPolicy {
 
         // Compute retry_delay_ms * 2^attempt, saturating at u64::MAX.
         let factor = 1u64.checked_shl(attempt).unwrap_or(u64::MAX);
-        let delay = self
-            .retry_delay_ms
-            .checked_mul(factor)
-            .unwrap_or(u64::MAX);
+        let delay = self.retry_delay_ms.checked_mul(factor).unwrap_or(u64::MAX);
 
         delay.min(self.max_retry_delay_ms)
     }

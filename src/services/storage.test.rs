@@ -45,9 +45,13 @@ fn persist_and_load_crash_report_roundtrip() {
         vec!["error1".to_string(), "error2".to_string()],
     );
 
-    backend.persist_crash_report(&report).expect("persist crash report");
+    backend
+        .persist_crash_report(&report)
+        .expect("persist crash report");
 
-    let loaded = backend.load_pending_crash_reports(10).expect("load pending");
+    let loaded = backend
+        .load_pending_crash_reports(10)
+        .expect("load pending");
     assert_eq!(loaded.len(), 1);
     assert_eq!(loaded[0].id, report.id);
     assert_eq!(loaded[0].panic_message, "test panic");

@@ -1,5 +1,5 @@
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use super::types::*;
 use gpui::{App, UpdateGlobal as _};
@@ -225,80 +225,79 @@ pub fn download_update(cx: &mut App) {
         };
 
         {
-
-        let path_str = dest_path.to_string_lossy().to_string();
-        tracing::info!(
-            target: "gpui_starter::updater",
-            version = %version,
-            path = %path_str,
-            downloaded_bytes = downloaded,
-            "download complete"
-        );
-
-        // Step 3: Verify Ed25519 signature (if present in manifest).
-        if !signature.is_empty() {
-            match verify_ed25519_signature(&dest_path, &signature) {
-                Ok(()) => {
-                    tracing::info!(
-                        target: "gpui_starter::updater",
-                        path = %path_str,
-                        "Ed25519 signature verification passed"
-                    );
-                }
-                Err(err) => {
-                    tracing::error!(
-                        target: "gpui_starter::updater",
-                        path = %path_str,
-                        error = %err,
-                        "Ed25519 signature verification failed — deleting download"
-                    );
-                    let _ = std::fs::remove_file(&dest_path);
-                    cx.update(|cx| super::set_status(UpdateStatus::Error(err), cx));
-                    return;
-                }
-            }
-        } else {
-            tracing::warn!(
+            let path_str = dest_path.to_string_lossy().to_string();
+            tracing::info!(
                 target: "gpui_starter::updater",
+                version = %version,
                 path = %path_str,
-                "no signature in manifest — skipping Ed25519 verification (backward compat)"
+                downloaded_bytes = downloaded,
+                "download complete"
             );
-        }
 
-        // Step 4: Verify codesign on macOS.
-        #[cfg(target_os = "macos")]
-        {
-            match verify_codesign(&dest_path) {
-                Ok(()) => {
-                    tracing::info!(
-                        target: "gpui_starter::updater",
-                        path = %path_str,
-                        "codesign verification passed"
-                    );
+            // Step 3: Verify Ed25519 signature (if present in manifest).
+            if !signature.is_empty() {
+                match verify_ed25519_signature(&dest_path, &signature) {
+                    Ok(()) => {
+                        tracing::info!(
+                            target: "gpui_starter::updater",
+                            path = %path_str,
+                            "Ed25519 signature verification passed"
+                        );
+                    }
+                    Err(err) => {
+                        tracing::error!(
+                            target: "gpui_starter::updater",
+                            path = %path_str,
+                            error = %err,
+                            "Ed25519 signature verification failed — deleting download"
+                        );
+                        let _ = std::fs::remove_file(&dest_path);
+                        cx.update(|cx| super::set_status(UpdateStatus::Error(err), cx));
+                        return;
+                    }
                 }
-                Err(err) => {
-                    tracing::error!(
-                        target: "gpui_starter::updater",
-                        path = %path_str,
-                        error = %err,
-                        "codesign verification failed"
-                    );
-                    cx.update(|cx| super::set_status(UpdateStatus::Error(err), cx));
-                    return;
+            } else {
+                tracing::warn!(
+                    target: "gpui_starter::updater",
+                    path = %path_str,
+                    "no signature in manifest — skipping Ed25519 verification (backward compat)"
+                );
+            }
+
+            // Step 4: Verify codesign on macOS.
+            #[cfg(target_os = "macos")]
+            {
+                match verify_codesign(&dest_path) {
+                    Ok(()) => {
+                        tracing::info!(
+                            target: "gpui_starter::updater",
+                            path = %path_str,
+                            "codesign verification passed"
+                        );
+                    }
+                    Err(err) => {
+                        tracing::error!(
+                            target: "gpui_starter::updater",
+                            path = %path_str,
+                            error = %err,
+                            "codesign verification failed"
+                        );
+                        cx.update(|cx| super::set_status(UpdateStatus::Error(err), cx));
+                        return;
+                    }
                 }
             }
-        }
 
-        // Reset download retry count on success.
-        cx.update(|cx| {
-            super::reset_download_retry(cx);
-            let status = UpdateStatus::Downloaded {
-                version: version.clone(),
-                path: path_str,
-            };
-            super::set_status(status, cx);
-            super::notify_update_downloaded(&version, cx);
-        });
+            // Reset download retry count on success.
+            cx.update(|cx| {
+                super::reset_download_retry(cx);
+                let status = UpdateStatus::Downloaded {
+                    version: version.clone(),
+                    path: path_str,
+                };
+                super::set_status(status, cx);
+                super::notify_update_downloaded(&version, cx);
+            });
         }
     })
     .detach();
@@ -310,9 +309,7 @@ pub fn download_update(cx: &mut App) {
 
 /// Handle a failed download with retry/backoff logic.
 fn handle_download_failure(error: String, cx: &mut App) {
-    let retry_count = cx
-        .global::<UpdateSnapshot>()
-        .download_retry_count;
+    let retry_count = cx.global::<UpdateSnapshot>().download_retry_count;
     if retry_count < MAX_UPDATE_RETRIES {
         let new_count = retry_count + 1;
         let delay_secs = RETRY_BASE_DELAY_SECS * 2u64.pow(new_count - 1);
@@ -375,7 +372,10 @@ fn handle_download_failure(error: String, cx: &mut App) {
 ///
 /// The signature covers the SHA-256 hash of the file contents.
 /// The signature is base64-encoded in the manifest.
-fn verify_ed25519_signature(file_path: &std::path::Path, signature_b64: &str) -> Result<(), String> {
+fn verify_ed25519_signature(
+    file_path: &std::path::Path,
+    signature_b64: &str,
+) -> Result<(), String> {
     use base64::Engine as _;
     use ed25519_dalek::{Signature, Verifier as _, VerifyingKey};
     use sha2::{Digest, Sha256};

@@ -3,10 +3,10 @@
 //! These tests use #[gpui::test] because they exercise QueryClient, which
 //! requires a GPUI AppContext. They only need the client layer, not hooks.
 
-use gpui::{BorrowAppContext as _, TestAppContext};
 use crate::client::QueryClient;
 use crate::core::*;
 use crate::tests::test_support::*;
+use gpui::{BorrowAppContext as _, TestAppContext};
 
 /// Helper: create a client with GC and populate a success resource with a
 /// snapshot at a known timestamp. Returns the key used.
@@ -57,15 +57,21 @@ fn test_gc_evicts_exactly_expired_resources(cx: &mut TestAppContext) {
                 "exactly 1 of 3 resources should be evicted"
             );
             assert!(
-                client.query::<String, QueryError>(&QueryKey::from("young")).is_some(),
+                client
+                    .query::<String, QueryError>(&QueryKey::from("young"))
+                    .is_some(),
                 "young (age 500ms) should survive"
             );
             assert!(
-                client.query::<String, QueryError>(&QueryKey::from("middle")).is_some(),
+                client
+                    .query::<String, QueryError>(&QueryKey::from("middle"))
+                    .is_some(),
                 "middle (age 1500ms) should survive"
             );
             assert!(
-                client.query::<String, QueryError>(&QueryKey::from("old")).is_none(),
+                client
+                    .query::<String, QueryError>(&QueryKey::from("old"))
+                    .is_none(),
                 "old (age 2400ms > success_threshold 2000ms) should be evicted"
             );
         });
@@ -79,10 +85,7 @@ fn test_gc_eviction_counts_match(cx: &mut TestAppContext) {
         cx.update_global::<QueryClient, _>(|client, cx| {
             // Create 5 idle resources with no snapshot => all evicted.
             for i in 0..5 {
-                let _ = client.resource::<String, QueryError>(
-                    format!("idle_{}", i),
-                    cx,
-                );
+                let _ = client.resource::<String, QueryError>(format!("idle_{}", i), cx);
             }
             assert_eq!(client.all_queries::<String, QueryError>().len(), 5);
 

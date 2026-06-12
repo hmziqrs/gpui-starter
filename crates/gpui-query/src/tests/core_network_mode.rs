@@ -24,7 +24,11 @@ fn test_equality() {
 
 #[test]
 fn test_serde_roundtrip() {
-    for mode in [NetworkMode::Online, NetworkMode::Always, NetworkMode::OfflineFirst] {
+    for mode in [
+        NetworkMode::Online,
+        NetworkMode::Always,
+        NetworkMode::OfflineFirst,
+    ] {
         let json = serde_json::to_string(&mode).unwrap();
         let back: NetworkMode = serde_json::from_str(&json).unwrap();
         assert_eq!(mode, back);

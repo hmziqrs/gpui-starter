@@ -2,12 +2,13 @@
 
 use gpui::{prelude::*, *};
 use gpui_component::{
-    button::{Button, ButtonVariants as _}, v_flex,
+    button::{Button, ButtonVariants as _},
+    v_flex,
 };
 
 use super::super::render_error::TriggerRenderError;
-use super::helpers::{test_card, action_row, result_inline};
 use super::ErrorPlaygroundPage;
+use super::helpers::{action_row, result_inline, test_card};
 
 impl ErrorPlaygroundPage {
     pub(super) fn render_boundary_trigger(
@@ -67,9 +68,7 @@ impl ErrorPlaygroundPage {
                                 });
                             })),
                     )
-                    .when_some(result_text, |el, text| {
-                        el.child(result_inline(&text, cx))
-                    }),
+                    .when_some(result_text, |el, text| el.child(result_inline(&text, cx))),
             ),
         )
     }
@@ -134,9 +133,7 @@ impl ErrorPlaygroundPage {
                                 .detach();
                             })),
                     )
-                    .when_some(result_text, |el, text| {
-                        el.child(result_inline(&text, cx))
-                    }),
+                    .when_some(result_text, |el, text| el.child(result_inline(&text, cx))),
             ),
         )
     }
@@ -172,9 +169,7 @@ impl ErrorPlaygroundPage {
                                 cx.notify();
                             })),
                     )
-                    .when_some(result_text, |el, text| {
-                        el.child(result_inline(&text, cx))
-                    }),
+                    .when_some(result_text, |el, text| el.child(result_inline(&text, cx))),
             ),
         )
     }
@@ -239,9 +234,7 @@ impl ErrorPlaygroundPage {
                                 .detach();
                             })),
                     )
-                    .when_some(result_text, |el, text| {
-                        el.child(result_inline(&text, cx))
-                    }),
+                    .when_some(result_text, |el, text| el.child(result_inline(&text, cx))),
             ),
         )
     }

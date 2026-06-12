@@ -3,11 +3,11 @@ use std::collections::HashMap;
 
 use gpui::{App, AppContext, Entity};
 
+use crate::client::devtools::QueryDiagnostic;
 use crate::core::{
     CachePolicy, QueryBeginResult, QueryFetchMode, QueryKey, QueryKeyFilter, QueryResource,
     QuerySignal, RequestId, RequestPolicy, RequestSequencer,
 };
-use crate::client::devtools::QueryDiagnostic;
 
 /// Type-erased trait for bulk operations that don't need to know `T` or `E`.
 ///

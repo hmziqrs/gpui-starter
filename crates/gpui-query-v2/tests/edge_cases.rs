@@ -16,14 +16,18 @@
 //! confidence from test count inflation.
 
 use gpui_query_v2::core::{
-    CachePolicy, InfiniteQueryResource, QueryBeginResult, QueryError, QueryKey,
-    QueryResource, RequestSequencer,
+    CachePolicy, InfiniteQueryResource, QueryBeginResult, QueryError, QueryKey, QueryResource,
+    RequestSequencer,
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
 fn make_resource(cache: CachePolicy) -> QueryResource<String, QueryError> {
-    QueryResource::new(QueryKey::from("test"), cache, gpui_query_v2::core::RequestPolicy::LatestWins)
+    QueryResource::new(
+        QueryKey::from("test"),
+        cache,
+        gpui_query_v2::core::RequestPolicy::LatestWins,
+    )
 }
 
 fn begin_request_with_seq(
@@ -135,9 +139,18 @@ fn three_concurrent_requests_latest_wins_only_last_completes() {
     let r2 = begin_request_with_seq(&mut resource, &mut seq, 2_000);
     let r3 = begin_request_with_seq(&mut resource, &mut seq, 3_000);
 
-    if let QueryBeginResult::Started { request_id: id1, .. } = r1 {
-        if let QueryBeginResult::Started { request_id: id2, .. } = r2 {
-            if let QueryBeginResult::Started { request_id: id3, .. } = r3 {
+    if let QueryBeginResult::Started {
+        request_id: id1, ..
+    } = r1
+    {
+        if let QueryBeginResult::Started {
+            request_id: id2, ..
+        } = r2
+        {
+            if let QueryBeginResult::Started {
+                request_id: id3, ..
+            } = r3
+            {
                 // Only id3 is current; id1 and id2 are stale.
                 assert!(!complete_success(&mut resource, id1, "old1", 4_000));
                 assert!(!complete_success(&mut resource, id2, "old2", 4_000));
@@ -184,12 +197,11 @@ fn resource_serde_roundtrip_preserves_state() {
 
 #[test]
 fn infinite_query_serde_roundtrip_preserves_pages_and_config() {
-    let mut resource: InfiniteQueryResource<Vec<String>, QueryError> =
-        InfiniteQueryResource::new(
-            QueryKey::from("items"),
-            CachePolicy::Ttl { ttl_ms: 60_000 },
-            gpui_query_v2::core::RequestPolicy::LatestWins,
-        );
+    let mut resource: InfiniteQueryResource<Vec<String>, QueryError> = InfiniteQueryResource::new(
+        QueryKey::from("items"),
+        CachePolicy::Ttl { ttl_ms: 60_000 },
+        gpui_query_v2::core::RequestPolicy::LatestWins,
+    );
     let mut seq = RequestSequencer::new();
     resource.set_max_pages(Some(10));
 
@@ -199,8 +211,7 @@ fn infinite_query_serde_roundtrip_preserves_pages_and_config() {
     resource.complete_page_success(id2, vec!["b".to_string()], false, true, 400);
 
     let json = serde_json::to_string(&resource).unwrap();
-    let back: InfiniteQueryResource<Vec<String>, QueryError> =
-        serde_json::from_str(&json).unwrap();
+    let back: InfiniteQueryResource<Vec<String>, QueryError> = serde_json::from_str(&json).unwrap();
 
     assert_eq!(back.page_count(), 2);
     assert_eq!(back.max_pages(), Some(10));

@@ -50,7 +50,7 @@ use gpui::{AppContext as _, Context, Entity, Subscription};
 
 use crate::core::{MappedQueryResource, QueryResource, SelectTransform};
 
-use super::{use_query, QueryOptions};
+use super::{QueryOptions, use_query};
 
 /// Subscribe to a query and project its data through a [`SelectTransform`].
 ///
@@ -109,8 +109,7 @@ where
     let (query_entity, query_subscription) = use_query(options, fetcher, cx);
 
     // Step 2: Seed the mapped resource with whatever data the query has now.
-    let initial_data: Option<T> =
-        query_entity.read_with(cx, |r, _| r.data().cloned());
+    let initial_data: Option<T> = query_entity.read_with(cx, |r, _| r.data().cloned());
     let mapped = MappedQueryResource::new(initial_data, transform);
     let mapped_entity = cx.new(|_| mapped);
 

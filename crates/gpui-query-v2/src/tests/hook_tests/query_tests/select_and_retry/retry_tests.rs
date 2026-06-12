@@ -141,7 +141,10 @@ fn test_use_query_refetch_after_failure(cx: &mut TestAppContext) {
     cx.run_until_parked();
 
     cx.update(|cx| {
-        assert_eq!(harness.read(cx).entity.read(cx).status(), QueryStatus::Failure);
+        assert_eq!(
+            harness.read(cx).entity.read(cx).status(),
+            QueryStatus::Failure
+        );
     });
 
     // Allow the next fetch to succeed.
@@ -201,11 +204,7 @@ fn test_use_query_no_cache_allows_refetch(cx: &mut TestAppContext) {
 
     // With NoCache, fetch_query should always succeed (no cache short-circuit).
     harness.update(cx, |this, cx| {
-        fetch_query(
-            &this.entity,
-            || async { Ok::<_, QueryError>("second") },
-            cx,
-        );
+        fetch_query(&this.entity, || async { Ok::<_, QueryError>("second") }, cx);
     });
 
     cx.run_until_parked();

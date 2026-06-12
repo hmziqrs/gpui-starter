@@ -167,12 +167,12 @@ impl CalendarState {
             Date::Single(Some(date)) => {
                 self.current_month = date.month() as u8;
                 self.current_year = date.year();
-            },
+            }
             Date::Range(Some(start), _) => {
                 self.current_month = start.month() as u8;
                 self.current_year = start.year();
-            },
-            _ => {},
+            }
+            _ => {}
         }
 
         cx.notify()

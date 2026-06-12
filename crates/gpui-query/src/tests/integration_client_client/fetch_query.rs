@@ -1,6 +1,6 @@
 use gpui::TestAppContext;
 
-use crate::client::{BucketDefaults, QueryBucket, QueryClient, QueryBucketTrait};
+use crate::client::{BucketDefaults, QueryBucket, QueryBucketTrait, QueryClient};
 use crate::core::*;
 use crate::integration_client_fixtures::*;
 

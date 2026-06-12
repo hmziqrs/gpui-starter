@@ -39,7 +39,10 @@ fn invariant_after_begin_loading_with_data() {
     let rid2 = begin_request_id(&mut r, &mut s, 300, QueryFetchMode::Normal);
     assert_eq!(r.status(), QueryStatus::LoadingWithData);
     // Data should still be present during refetch (optimistic).
-    assert!(r.data().is_some(), "LoadingWithData => data should still be present");
+    assert!(
+        r.data().is_some(),
+        "LoadingWithData => data should still be present"
+    );
     assert_eq!(r.data(), Some(&"data1"), "data preserved during refetch");
     assert!(r.error().is_none(), "begin_request clears error");
     assert_eq!(r.active_request_id(), Some(rid2));
@@ -61,7 +64,10 @@ fn invariant_after_complete_success() {
     assert_eq!(r.status(), QueryStatus::Success);
     assert_eq!(r.data(), Some(&"result"), "Success => data must be Some");
     assert!(r.error().is_none(), "Success => error must be None");
-    assert!(r.active_request_id().is_none(), "completed => no active request");
+    assert!(
+        r.active_request_id().is_none(),
+        "completed => no active request"
+    );
     assert!(r.signal().is_some()); // signal remains but request is done
 }
 
@@ -73,9 +79,15 @@ fn invariant_after_complete_failure() {
     r.complete_current_failure(rid, QueryError::response("fail"), 200);
 
     assert_eq!(r.status(), QueryStatus::Failure);
-    assert!(r.data().is_none(), "Failure from LoadingEmpty => data must be None");
+    assert!(
+        r.data().is_none(),
+        "Failure from LoadingEmpty => data must be None"
+    );
     assert!(r.error().is_some(), "Failure => error must be Some");
-    assert!(r.active_request_id().is_none(), "completed => no active request");
+    assert!(
+        r.active_request_id().is_none(),
+        "completed => no active request"
+    );
 }
 
 #[test]
@@ -99,8 +111,15 @@ fn invariant_after_complete_failure_from_loading_with_data() {
     assert!(r.active_request_id().is_none());
     // Key invariant: apply_failure does NOT clear data or set previous_data.
     // The data from before the refetch is retained in-place.
-    assert_eq!(r.data(), Some(&"original"), "apply_failure retains data in-place");
-    assert!(r.previous_data().is_none(), "apply_failure does NOT set previous_data");
+    assert_eq!(
+        r.data(),
+        Some(&"original"),
+        "apply_failure retains data in-place"
+    );
+    assert!(
+        r.previous_data().is_none(),
+        "apply_failure does NOT set previous_data"
+    );
 }
 
 #[test]
@@ -110,11 +129,20 @@ fn invariant_after_cancel_from_loading_empty() {
     r.begin_request(&mut s, 100, QueryFetchMode::Normal);
 
     let cancelled = r.cancel(QueryError::cancelled("abort"));
-    assert!(cancelled, "cancel should return true when request is active");
+    assert!(
+        cancelled,
+        "cancel should return true when request is active"
+    );
     assert_eq!(r.status(), QueryStatus::Cancelled);
-    assert!(r.data().is_none(), "Cancelled from LoadingEmpty => data must be None");
+    assert!(
+        r.data().is_none(),
+        "Cancelled from LoadingEmpty => data must be None"
+    );
     assert!(r.error().is_some(), "Cancelled => error must be Some");
-    assert!(r.active_request_id().is_none(), "cancelled => no active request");
+    assert!(
+        r.active_request_id().is_none(),
+        "cancelled => no active request"
+    );
 }
 
 #[test]
@@ -134,9 +162,16 @@ fn invariant_after_cancel_from_loading_with_data() {
     let cancelled = r.cancel(QueryError::cancelled("abort"));
     assert!(cancelled);
     assert_eq!(r.status(), QueryStatus::Cancelled);
-    assert!(r.data().is_none(), "cancel clears data (saved to previous_data)");
+    assert!(
+        r.data().is_none(),
+        "cancel clears data (saved to previous_data)"
+    );
     assert!(r.error().is_some());
-    assert_eq!(r.previous_data(), Some(&"data"), "cancel saves data to previous_data for rollback");
+    assert_eq!(
+        r.previous_data(),
+        Some(&"data"),
+        "cancel saves data to previous_data for rollback"
+    );
 }
 
 #[test]
@@ -183,7 +218,11 @@ fn invariant_complete_success_optional_none_yields_idle() {
     let guard = r.accept_current_request(rid).unwrap();
     r.complete_success_optional(guard, None, 200);
 
-    assert_eq!(r.status(), QueryStatus::Idle, "None data => Idle (not Success)");
+    assert_eq!(
+        r.status(),
+        QueryStatus::Idle,
+        "None data => Idle (not Success)"
+    );
     assert!(r.data().is_none(), "Idle => data must be None");
     assert!(r.error().is_none());
 }
@@ -209,7 +248,11 @@ fn invariant_complete_failure_with_data() {
     r.complete_failure_with_data(guard, "fallback", QueryError::response("partial"), 200);
 
     assert_eq!(r.status(), QueryStatus::Failure);
-    assert_eq!(r.data(), Some(&"fallback"), "Failure with data => data must be Some");
+    assert_eq!(
+        r.data(),
+        Some(&"fallback"),
+        "Failure with data => data must be Some"
+    );
     assert!(r.error().is_some(), "Failure => error must be Some");
 }
 
@@ -221,11 +264,17 @@ fn invariant_stale_accept_rejected() {
     // Start a second request (replaces the first under LatestWins).
     let rid2 = begin_request_id(&mut r, &mut s, 200, QueryFetchMode::Normal);
     // rid1 is now stale. accept_current_request should return None.
-    assert!(r.accept_current_request(rid1).is_none(), "stale request should be rejected");
+    assert!(
+        r.accept_current_request(rid1).is_none(),
+        "stale request should be rejected"
+    );
     assert_eq!(r.ignored_results(), 1);
 
     // rid2 is current. accept_current_request should succeed.
-    assert!(r.accept_current_request(rid2).is_some(), "current request should be accepted");
+    assert!(
+        r.accept_current_request(rid2).is_some(),
+        "current request should be accepted"
+    );
 }
 
 // --- Table-driven: all transitions from each starting state ---------------
@@ -256,12 +305,23 @@ fn table_driven_all_transitions_from_idle() {
     // Transition: LoadingWithData -> Failure (complete_failure)
     r.complete_current_failure(rid2, QueryError::response("fail"), 400);
     assert_eq!(r.status(), QueryStatus::Failure);
-    assert_eq!(r.data(), Some(&"data"), "apply_failure retains data in-place");
-    assert!(r.previous_data().is_none(), "apply_failure does NOT set previous_data");
+    assert_eq!(
+        r.data(),
+        Some(&"data"),
+        "apply_failure retains data in-place"
+    );
+    assert!(
+        r.previous_data().is_none(),
+        "apply_failure does NOT set previous_data"
+    );
 
     // Transition: Failure -> LoadingWithData (begin_request when data is present)
     let _rid3 = begin_request_id(&mut r, &mut s, 500, QueryFetchMode::Normal);
-    assert_eq!(r.status(), QueryStatus::LoadingWithData, "data present => LoadingWithData even after Failure");
+    assert_eq!(
+        r.status(),
+        QueryStatus::LoadingWithData,
+        "data present => LoadingWithData even after Failure"
+    );
     assert!(r.error().is_none(), "begin_request clears error");
 
     // Transition: LoadingEmpty -> Cancelled (cancel)
@@ -301,7 +361,10 @@ fn table_driven_cancel_from_every_loading_state() {
         assert_eq!(r.status(), QueryStatus::LoadingWithData);
         r.cancel(QueryError::cancelled("abort"));
         assert_eq!(r.status(), QueryStatus::Cancelled);
-        assert!(r.data().is_none(), "cancel clears data (saves to previous_data)");
+        assert!(
+            r.data().is_none(),
+            "cancel clears data (saves to previous_data)"
+        );
         assert_eq!(r.previous_data(), Some(&"data"));
     }
 }
@@ -365,7 +428,10 @@ fn table_driven_rollback_from_every_state() {
     // From Idle with no previous_data => rollback returns false.
     {
         let mut r = fresh_resource();
-        assert!(!r.rollback_to_previous(), "no previous_data => rollback fails");
+        assert!(
+            !r.rollback_to_previous(),
+            "no previous_data => rollback fails"
+        );
         assert_eq!(r.status(), QueryStatus::Idle);
     }
 }

@@ -1,7 +1,7 @@
 use gpui::{App, InteractiveElement as _, ParentElement as _, Styled as _, div};
 use gpui_component::ActiveTheme as _;
 
-use crate::{connectivity, notifications, routes::AppRoute, session, services::updater, tasks};
+use crate::{connectivity, notifications, routes::AppRoute, services::updater, session, tasks};
 
 pub fn render(route: &AppRoute, cx: &App) -> impl gpui::IntoElement {
     let render_started = std::time::Instant::now();
@@ -24,8 +24,8 @@ pub fn render(route: &AppRoute, cx: &App) -> impl gpui::IntoElement {
     let session_state = cx
         .try_global::<session::SessionSnapshot>()
         .map(|s| &s.state);
-    let latest_error = crate::error_surface::latest_message(cx)
-        .unwrap_or_else(|| "None".to_string());
+    let latest_error =
+        crate::error_surface::latest_message(cx).unwrap_or_else(|| "None".to_string());
 
     let updater_status = cx
         .try_global::<updater::UpdateSnapshot>()
@@ -149,11 +149,7 @@ fn render_frame_time(cx: &App) -> Option<gpui::Div> {
         gpui::rgb(0xef4444) // red
     };
 
-    Some(
-        div()
-            .text_color(color)
-            .child(label),
-    )
+    Some(div().text_color(color).child(label))
 }
 
 #[cfg(not(debug_assertions))]

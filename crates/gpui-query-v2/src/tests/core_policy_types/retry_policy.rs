@@ -63,13 +63,13 @@ fn retry_policy_delay_for_attempt_exponential() {
         .with_exponential_backoff()
         .with_max_delay(10_000);
 
-    assert_eq!(policy.delay_for_attempt(0), 100);     // 100 * 2^0 = 100
-    assert_eq!(policy.delay_for_attempt(1), 200);     // 100 * 2^1 = 200
-    assert_eq!(policy.delay_for_attempt(2), 400);     // 100 * 2^2 = 400
-    assert_eq!(policy.delay_for_attempt(3), 800);     // 100 * 2^3 = 800
-    assert_eq!(policy.delay_for_attempt(4), 1600);    // 100 * 2^4 = 1600
-    assert_eq!(policy.delay_for_attempt(5), 3200);    // 100 * 2^5 = 3200
-    assert_eq!(policy.delay_for_attempt(6), 6400);    // 100 * 2^6 = 6400
+    assert_eq!(policy.delay_for_attempt(0), 100); // 100 * 2^0 = 100
+    assert_eq!(policy.delay_for_attempt(1), 200); // 100 * 2^1 = 200
+    assert_eq!(policy.delay_for_attempt(2), 400); // 100 * 2^2 = 400
+    assert_eq!(policy.delay_for_attempt(3), 800); // 100 * 2^3 = 800
+    assert_eq!(policy.delay_for_attempt(4), 1600); // 100 * 2^4 = 1600
+    assert_eq!(policy.delay_for_attempt(5), 3200); // 100 * 2^5 = 3200
+    assert_eq!(policy.delay_for_attempt(6), 6400); // 100 * 2^6 = 6400
     // 100 * 2^7 = 12800, capped by max_delay=10000
     assert_eq!(policy.delay_for_attempt(7), 10_000);
 }
@@ -119,7 +119,10 @@ fn retry_policy_should_retry_zero_max() {
 
 #[test]
 fn retry_policy_serde_roundtrip() {
-    let policy = RetryPolicy::new(5).with_delay(200).with_exponential_backoff().with_max_delay(5000);
+    let policy = RetryPolicy::new(5)
+        .with_delay(200)
+        .with_exponential_backoff()
+        .with_max_delay(5000);
     let json = serde_json::to_string(&policy).unwrap();
     let back: RetryPolicy = serde_json::from_str(&json).unwrap();
     assert_eq!(back, policy);
@@ -161,7 +164,11 @@ fn refetch_trigger_equality_and_copy() {
 
 #[test]
 fn refetch_trigger_serde_roundtrip() {
-    for trigger in [RefetchTrigger::Always, RefetchTrigger::IfStale, RefetchTrigger::Never] {
+    for trigger in [
+        RefetchTrigger::Always,
+        RefetchTrigger::IfStale,
+        RefetchTrigger::Never,
+    ] {
         let json = serde_json::to_string(&trigger).unwrap();
         let back: RefetchTrigger = serde_json::from_str(&json).unwrap();
         assert_eq!(back, trigger);

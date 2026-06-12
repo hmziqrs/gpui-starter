@@ -40,8 +40,7 @@ pub enum FetchDirection {
 ///
 /// Inspired by TanStack Query's `useInfiniteQuery`. Each "page" is a `T` —
 /// typically a batch of items fetched from an API.
-#[derive(Clone, Debug)]
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(bound(serialize = "T: serde::Serialize, E: serde::Serialize"))]
 #[serde(bound(deserialize = "T: serde::de::DeserializeOwned, E: serde::de::DeserializeOwned"))]
 pub struct InfiniteQueryResource<T, E = QueryError> {
@@ -115,7 +114,12 @@ impl<T, E> InfiniteQueryResource<T, E> {
         cache_policy: CachePolicy,
         request_policy: RequestPolicy,
     ) -> Self {
-        Self::with_direction(key, cache_policy, request_policy, FetchDirection::ForwardOnly)
+        Self::with_direction(
+            key,
+            cache_policy,
+            request_policy,
+            FetchDirection::ForwardOnly,
+        )
     }
 
     /// Create a new infinite query resource configured for bidirectional paging.
@@ -128,7 +132,12 @@ impl<T, E> InfiniteQueryResource<T, E> {
         cache_policy: CachePolicy,
         request_policy: RequestPolicy,
     ) -> Self {
-        Self::with_direction(key, cache_policy, request_policy, FetchDirection::Bidirectional)
+        Self::with_direction(
+            key,
+            cache_policy,
+            request_policy,
+            FetchDirection::Bidirectional,
+        )
     }
 
     /// Create a new infinite query resource with an explicit [`FetchDirection`].

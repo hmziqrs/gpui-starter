@@ -4,8 +4,8 @@ use gpui::{prelude::*, *};
 use gpui_component::{button::Button, v_flex};
 
 use crate::{
-    app_state, capabilities, crash_report, desktop_actions, error_surface, notifications, shortcuts, storage, telemetry, undo_stack, accessibility,
-    lifecycle::LifecycleState,
+    accessibility, app_state, capabilities, crash_report, desktop_actions, error_surface,
+    lifecycle::LifecycleState, notifications, shortcuts, storage, telemetry, undo_stack,
 };
 
 pub struct DiagnosticsPage {

@@ -8,8 +8,8 @@ use gpui::{BorrowAppContext as _, Context, Entity};
 use crate::client::QueryClient;
 use crate::core::InfiniteQueryResource;
 
-use crate::hook::current_time_ms;
 use super::fetch_runners::{run_fetch_next_page_with_id, run_fetch_previous_page_with_id};
+use crate::hook::current_time_ms;
 
 // ── Public fetch helpers ─────────────────────────────────────────────────
 

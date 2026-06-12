@@ -65,9 +65,7 @@ where
 }
 
 /// Hook for executing mutations (create, update, delete operations).
-pub fn use_mutation<V, T, E, C>(
-    cx: &mut Context<C>,
-) -> Entity<MutationResource<V, T, E>>
+pub fn use_mutation<V, T, E, C>(cx: &mut Context<C>) -> Entity<MutationResource<V, T, E>>
 where
     V: Clone + Send + Sync + 'static,
     T: Clone + Send + Sync + 'static,
@@ -161,15 +159,8 @@ pub fn mutate_with_callbacks<V, T, E, C, F, Fut>(
     let retry_policy = entity.read_with(cx, |r, _| r.retry_policy().clone());
     let weak = entity.downgrade();
     cx.spawn(async move |_this, cx| {
-        run_mutation_loop_with_callbacks(
-            &weak,
-            variables,
-            &mutator,
-            &retry_policy,
-            callbacks,
-            cx,
-        )
-        .await;
+        run_mutation_loop_with_callbacks(&weak, variables, &mutator, &retry_policy, callbacks, cx)
+            .await;
         Ok::<_, ()>(())
     })
     .detach();

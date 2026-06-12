@@ -21,11 +21,11 @@ pub(super) fn install_otlp_tracer(
     endpoint: &str,
 ) -> Result<opentelemetry_sdk::trace::TracerProvider, TelemetryError> {
     use opentelemetry::KeyValue;
+    use opentelemetry::global;
     use opentelemetry_otlp::WithExportConfig;
     use opentelemetry_sdk::Resource;
     use opentelemetry_sdk::propagation::TraceContextPropagator;
     use opentelemetry_sdk::runtime::Tokio;
-    use opentelemetry::global;
 
     use super::SERVICE_NAME;
 
@@ -190,9 +190,7 @@ impl RemoteSink {
     /// success. When the feature is disabled, returns `(true, None)` (the
     /// no-op path always succeeds).
     #[cfg(feature = "otlp")]
-    fn install(
-        endpoint: &str,
-    ) -> (bool, Option<opentelemetry_sdk::trace::TracerProvider>) {
+    fn install(endpoint: &str) -> (bool, Option<opentelemetry_sdk::trace::TracerProvider>) {
         match install_otlp_tracer(endpoint) {
             Ok(provider) => (true, Some(provider)),
             Err(err) => {
@@ -251,9 +249,9 @@ impl RemoteSink {
                 .map(|e| e.to_string())
                 .collect::<Vec<_>>()
                 .join(", ");
-            Err(TelemetryError::Otlp(Box::new(
-                std::io::Error::other(format!("force_flush errors: {msg}")),
-            )))
+            Err(TelemetryError::Otlp(Box::new(std::io::Error::other(
+                format!("force_flush errors: {msg}"),
+            ))))
         }
     }
 

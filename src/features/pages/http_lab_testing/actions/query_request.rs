@@ -7,8 +7,8 @@ use gpui_query::{QueryBeginResult, QueryError, QueryFetchMode};
 
 use crate::services::tokio_runtime::TokioRuntimeGlobal;
 
-use super::super::{fake_response, query_now_ms, RawStatus, LOG, TEST_URL};
 use super::super::network::raw_reqwest_get;
+use super::super::{LOG, RawStatus, TEST_URL, fake_response, query_now_ms};
 
 impl super::super::HttpLabTestingPage {
     pub(crate) fn send_query_get(&mut self, cx: &mut Context<Self>) {
@@ -240,10 +240,22 @@ impl super::super::HttpLabTestingPage {
             QueryFetchMode::Normal,
         );
         let cache_hit = matches!(second, QueryBeginResult::CacheHit);
-        let v_accepted = Self::verdict("first request started", accepted, &format!("accepted={accepted}"));
-        let v_cache_hit = Self::verdict("cache hit on retry", cache_hit, &format!("cache_hit={cache_hit}"));
+        let v_accepted = Self::verdict(
+            "first request started",
+            accepted,
+            &format!("accepted={accepted}"),
+        );
+        let v_cache_hit = Self::verdict(
+            "cache hit on retry",
+            cache_hit,
+            &format!("cache_hit={cache_hit}"),
+        );
         let all_passed = accepted && cache_hit;
-        let verdict_line = if all_passed { "TTL cache probe PASSED" } else { "TTL cache probe FAILED" };
+        let verdict_line = if all_passed {
+            "TTL cache probe PASSED"
+        } else {
+            "TTL cache probe FAILED"
+        };
         self.query_message = format!("{v_accepted}\n{v_cache_hit}\n{verdict_line}");
 
         tracing::info!(
@@ -285,9 +297,17 @@ impl super::super::HttpLabTestingPage {
             .query_ignore_resource
             .cancel(QueryError::cancelled("ignore probe cleanup"));
         let v_ignored = Self::verdict("duplicate ignored", ignored, &format!("ignored={ignored}"));
-        let v_cancelled = Self::verdict("cleanup cancelled", cancelled, &format!("cancelled={cancelled}"));
+        let v_cancelled = Self::verdict(
+            "cleanup cancelled",
+            cancelled,
+            &format!("cancelled={cancelled}"),
+        );
         let all_passed = ignored && cancelled;
-        let verdict_line = if all_passed { "Ignore-while-loading probe PASSED" } else { "Ignore-while-loading probe FAILED" };
+        let verdict_line = if all_passed {
+            "Ignore-while-loading probe PASSED"
+        } else {
+            "Ignore-while-loading probe FAILED"
+        };
         self.query_message = format!("{v_ignored}\n{v_cancelled}\n{verdict_line}");
 
         tracing::info!(
@@ -345,11 +365,27 @@ impl super::super::HttpLabTestingPage {
             now_ms + 3,
         );
         let replaced = replaced_request_id.is_some();
-        let v_replaced = Self::verdict("second replaced first", replaced, &format!("replaced={:?}", replaced_request_id.map(|id| id.label())));
-        let v_stale = Self::verdict("stale rejected", !stale_accepted, &format!("stale_accepted={stale_accepted}"));
-        let v_latest = Self::verdict("latest accepted", latest_accepted, &format!("latest_accepted={latest_accepted}"));
+        let v_replaced = Self::verdict(
+            "second replaced first",
+            replaced,
+            &format!("replaced={:?}", replaced_request_id.map(|id| id.label())),
+        );
+        let v_stale = Self::verdict(
+            "stale rejected",
+            !stale_accepted,
+            &format!("stale_accepted={stale_accepted}"),
+        );
+        let v_latest = Self::verdict(
+            "latest accepted",
+            latest_accepted,
+            &format!("latest_accepted={latest_accepted}"),
+        );
         let all_passed = replaced && !stale_accepted && latest_accepted;
-        let verdict_line = if all_passed { "Latest-wins probe PASSED" } else { "Latest-wins probe FAILED" };
+        let verdict_line = if all_passed {
+            "Latest-wins probe PASSED"
+        } else {
+            "Latest-wins probe FAILED"
+        };
         self.query_message = format!("{v_replaced}\n{v_stale}\n{v_latest}\n{verdict_line}");
 
         tracing::info!(

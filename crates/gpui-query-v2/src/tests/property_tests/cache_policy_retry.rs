@@ -33,14 +33,14 @@ fn arb_retry_policy() -> impl Strategy<Value = RetryPolicy> {
                 max_delay_lo..=3_600_000u64,
             )
         })
-        .prop_map(|(max_retries, retry_delay_ms, exponential_backoff, max_retry_delay_ms)| {
-            RetryPolicy {
+        .prop_map(
+            |(max_retries, retry_delay_ms, exponential_backoff, max_retry_delay_ms)| RetryPolicy {
                 max_retries,
                 retry_delay_ms,
                 exponential_backoff,
                 max_retry_delay_ms,
-            }
-        })
+            },
+        )
 }
 
 /// RetryPolicy strategy that always has exponential backoff enabled.
@@ -53,12 +53,14 @@ fn arb_exponential_retry_policy() -> impl Strategy<Value = RetryPolicy> {
                 retry_delay_ms..=3_600_000u64,
             )
         })
-        .prop_map(|(max_retries, retry_delay_ms, max_retry_delay_ms)| RetryPolicy {
-            max_retries,
-            retry_delay_ms,
-            exponential_backoff: true,
-            max_retry_delay_ms,
-        })
+        .prop_map(
+            |(max_retries, retry_delay_ms, max_retry_delay_ms)| RetryPolicy {
+                max_retries,
+                retry_delay_ms,
+                exponential_backoff: true,
+                max_retry_delay_ms,
+            },
+        )
 }
 
 /// RetryPolicy strategy that always has linear (non-exponential) backoff.
@@ -71,12 +73,14 @@ fn arb_linear_retry_policy() -> impl Strategy<Value = RetryPolicy> {
                 retry_delay_ms..=3_600_000u64,
             )
         })
-        .prop_map(|(max_retries, retry_delay_ms, max_retry_delay_ms)| RetryPolicy {
-            max_retries,
-            retry_delay_ms,
-            exponential_backoff: false,
-            max_retry_delay_ms,
-        })
+        .prop_map(
+            |(max_retries, retry_delay_ms, max_retry_delay_ms)| RetryPolicy {
+                max_retries,
+                retry_delay_ms,
+                exponential_backoff: false,
+                max_retry_delay_ms,
+            },
+        )
 }
 
 // ── CachePolicy::NoCache invariants ─────────────────────────────────────

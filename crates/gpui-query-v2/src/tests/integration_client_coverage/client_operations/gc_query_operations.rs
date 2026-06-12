@@ -152,14 +152,9 @@ fn test_remove_queries_affects_infinite_queries(cx: &mut TestAppContext) {
     setup_query_client(cx);
     cx.update(|cx| {
         cx.update_global::<QueryClient, _>(|client, cx| {
-            let _iq = client.infinite_resource::<String, QueryError>(
-                QueryKey::from(["users", "inf"]),
-                cx,
-            );
-            let _q = client.resource::<String, QueryError>(
-                QueryKey::from(["users", "reg"]),
-                cx,
-            );
+            let _iq = client
+                .infinite_resource::<String, QueryError>(QueryKey::from(["users", "inf"]), cx);
+            let _q = client.resource::<String, QueryError>(QueryKey::from(["users", "reg"]), cx);
 
             assert_eq!(client.all_infinite_queries::<String, QueryError>().len(), 1);
             assert_eq!(client.all_queries::<String, QueryError>().len(), 1);
@@ -168,7 +163,9 @@ fn test_remove_queries_affects_infinite_queries(cx: &mut TestAppContext) {
             client.remove_queries(&QueryKeyFilter::Prefix(&prefix));
 
             assert!(
-                client.all_infinite_queries::<String, QueryError>().is_empty(),
+                client
+                    .all_infinite_queries::<String, QueryError>()
+                    .is_empty(),
                 "infinite query should be removed"
             );
             assert!(
@@ -192,7 +189,10 @@ fn test_invalidate_queries_affects_infinite_queries(cx: &mut TestAppContext) {
             client.invalidate_queries(&QueryKeyFilter::All, cx);
 
             let retrieved = client.infinite_query::<String, QueryError>(&QueryKey::from("inf_inv"));
-            assert!(retrieved.is_some(), "infinite query should still exist after invalidate");
+            assert!(
+                retrieved.is_some(),
+                "infinite query should still exist after invalidate"
+            );
         });
     });
 }
@@ -207,8 +207,12 @@ fn test_reset_queries_affects_infinite_queries(cx: &mut TestAppContext) {
             let _iq = client.infinite_resource::<String, QueryError>("inf_reset", cx);
             client.reset_queries(&QueryKeyFilter::All, cx);
 
-            let retrieved = client.infinite_query::<String, QueryError>(&QueryKey::from("inf_reset"));
-            assert!(retrieved.is_some(), "infinite query should exist after reset");
+            let retrieved =
+                client.infinite_query::<String, QueryError>(&QueryKey::from("inf_reset"));
+            assert!(
+                retrieved.is_some(),
+                "infinite query should exist after reset"
+            );
             // InfiniteQueryResource in idle state
             assert_eq!(retrieved.unwrap().read(cx).status(), QueryStatus::Idle);
         });
@@ -318,8 +322,7 @@ fn test_invalidate_then_refetch_lifecycle(cx: &mut TestAppContext) {
             // After invalidation, prepare_fetch_query (Force mode) must always
             // start a new request. This is a guaranteed contract: Force mode
             // ignores cache freshness, so the result is always Some.
-            let p2 = client
-                .prepare_fetch_query::<String, QueryError>(key.clone(), cx);
+            let p2 = client.prepare_fetch_query::<String, QueryError>(key.clone(), cx);
             assert!(
                 p2.is_some(),
                 "prepare_fetch_query must return Some after invalidation — \
@@ -384,7 +387,9 @@ fn test_multi_segment_key_in_client_operations(cx: &mut TestAppContext) {
         cx.update_global::<QueryClient, _>(|client, cx| {
             let key = QueryKey::from(["org", "team", "user", "42"]);
             let entity = client.resource::<String, QueryError>(key.clone(), cx);
-            entity.update(cx, |r, _| r.apply_success("deep_key_data".to_string(), 1_000));
+            entity.update(cx, |r, _| {
+                r.apply_success("deep_key_data".to_string(), 1_000)
+            });
 
             // Query by the full key
             let found = client.query::<String, QueryError>(&key);
@@ -393,14 +398,20 @@ fn test_multi_segment_key_in_client_operations(cx: &mut TestAppContext) {
             // Invalidate by prefix "org/team"
             let prefix = QueryKey::from(["org", "team"]);
             client.invalidate_queries(&QueryKeyFilter::Prefix(&prefix), cx);
-            assert!(!entity.read(cx).is_cache_fresh(1_500), "should be stale after prefix invalidate");
+            assert!(
+                !entity.read(cx).is_cache_fresh(1_500),
+                "should be stale after prefix invalidate"
+            );
 
             // Data should survive invalidation
             assert_eq!(entity.read(cx).data().unwrap(), "deep_key_data");
 
             // Reset by prefix
             client.reset_queries(&QueryKeyFilter::Prefix(&prefix), cx);
-            assert!(entity.read(cx).data().is_none(), "data cleared after prefix reset");
+            assert!(
+                entity.read(cx).data().is_none(),
+                "data cleared after prefix reset"
+            );
         });
     });
 }

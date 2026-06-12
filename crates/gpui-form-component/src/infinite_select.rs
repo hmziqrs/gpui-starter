@@ -375,7 +375,7 @@ impl fmt::Display for InfiniteSelectKeyPathParseError {
                     "infinite-select key path {:?} ends with an incomplete escape sequence",
                     self.input
                 )
-            },
+            }
         }
     }
 }
@@ -411,7 +411,7 @@ impl FromStr for InfiniteSelectKeyPath {
                 '\\' => escaped = true,
                 '/' => {
                     keys.push(std::mem::take(&mut current));
-                },
+                }
                 _ => current.push(ch),
             }
         }
@@ -555,7 +555,7 @@ impl fmt::Display for InfiniteSelectPathError {
         match (&self.segment, &self.reason) {
             (None, InfiniteSelectPathErrorReason::EmptyPath) => {
                 write!(f, "infinite-select path is empty")
-            },
+            }
             (
                 Some(InfiniteSelectPathSegment::Index(index)),
                 InfiniteSelectPathErrorReason::MissingSelectionOptions,
@@ -565,7 +565,7 @@ impl fmt::Display for InfiniteSelectPathError {
                     "no selectable options exist at depth {} for index {}",
                     self.depth, index
                 )
-            },
+            }
             (
                 Some(InfiniteSelectPathSegment::Key(key)),
                 InfiniteSelectPathErrorReason::MissingSelectionOptions,
@@ -575,7 +575,7 @@ impl fmt::Display for InfiniteSelectPathError {
                     "no selectable options exist at depth {} for key {:?}",
                     self.depth, key
                 )
-            },
+            }
             (
                 Some(InfiniteSelectPathSegment::Index(index)),
                 InfiniteSelectPathErrorReason::InvalidIndex { option_count },

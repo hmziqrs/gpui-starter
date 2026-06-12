@@ -46,7 +46,10 @@ fn ignore_while_loading_rejects_duplicate_request() {
     let first = r.begin_request(&mut seq, 100, QueryFetchMode::Normal);
     assert!(matches!(first, QueryBeginResult::Started { .. }));
     let duplicate = r.begin_request(&mut seq, 200, QueryFetchMode::Normal);
-    assert!(matches!(duplicate, QueryBeginResult::IgnoredWhileLoading { .. }));
+    assert!(matches!(
+        duplicate,
+        QueryBeginResult::IgnoredWhileLoading { .. }
+    ));
 }
 
 #[test]
@@ -108,8 +111,16 @@ fn record_cache_hit_does_not_clear_failure_status() {
     r.apply_failure("error", STORED_AT_MS + 100);
     assert_eq!(r.status(), QueryStatus::Failure);
     r.record_cache_hit();
-    assert_eq!(r.status(), QueryStatus::Failure, "cache hit should not clear Failure status");
-    assert_eq!(r.cache_hits(), 1, "cache_hits increments even when status is Failure (terminal state preserved)");
+    assert_eq!(
+        r.status(),
+        QueryStatus::Failure,
+        "cache hit should not clear Failure status"
+    );
+    assert_eq!(
+        r.cache_hits(),
+        1,
+        "cache_hits increments even when status is Failure (terminal state preserved)"
+    );
 }
 
 #[test]
@@ -131,7 +142,10 @@ fn cache_policy_accessor_roundtrip() {
 
 #[test]
 fn swr_policy_accessors() {
-    let policy = CachePolicy::StaleWhileRevalidate { ttl_ms: TTL_MS, stale_ms: STALE_MS };
+    let policy = CachePolicy::StaleWhileRevalidate {
+        ttl_ms: TTL_MS,
+        stale_ms: STALE_MS,
+    };
     assert_eq!(policy.ttl_ms(), Some(TTL_MS));
     assert_eq!(policy.stale_ms(), Some(STALE_MS));
     assert_eq!(policy.total_valid_ms(), Some(SWR_TOTAL_MS));

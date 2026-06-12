@@ -145,9 +145,7 @@ pub fn check_for_updates(cx: &mut App) {
 
 /// Handle a failed check with retry/backoff logic.
 fn handle_check_failure(error: String, cx: &mut App) {
-    let retry_count = cx
-        .global::<UpdateSnapshot>()
-        .check_retry_count;
+    let retry_count = cx.global::<UpdateSnapshot>().check_retry_count;
     if retry_count < MAX_UPDATE_RETRIES {
         let new_count = retry_count + 1;
         let delay_secs = RETRY_BASE_DELAY_SECS * 2u64.pow(new_count - 1);
@@ -228,8 +226,8 @@ pub(crate) async fn fetch_platform_asset(
         .await
         .map_err(|e| format!("failed to read manifest body: {e}"))?;
 
-    let manifest: UpdateManifest = serde_json::from_slice(&body)
-        .map_err(|e| format!("failed to parse manifest: {e}"))?;
+    let manifest: UpdateManifest =
+        serde_json::from_slice(&body).map_err(|e| format!("failed to parse manifest: {e}"))?;
 
     let key = platform_key();
     manifest

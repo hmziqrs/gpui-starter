@@ -72,11 +72,17 @@ mod tests {
         assert_eq!(RefetchTrigger::Never.label(), "never");
         assert_eq!(RefetchTrigger::OnMount.label(), "on-mount");
         assert_eq!(
-            RefetchTrigger::OnWindowFocus { stale_time_ms: None }.label(),
+            RefetchTrigger::OnWindowFocus {
+                stale_time_ms: None
+            }
+            .label(),
             "on-window-focus"
         );
         assert_eq!(
-            RefetchTrigger::OnReconnect { stale_time_ms: Some(1000) }.label(),
+            RefetchTrigger::OnReconnect {
+                stale_time_ms: Some(1000)
+            }
+            .label(),
             "on-reconnect"
         );
         assert_eq!(RefetchTrigger::Always.label(), "always");

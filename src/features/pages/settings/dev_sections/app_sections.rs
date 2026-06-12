@@ -1,11 +1,5 @@
 use gpui::{prelude::*, *};
-use gpui_component::{
-    ActiveTheme as _,
-    button::Button,
-    label::Label,
-    switch::Switch,
-    v_flex,
-};
+use gpui_component::{ActiveTheme as _, button::Button, label::Label, switch::Switch, v_flex};
 
 /// Renders the "Shortcuts" settings card.
 pub fn render_shortcuts_section(
@@ -40,9 +34,7 @@ pub fn render_shortcuts_section(
 }
 
 /// Renders the "Storage" settings card.
-pub fn render_storage_section(
-    cx: &mut Context<super::super::SettingsPage>,
-) -> impl IntoElement {
+pub fn render_storage_section(cx: &mut Context<super::super::SettingsPage>) -> impl IntoElement {
     v_flex()
         .gap_3()
         .p_4()

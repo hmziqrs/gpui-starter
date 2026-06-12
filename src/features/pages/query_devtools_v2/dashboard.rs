@@ -1,18 +1,14 @@
 use gpui::{prelude::*, *};
 use gpui_component::{
-    ActiveTheme as _, Disableable,
-    Icon, IconName,
-    button::Button,
-    h_flex,
-    v_flex,
+    ActiveTheme as _, Disableable, Icon, IconName, button::Button, h_flex, v_flex,
 };
 
 use gpui_query_v2::client::QueryClient;
 use gpui_query_v2::core::QueryKeyFilter;
 
 use super::helpers::QuerySort;
-use super::registry::render_query_registry;
 use super::mutations::render_mutations_table;
+use super::registry::render_query_registry;
 
 // ---------------------------------------------------------------------------
 // Query DevTools V2 Page
@@ -32,11 +28,9 @@ pub struct QueryDevToolsV2Page {
 impl QueryDevToolsV2Page {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let mut subscriptions = Vec::new();
-        subscriptions.push(
-            cx.observe_global_in::<QueryClient>(window, |_, _, cx| {
-                cx.notify();
-            }),
-        );
+        subscriptions.push(cx.observe_global_in::<QueryClient>(window, |_, _, cx| {
+            cx.notify();
+        }));
         Self {
             _subscriptions: subscriptions,
             expanded_key: None,
@@ -94,10 +88,9 @@ fn render_empty_state(cx: &mut Context<QueryDevToolsV2Page>) -> Div {
                 .child("No V2 Query Resources"),
         )
         .child(
-            div()
-                .text_sm()
-                .text_color(theme.muted_foreground)
-                .child("Navigate to the Query Playground page to create queries, then return here."),
+            div().text_sm().text_color(theme.muted_foreground).child(
+                "Navigate to the Query Playground page to create queries, then return here.",
+            ),
         )
 }
 
@@ -203,8 +196,14 @@ fn render_dashboard(
     let actions = render_action_bar(cx);
 
     // Query registry table
-    let registry =
-        render_query_registry(diagnostic, expanded_key, sort_by, status_filter, scroll_handle, cx);
+    let registry = render_query_registry(
+        diagnostic,
+        expanded_key,
+        sort_by,
+        status_filter,
+        scroll_handle,
+        cx,
+    );
 
     // Mutations table
     let mutations = render_mutations_table(diagnostic, cx);

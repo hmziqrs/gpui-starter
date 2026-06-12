@@ -120,7 +120,9 @@ fn infinite_query_set_retry_policy() {
         CachePolicy::Ttl { ttl_ms: 60_000 },
         RequestPolicy::LatestWins,
     );
-    let policy = RetryPolicy::new(10).with_delay(500).with_exponential_backoff();
+    let policy = RetryPolicy::new(10)
+        .with_delay(500)
+        .with_exponential_backoff();
     r.set_retry_policy(policy.clone());
     assert_eq!(r.retry_policy(), &policy);
 }
@@ -144,7 +146,11 @@ fn infinite_query_timestamps_on_lifecycle() {
     assert!(r.last_updated_at_ms().is_none());
 
     r.complete_page_success(id, vec!["page1".to_string()], true, true, 2_000);
-    assert_eq!(r.started_at_ms(), Some(1_000), "started_at preserved after completion");
+    assert_eq!(
+        r.started_at_ms(),
+        Some(1_000),
+        "started_at preserved after completion"
+    );
     assert_eq!(r.last_updated_at_ms(), Some(2_000));
 }
 
@@ -173,12 +179,11 @@ fn infinite_query_cancelled_count_on_replacement() {
 
 #[test]
 fn infinite_query_error_after_failure() {
-    let mut r: InfiniteQueryResource<Vec<String>, QueryError> =
-        InfiniteQueryResource::new(
-            QueryKey::from("items"),
-            CachePolicy::Ttl { ttl_ms: 60_000 },
-            RequestPolicy::LatestWins,
-        );
+    let mut r: InfiniteQueryResource<Vec<String>, QueryError> = InfiniteQueryResource::new(
+        QueryKey::from("items"),
+        CachePolicy::Ttl { ttl_ms: 60_000 },
+        RequestPolicy::LatestWins,
+    );
     let mut seq = RequestSequencer::new();
 
     assert!(r.error().is_none());
@@ -193,12 +198,11 @@ fn infinite_query_error_after_failure() {
 
 #[test]
 fn infinite_query_error_cleared_on_success() {
-    let mut r: InfiniteQueryResource<Vec<String>, QueryError> =
-        InfiniteQueryResource::new(
-            QueryKey::from("items"),
-            CachePolicy::Ttl { ttl_ms: 60_000 },
-            RequestPolicy::LatestWins,
-        );
+    let mut r: InfiniteQueryResource<Vec<String>, QueryError> = InfiniteQueryResource::new(
+        QueryKey::from("items"),
+        CachePolicy::Ttl { ttl_ms: 60_000 },
+        RequestPolicy::LatestWins,
+    );
     let mut seq = RequestSequencer::new();
 
     let id1 = r.begin_fetch_next(&mut seq, 1_000).unwrap();
@@ -248,19 +252,21 @@ fn infinite_query_complete_success_with_guard_prepend() {
     assert_eq!(r.page_count(), 2);
     assert_eq!(r.first_page(), Some(&vec!["page0".to_string()]));
     assert_eq!(r.last_page(), Some(&vec!["page1".to_string()]));
-    assert!(!r.has_previous_page(), "has_more=false sets has_previous_page=false");
+    assert!(
+        !r.has_previous_page(),
+        "has_more=false sets has_previous_page=false"
+    );
 }
 
 // ── InfiniteQueryResource: complete_failure_with_guard clears fetching flags
 
 #[test]
 fn infinite_query_complete_failure_with_guard_clears_flags() {
-    let mut r: InfiniteQueryResource<Vec<String>, QueryError> =
-        InfiniteQueryResource::new(
-            QueryKey::from("items"),
-            CachePolicy::Ttl { ttl_ms: 60_000 },
-            RequestPolicy::LatestWins,
-        );
+    let mut r: InfiniteQueryResource<Vec<String>, QueryError> = InfiniteQueryResource::new(
+        QueryKey::from("items"),
+        CachePolicy::Ttl { ttl_ms: 60_000 },
+        RequestPolicy::LatestWins,
+    );
     let mut seq = RequestSequencer::new();
 
     let id = r.begin_fetch_next(&mut seq, 1_000).unwrap();

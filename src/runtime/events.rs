@@ -12,7 +12,9 @@ pub enum AppEventKind {
         severity: crate::errors::AppErrorSeverity,
     },
     DiagnosticsChanged,
-    Test { message: String },
+    Test {
+        message: String,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -65,7 +67,10 @@ pub fn drain(cx: &mut App) -> Vec<AppEvent> {
     // touching a mutable reference.  Without this guard, default_global()
     // mutates the global on every call, which re-triggers observe_global
     // callbacks, which call drain() again → infinite loop / hang.
-    if cx.try_global::<AppEventQueue>().map_or(true, |q| q.0.is_empty()) {
+    if cx
+        .try_global::<AppEventQueue>()
+        .map_or(true, |q| q.0.is_empty())
+    {
         return Vec::new();
     }
     std::mem::take(&mut cx.default_global::<AppEventQueue>().0)

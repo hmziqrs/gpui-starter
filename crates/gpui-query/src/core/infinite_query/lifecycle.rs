@@ -1,6 +1,4 @@
-use super::{
-    QueryStatus, QueryTimestamp, RequestId, RequestSequencer,
-};
+use super::{QueryStatus, QueryTimestamp, RequestId, RequestSequencer};
 use crate::core::InfiniteQueryResource;
 
 // ── Lifecycle ───────────────────────────────────────────────────────────

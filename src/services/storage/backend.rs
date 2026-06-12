@@ -224,7 +224,18 @@ impl StorageBackend for SqliteStorage {
             .collect::<rusqlite::Result<Vec<_>>>()?;
 
         let mut reports = Vec::with_capacity(rows.len());
-        for (id, panic_message, backtrace, app_version, os, arch, timestamp, render_path, recent_errors_json) in rows {
+        for (
+            id,
+            panic_message,
+            backtrace,
+            app_version,
+            os,
+            arch,
+            timestamp,
+            render_path,
+            recent_errors_json,
+        ) in rows
+        {
             let recent_errors: Vec<String> = serde_json::from_str(&recent_errors_json)
                 .map_err(|err| rusqlite::Error::ToSqlConversionFailure(Box::new(err)))?;
             reports.push(crate::services::crash_report::CrashReport {

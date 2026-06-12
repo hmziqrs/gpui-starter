@@ -39,7 +39,7 @@ pub fn from(input: TokenStream) -> TokenStream {
                     #(#arms)*
                 }
             }
-        },
+        }
         _ => quote! { stringify!(#item_ident).to_string() },
     };
 

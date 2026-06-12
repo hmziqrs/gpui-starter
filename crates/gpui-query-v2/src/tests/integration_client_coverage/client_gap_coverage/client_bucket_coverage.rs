@@ -8,9 +8,7 @@ use gpui::{AppContext as _, BorrowAppContext as _, Entity, TestAppContext};
 use crate::client::QueryClient;
 use crate::core::*;
 #[allow(deprecated)]
-use crate::hook::{
-    mutate, use_infinite_query, use_mutation, InfiniteQueryOptions,
-};
+use crate::hook::{InfiniteQueryOptions, mutate, use_infinite_query, use_mutation};
 use crate::tests::test_support::*;
 
 // -- Gap 15: MutationBucket type mismatch downcast recovery ------------------
@@ -30,9 +28,8 @@ fn test_mutation_bucket_type_mismatch_creates_separate_buckets(cx: &mut TestAppC
             let m2 = cx.new(|_| {
                 MutationResource::<u32, String, QueryError>::new(RetryPolicy::no_retries())
             });
-            let m3 = cx.new(|_| {
-                MutationResource::<String, u32, String>::new(RetryPolicy::no_retries())
-            });
+            let m3 =
+                cx.new(|_| MutationResource::<String, u32, String>::new(RetryPolicy::no_retries()));
 
             client.register_mutation::<String, String, QueryError>(&m1, cx);
             client.register_mutation::<u32, String, QueryError>(&m2, cx);

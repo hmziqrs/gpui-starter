@@ -80,9 +80,7 @@ pub fn initialize(cx: &mut gpui::App) {
                 let snap = snapshot(cx);
                 matches!(
                     snap.status,
-                    UpdateStatus::Idle
-                        | UpdateStatus::UpToDate
-                        | UpdateStatus::Error(_)
+                    UpdateStatus::Idle | UpdateStatus::UpToDate | UpdateStatus::Error(_)
                 )
             });
             if should_check {
@@ -250,8 +248,7 @@ fn dispatch_background_notification(title: &str, body: &str, cx: &mut gpui::App)
         None => return,
     };
     let enabled_by_user = state.snapshot.enabled_by_user
-        && state.snapshot.permission
-            != crate::notifications::NotificationPermissionState::Denied;
+        && state.snapshot.permission != crate::notifications::NotificationPermissionState::Denied;
     if !enabled_by_user {
         return;
     }

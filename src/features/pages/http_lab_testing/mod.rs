@@ -161,7 +161,10 @@ impl HttpLabTestingPage {
 pub(crate) fn query_now_ms() -> u128 {
     use std::sync::OnceLock;
     static STARTED_AT: OnceLock<std::time::Instant> = OnceLock::new();
-    STARTED_AT.get_or_init(std::time::Instant::now).elapsed().as_millis()
+    STARTED_AT
+        .get_or_init(std::time::Instant::now)
+        .elapsed()
+        .as_millis()
 }
 
 pub(crate) fn fake_response(label: &str) -> RawResponse {
@@ -210,4 +213,3 @@ fn local_lab_request_policy(action: HttpLabAction) -> RequestPolicy {
         _ => RequestPolicy::LatestWins,
     }
 }
-

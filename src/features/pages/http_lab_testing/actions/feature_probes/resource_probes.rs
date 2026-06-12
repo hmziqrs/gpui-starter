@@ -1,7 +1,7 @@
 use gpui::*;
 use gpui_query::{QueryBeginResult, QueryError, QueryFetchMode};
 
-use super::super::super::{fake_response, query_now_ms, HttpLabTestingPage};
+use super::super::super::{HttpLabTestingPage, fake_response, query_now_ms};
 
 impl HttpLabTestingPage {
     // -- Feature 1: Cancel Signal --
@@ -32,13 +32,29 @@ impl HttpLabTestingPage {
             .cancel(QueryError::cancelled("signal test"));
         let after_cancel = signal.as_ref().map(|s| s.is_cancelled());
 
-        let v_signal = Self::verdict("signal present", signal_present, &format!("signal_present={signal_present}"));
+        let v_signal = Self::verdict(
+            "signal present",
+            signal_present,
+            &format!("signal_present={signal_present}"),
+        );
         let before_ok = before_cancel == Some(false);
-        let v_before = Self::verdict("signal active before cancel", before_ok, &format!("before_cancel={:?}", before_cancel));
+        let v_before = Self::verdict(
+            "signal active before cancel",
+            before_ok,
+            &format!("before_cancel={:?}", before_cancel),
+        );
         let after_ok = after_cancel == Some(true);
-        let v_after = Self::verdict("signal cancelled after resource cancel", after_ok, &format!("after_cancel={:?}", after_cancel));
+        let v_after = Self::verdict(
+            "signal cancelled after resource cancel",
+            after_ok,
+            &format!("after_cancel={:?}", after_cancel),
+        );
         let all_passed = signal_present && before_ok && after_ok;
-        let verdict_line = if all_passed { "Cancel signal probe PASSED" } else { "Cancel signal probe FAILED" };
+        let verdict_line = if all_passed {
+            "Cancel signal probe PASSED"
+        } else {
+            "Cancel signal probe FAILED"
+        };
         self.query_signal_message = format!("{v_signal}\n{v_before}\n{v_after}\n{verdict_line}");
         cx.notify();
     }
@@ -114,14 +130,31 @@ impl HttpLabTestingPage {
             .map(|r| r.preview.clone());
 
         let loading_ok = loading_display.as_deref() == Some("placeholder");
-        let v_loading = Self::verdict("placeholder shown during loading", loading_ok, &format!("loading_display={loading_display:?}"));
+        let v_loading = Self::verdict(
+            "placeholder shown during loading",
+            loading_ok,
+            &format!("loading_display={loading_display:?}"),
+        );
         let final_ok = final_display.as_deref() == Some("real");
-        let v_final = Self::verdict("real data after completion", final_ok, &format!("final_display={final_display:?}"));
+        let v_final = Self::verdict(
+            "real data after completion",
+            final_ok,
+            &format!("final_display={final_display:?}"),
+        );
         let previous_ok = previous.as_deref() == Some("original");
-        let v_previous = Self::verdict("previous tracked as original", previous_ok, &format!("previous={previous:?}"));
+        let v_previous = Self::verdict(
+            "previous tracked as original",
+            previous_ok,
+            &format!("previous={previous:?}"),
+        );
         let all_passed = loading_ok && final_ok && previous_ok;
-        let verdict_line = if all_passed { "Placeholder data probe PASSED" } else { "Placeholder data probe FAILED" };
-        self.query_placeholder_message = format!("{v_loading}\n{v_final}\n{v_previous}\n{verdict_line}");
+        let verdict_line = if all_passed {
+            "Placeholder data probe PASSED"
+        } else {
+            "Placeholder data probe FAILED"
+        };
+        self.query_placeholder_message =
+            format!("{v_loading}\n{v_final}\n{v_previous}\n{verdict_line}");
         cx.notify();
     }
 
@@ -166,11 +199,23 @@ impl HttpLabTestingPage {
             .map(|r| r.preview.clone());
 
         let data_ok = data.as_deref() == Some("second");
-        let v_data = Self::verdict("current data is 'second'", data_ok, &format!("data={data:?}"));
+        let v_data = Self::verdict(
+            "current data is 'second'",
+            data_ok,
+            &format!("data={data:?}"),
+        );
         let previous_ok = previous.as_deref() == Some("first");
-        let v_previous = Self::verdict("previous data is 'first'", previous_ok, &format!("previous={previous:?}"));
+        let v_previous = Self::verdict(
+            "previous data is 'first'",
+            previous_ok,
+            &format!("previous={previous:?}"),
+        );
         let all_passed = data_ok && previous_ok;
-        let verdict_line = if all_passed { "Previous data probe PASSED" } else { "Previous data probe FAILED" };
+        let verdict_line = if all_passed {
+            "Previous data probe PASSED"
+        } else {
+            "Previous data probe FAILED"
+        };
         self.query_placeholder_message = format!("{v_data}\n{v_previous}\n{verdict_line}");
         cx.notify();
     }
@@ -206,10 +251,22 @@ impl HttpLabTestingPage {
             .map(|r| r.preview.clone());
 
         let data_ok = data.as_deref() == Some("original");
-        let v_rollback = Self::verdict("rollback succeeded", rolled_back, &format!("rolled_back={rolled_back}"));
-        let v_data = Self::verdict("data restored to 'original'", data_ok, &format!("data={data:?}"));
+        let v_rollback = Self::verdict(
+            "rollback succeeded",
+            rolled_back,
+            &format!("rolled_back={rolled_back}"),
+        );
+        let v_data = Self::verdict(
+            "data restored to 'original'",
+            data_ok,
+            &format!("data={data:?}"),
+        );
         let all_passed = rolled_back && data_ok;
-        let verdict_line = if all_passed { "Rollback probe PASSED" } else { "Rollback probe FAILED" };
+        let verdict_line = if all_passed {
+            "Rollback probe PASSED"
+        } else {
+            "Rollback probe FAILED"
+        };
         self.query_placeholder_message = format!("{v_rollback}\n{v_data}\n{verdict_line}");
         cx.notify();
     }
@@ -252,11 +309,20 @@ impl HttpLabTestingPage {
         let previous_ok = previous.as_deref() == Some("original");
         let status_ok = status == "Success";
         let v_data = Self::verdict("data is 'optimistic'", data_ok, &format!("data={data:?}"));
-        let v_previous = Self::verdict("previous is 'original'", previous_ok, &format!("previous={previous:?}"));
+        let v_previous = Self::verdict(
+            "previous is 'original'",
+            previous_ok,
+            &format!("previous={previous:?}"),
+        );
         let v_status = Self::verdict("status is Success", status_ok, &format!("status={status}"));
         let all_passed = data_ok && previous_ok && status_ok;
-        let verdict_line = if all_passed { "Optimistic set probe PASSED" } else { "Optimistic set probe FAILED" };
-        self.query_optimistic_message = format!("{v_data}\n{v_previous}\n{v_status}\n{verdict_line}");
+        let verdict_line = if all_passed {
+            "Optimistic set probe PASSED"
+        } else {
+            "Optimistic set probe FAILED"
+        };
+        self.query_optimistic_message =
+            format!("{v_data}\n{v_previous}\n{v_status}\n{verdict_line}");
         cx.notify();
     }
 
@@ -288,10 +354,22 @@ impl HttpLabTestingPage {
             .data()
             .map(|r| r.preview.clone());
         let data_ok = data.as_deref() == Some("original");
-        let v_rollback = Self::verdict("rollback succeeded", rolled_back, &format!("rolled_back={rolled_back}"));
-        let v_data = Self::verdict("data restored to 'original'", data_ok, &format!("data={data:?}"));
+        let v_rollback = Self::verdict(
+            "rollback succeeded",
+            rolled_back,
+            &format!("rolled_back={rolled_back}"),
+        );
+        let v_data = Self::verdict(
+            "data restored to 'original'",
+            data_ok,
+            &format!("data={data:?}"),
+        );
         let all_passed = rolled_back && data_ok;
-        let verdict_line = if all_passed { "Optimistic rollback probe PASSED" } else { "Optimistic rollback probe FAILED" };
+        let verdict_line = if all_passed {
+            "Optimistic rollback probe PASSED"
+        } else {
+            "Optimistic rollback probe FAILED"
+        };
         self.query_optimistic_message = format!("{v_rollback}\n{v_data}\n{verdict_line}");
         cx.notify();
     }
@@ -343,10 +421,22 @@ impl HttpLabTestingPage {
 
         let data_ok = data.as_deref() == Some("server confirmed");
         let previous_ok = previous.as_deref() == Some("optimistic");
-        let v_data = Self::verdict("data is 'server confirmed'", data_ok, &format!("data={data:?}"));
-        let v_previous = Self::verdict("previous is 'optimistic'", previous_ok, &format!("previous={previous:?}"));
+        let v_data = Self::verdict(
+            "data is 'server confirmed'",
+            data_ok,
+            &format!("data={data:?}"),
+        );
+        let v_previous = Self::verdict(
+            "previous is 'optimistic'",
+            previous_ok,
+            &format!("previous={previous:?}"),
+        );
         let all_passed = data_ok && previous_ok;
-        let verdict_line = if all_passed { "Optimistic flow probe PASSED" } else { "Optimistic flow probe FAILED" };
+        let verdict_line = if all_passed {
+            "Optimistic flow probe PASSED"
+        } else {
+            "Optimistic flow probe FAILED"
+        };
         self.query_optimistic_message = format!("{v_data}\n{v_previous}\n{verdict_line}");
         cx.notify();
     }

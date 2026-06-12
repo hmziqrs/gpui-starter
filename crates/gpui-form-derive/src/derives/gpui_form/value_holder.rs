@@ -218,7 +218,7 @@ fn generate_to_wrapped_field(field: &FieldOptionality) -> TokenStream {
                     #field_name: from.#field_name
                 }
             }
-        },
+        }
         FieldStorage::WrappedOption => {
             if let Some(default_expr) = &field.default_expr {
                 let default_original = default_expr_for_original(default_expr);
@@ -262,13 +262,13 @@ fn generate_to_wrapped_field(field: &FieldOptionality) -> TokenStream {
                     #field_name: Some(from.#field_name)
                 }
             }
-        },
+        }
         FieldStorage::Plain => {
             let converted = apply_from_conversion(field, quote! { from.#field_name });
             quote! {
                 #field_name: #converted
             }
-        },
+        }
     }
 }
 
@@ -287,7 +287,7 @@ fn generate_from_wrapped_field(field: &FieldOptionality) -> TokenStream {
                     #field_name: from.#field_name
                 }
             }
-        },
+        }
         FieldStorage::WrappedOption => {
             if let Some(default_expr) = &field.default_expr {
                 let default_original = default_expr_for_original(default_expr);
@@ -315,13 +315,13 @@ fn generate_from_wrapped_field(field: &FieldOptionality) -> TokenStream {
                     #field_name: from.#field_name.unwrap_or_default()
                 }
             }
-        },
+        }
         FieldStorage::Plain => {
             let converted = apply_into_conversion(field, quote! { from.#field_name });
             quote! {
                 #field_name: #converted
             }
-        },
+        }
     }
 }
 
@@ -354,7 +354,7 @@ fn generate_present_fields_json_entry(field: &FieldOptionality) -> TokenStream {
                     }
                 }
             }
-        },
+        }
         FieldStorage::WrappedOption => {
             if needs_into_conversion(field) {
                 let converted = apply_into_conversion(field, quote! { value });
@@ -379,7 +379,7 @@ fn generate_present_fields_json_entry(field: &FieldOptionality) -> TokenStream {
                     }
                 }
             }
-        },
+        }
         FieldStorage::Plain => {
             if needs_into_conversion(field) {
                 let converted = apply_into_conversion(field, quote! { value });
@@ -401,7 +401,7 @@ fn generate_present_fields_json_entry(field: &FieldOptionality) -> TokenStream {
                     ));
                 }
             }
-        },
+        }
     }
 }
 

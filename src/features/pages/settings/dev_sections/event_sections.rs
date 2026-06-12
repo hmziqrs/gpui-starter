@@ -1,10 +1,5 @@
 use gpui::{prelude::*, *};
-use gpui_component::{
-    ActiveTheme as _,
-    button::Button,
-    label::Label,
-    v_flex,
-};
+use gpui_component::{ActiveTheme as _, button::Button, label::Label, v_flex};
 
 /// Renders the "Event Emitter" card (emit buttons + receiver log).
 pub fn render_event_emitter_section(
@@ -26,7 +21,11 @@ pub fn render_event_emitter_section(
         )
         // Emit buttons
         .child(
-            div().flex().flex_wrap().items_center().gap_2()
+            div()
+                .flex()
+                .flex_wrap()
+                .items_center()
+                .gap_2()
                 .child(
                     Button::new("emit-test-noop")
                         .outline()
@@ -47,9 +46,7 @@ pub fn render_event_emitter_section(
                         .on_click(|_, _, cx| {
                             crate::events::emit(
                                 crate::events::AppEventKind::Navigate(
-                                    crate::routes::AppRoute::page(
-                                        crate::sidebar::Page::Home,
-                                    ),
+                                    crate::routes::AppRoute::page(crate::sidebar::Page::Home),
                                 ),
                                 cx,
                             );

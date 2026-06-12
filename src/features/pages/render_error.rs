@@ -1,9 +1,5 @@
 use gpui::{prelude::*, *};
-use gpui_component::{
-    ActiveTheme as _,
-    button::Button,
-    v_flex,
-};
+use gpui_component::{ActiveTheme as _, button::Button, v_flex};
 
 // ---------------------------------------------------------------------------
 // Action: reload the page that triggered the render panic

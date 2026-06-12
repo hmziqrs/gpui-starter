@@ -78,7 +78,8 @@ impl<T: Clone + Send + Sync + 'static, E: Clone + Send + Sync + 'static> Infinit
             self.entries.remove(&key);
         }
 
-        let entity = cx.new(|_| InfiniteQueryResource::new(key.clone(), cache_policy, request_policy));
+        let entity =
+            cx.new(|_| InfiniteQueryResource::new(key.clone(), cache_policy, request_policy));
         self.entries.insert(
             key,
             InfiniteBucketEntry {
@@ -208,10 +209,7 @@ impl<T: Clone + Send + Sync + 'static, E: Clone + Send + Sync + 'static> ErasedI
             }
 
             // Only evict if in a terminal, non-success state.
-            let evictable = matches!(
-                snapshot.status,
-                QueryStatus::Idle | QueryStatus::Failure
-            );
+            let evictable = matches!(snapshot.status, QueryStatus::Idle | QueryStatus::Failure);
             if !evictable {
                 return true; // Keep — not evictable (e.g. Success, Cancelled).
             }

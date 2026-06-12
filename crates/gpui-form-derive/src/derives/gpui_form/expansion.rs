@@ -17,7 +17,7 @@ fn option_expr_string_tokens(expr: &Option<syn::Expr>) -> TokenStream {
         Some(expr) => {
             let expr_str = expr.to_token_stream().to_string();
             quote! { Some(#expr_str) }
-        },
+        }
         None => quote! { None },
     }
 }

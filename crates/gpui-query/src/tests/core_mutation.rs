@@ -127,9 +127,7 @@ fn test_mutation_signal_created_on_begin() {
 
     m.begin("vars".to_string(), 0);
 
-    let signal = m
-        .signal()
-        .expect("signal should exist after begin");
+    let signal = m.signal().expect("signal should exist after begin");
     assert!(
         !signal.is_cancelled(),
         "fresh signal should not be cancelled"
@@ -150,7 +148,10 @@ fn test_mutation_signal_cancelled_on_cancel() {
         signal_clone.is_cancelled(),
         "signal clone should see cancellation"
     );
-    assert!(m.signal().is_none(), "signal should be cleared after cancel");
+    assert!(
+        m.signal().is_none(),
+        "signal should be cleared after cancel"
+    );
 }
 
 #[test]

@@ -4,8 +4,8 @@
 //! buckets in a single `AHashMap<TypeId, Box<dyn Erased*>>` map, dispatching
 //! to concrete types only when the caller provides generic parameters.
 
-use crate::core::QueryKeyFilter;
 use crate::client::devtools::{MutationDiagnostic, QueryDiagnostic};
+use crate::core::QueryKeyFilter;
 
 // ── Helper: current time in milliseconds since UNIX epoch ─────────────
 

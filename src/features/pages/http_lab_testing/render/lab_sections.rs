@@ -1,16 +1,18 @@
 use gpui::{prelude::*, *};
 use gpui_component::{
-    ActiveTheme as _, Disableable as _, button::{Button, ButtonVariants as _}, v_flex,
+    ActiveTheme as _, Disableable as _,
+    button::{Button, ButtonVariants as _},
+    v_flex,
 };
 
 use crate::services::http_lab::HttpLabAction;
 
 use super::super::{
+    HttpLabTestingPage, RawStatus,
     ui_helpers::{
         local_lab_history_panel, preview_excerpt, query_resource_row, row, section_card,
         toggle_button,
     },
-    HttpLabTestingPage, RawStatus,
 };
 
 impl HttpLabTestingPage {
@@ -100,10 +102,7 @@ impl HttpLabTestingPage {
     }
 
     /// Section 7: Raw Baseline
-    pub(super) fn render_raw_baseline_section(
-        &self,
-        cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    pub(super) fn render_raw_baseline_section(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let is_sending = matches!(self.status, RawStatus::Sending);
 
         section_card(

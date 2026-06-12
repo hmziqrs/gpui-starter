@@ -8,9 +8,9 @@ use gpui::{AppContext as _, BorrowAppContext as _, Context, Entity, Subscription
 use crate::client::{MutationObserver, QueryClient};
 use crate::core::MutationResource;
 
-use super::internals::{run_mutation_loop, run_mutation_loop_with_callbacks};
-use super::super::options::MutationCallbacks;
 use super::super::MutationOptions;
+use super::super::options::MutationCallbacks;
+use super::internals::{run_mutation_loop, run_mutation_loop_with_callbacks};
 
 /// Hook for executing mutations (create, update, delete operations).
 ///

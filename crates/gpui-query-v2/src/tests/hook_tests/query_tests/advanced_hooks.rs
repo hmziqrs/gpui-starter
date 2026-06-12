@@ -4,9 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use gpui::{AppContext as _, Entity, TestAppContext};
 
-use crate::core::{
-    CachePolicy, QueryError, QueryKey, QueryResource, QueryStatus, RequestPolicy,
-};
+use crate::core::{CachePolicy, QueryError, QueryKey, QueryResource, QueryStatus, RequestPolicy};
 use crate::hook::*;
 use crate::tests::test_support::*;
 
@@ -91,7 +89,11 @@ fn test_use_query_cache_hit_does_not_refetch(cx: &mut TestAppContext) {
             "first fetch must have completed before testing cache hit"
         );
     });
-    assert_eq!(*fetch_count.lock().unwrap(), 1, "first fetch should have occurred");
+    assert_eq!(
+        *fetch_count.lock().unwrap(),
+        1,
+        "first fetch should have occurred"
+    );
 
     // Drain any pending executor work so the cache is fully settled.
     cx.run_until_parked();
@@ -332,7 +334,10 @@ fn test_use_query_signal_available_during_fetch(cx: &mut TestAppContext) {
     cx.run_until_parked();
 
     cx.update(|cx| {
-        assert_eq!(harness.read(cx).entity.read(cx).status(), QueryStatus::Success);
+        assert_eq!(
+            harness.read(cx).entity.read(cx).status(),
+            QueryStatus::Success
+        );
     });
     assert!(
         *signal_was_some.lock().unwrap(),

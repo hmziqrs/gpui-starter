@@ -2,8 +2,8 @@ use std::rc::Rc;
 
 use gpui::{
     Anchor, AnyElement, App, AppContext as _, Context, Entity, FocusHandle,
-    InteractiveElement as _, IntoElement, MouseButton, ParentElement as _,
-    Render, SharedString, Styled as _, Window, div, px,
+    InteractiveElement as _, IntoElement, MouseButton, ParentElement as _, Render, SharedString,
+    Styled as _, Window, div, px,
 };
 use gpui_component::{
     ActiveTheme as _, IconName, Sizable as _, Theme, TitleBar,

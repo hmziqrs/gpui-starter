@@ -19,8 +19,8 @@
 mod client;
 mod types;
 
-pub use types::{ConnectionState, MessageHandler, ReconnectPolicy, WebSocketError};
 pub use client::WebSocketClient;
+pub use types::{ConnectionState, MessageHandler, ReconnectPolicy, WebSocketError};
 
 // ---------------------------------------------------------------------------
 // GPUI integration helpers (always compiled).

@@ -208,13 +208,9 @@ pub fn install_panic_hook() {
                 recent_errors,
             );
 
-            if let Err(err) =
-                crate::services::crash_report::write_crash_report(&report, data_dir)
-            {
+            if let Err(err) = crate::services::crash_report::write_crash_report(&report, data_dir) {
                 // We are inside the panic handler -- best-effort logging only.
-                eprintln!(
-                    "[gpui_starter::lifecycle] failed to write crash report: {err}"
-                );
+                eprintln!("[gpui_starter::lifecycle] failed to write crash report: {err}");
             }
         }
 

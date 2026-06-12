@@ -76,7 +76,7 @@ impl FluentKvOptions {
                 match string.value().as_str() {
                     "label" => options.has_label = true,
                     "description" => options.has_description = true,
-                    _ => {},
+                    _ => {}
                 }
             }
         }
@@ -160,7 +160,7 @@ fn crate_tokens(found_crate: FoundCrate) -> proc_macro2::TokenStream {
         FoundCrate::Name(name) => {
             let ident = format_ident!("{}", name.replace('-', "_"));
             quote! { ::#ident }
-        },
+        }
     }
 }
 

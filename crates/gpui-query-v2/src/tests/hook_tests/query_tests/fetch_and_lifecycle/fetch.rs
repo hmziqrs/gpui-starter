@@ -126,7 +126,11 @@ fn test_use_query_manual_multiple_fetches(cx: &mut TestAppContext) {
     cx.update(|cx| {
         assert_eq!(harness.read(cx).entity.read(cx).data(), Some(&2));
     });
-    assert_eq!(*call_count.lock().unwrap(), 2, "both fetches should have executed");
+    assert_eq!(
+        *call_count.lock().unwrap(),
+        2,
+        "both fetches should have executed"
+    );
 }
 
 // ── fetch_query: on non-existent (fresh) key ────────────────────────────────
@@ -263,11 +267,7 @@ fn test_fetch_query_concurrent_calls_latest_wins(cx: &mut TestAppContext) {
             },
             cx,
         );
-        fetch_query(
-            &entity,
-            || async { Ok::<_, QueryError>("second") },
-            cx,
-        );
+        fetch_query(&entity, || async { Ok::<_, QueryError>("second") }, cx);
         H { entity }
     });
 

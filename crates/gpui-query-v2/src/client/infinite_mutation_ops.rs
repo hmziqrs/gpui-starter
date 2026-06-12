@@ -9,12 +9,11 @@ use std::any::TypeId;
 
 use gpui::{App, Entity};
 
-use crate::core::{
-    CachePolicy, InfiniteQueryResource, MutationResource, QueryKey, QueryKeyFilter,
-    RequestPolicy,
-};
 use crate::client::infinite_bucket::InfiniteQueryBucket;
 use crate::client::mutation_bucket::MutationBucket;
+use crate::core::{
+    CachePolicy, InfiniteQueryResource, MutationResource, QueryKey, QueryKeyFilter, RequestPolicy,
+};
 
 use super::QueryClient;
 
@@ -55,7 +54,11 @@ impl QueryClient {
             .or_insert_with(|| Box::new(InfiniteQueryBucket::<T, E>::new()));
 
         let typed = {
-            if bucket.as_any_mut().downcast_mut::<InfiniteQueryBucket<T, E>>().is_none() {
+            if bucket
+                .as_any_mut()
+                .downcast_mut::<InfiniteQueryBucket<T, E>>()
+                .is_none()
+            {
                 eprintln!(
                     "QueryClient: type mismatch in infinite bucket downcast for {}. \
                      Replacing with a fresh bucket.",
@@ -73,10 +76,7 @@ impl QueryClient {
     }
 
     /// Get a specific infinite query entity by key.
-    pub fn infinite_query<
-        T: Clone + Send + Sync + 'static,
-        E: Clone + Send + Sync + 'static,
-    >(
+    pub fn infinite_query<T: Clone + Send + Sync + 'static, E: Clone + Send + Sync + 'static>(
         &self,
         key: &QueryKey,
     ) -> Option<Entity<InfiniteQueryResource<T, E>>> {
@@ -105,7 +105,11 @@ impl QueryClient {
         let type_id = TypeId::of::<(T, E)>();
         let bucket = self.infinite_buckets.get_mut(&type_id)?;
         let typed = {
-            if bucket.as_any_mut().downcast_mut::<InfiniteQueryBucket<T, E>>().is_none() {
+            if bucket
+                .as_any_mut()
+                .downcast_mut::<InfiniteQueryBucket<T, E>>()
+                .is_none()
+            {
                 eprintln!(
                     "QueryClient: type mismatch in infinite bucket downcast for {}. \
                      Replacing with a fresh bucket.",
@@ -151,12 +155,17 @@ impl QueryClient {
         cx: &App,
     ) {
         let type_id = TypeId::of::<(V, T, E)>();
-        let bucket = self.mutation_buckets
+        let bucket = self
+            .mutation_buckets
             .entry(type_id)
             .or_insert_with(|| Box::new(MutationBucket::<V, T, E>::new()));
 
         let typed = {
-            if bucket.as_any_mut().downcast_mut::<MutationBucket<V, T, E>>().is_none() {
+            if bucket
+                .as_any_mut()
+                .downcast_mut::<MutationBucket<V, T, E>>()
+                .is_none()
+            {
                 eprintln!(
                     "QueryClient: type mismatch in mutation bucket downcast for {}. \
                      Replacing with a fresh bucket.",

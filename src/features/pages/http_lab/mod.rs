@@ -120,7 +120,13 @@ impl Render for HttpLabPage {
                     ))
                     .child(panels::activity_panel(&state, cx));
 
-                (history_len, transition_len, selected_action, selected_status, view)
+                (
+                    history_len,
+                    transition_len,
+                    selected_action,
+                    selected_status,
+                    view,
+                )
             });
 
         tracing::info!(

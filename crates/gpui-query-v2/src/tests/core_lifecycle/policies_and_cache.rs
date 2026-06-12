@@ -4,8 +4,8 @@
 //! CacheHit, StaleWhileRevalidate, begin_request_with_id, force fetch.
 
 use crate::core::*;
-use crate::tests::test_support::*;
 use crate::tests::core_lifecycle::transitions::*;
+use crate::tests::test_support::*;
 
 // ═══════════════════════════════════════════════════════════════════════
 // 14. Double begin_loading: LatestWins cancels old request
@@ -56,15 +56,10 @@ fn ignore_while_loading_rejects_second_request() {
     let result2 = r.begin_request(&mut s, 200, QueryFetchMode::Normal);
 
     match result2 {
-        QueryBeginResult::IgnoredWhileLoading {
-            active_request_id,
-        } => {
+        QueryBeginResult::IgnoredWhileLoading { active_request_id } => {
             assert_eq!(active_request_id, rid1);
         }
-        _ => panic!(
-            "expected IgnoredWhileLoading, got {:?}",
-            result2
-        ),
+        _ => panic!("expected IgnoredWhileLoading, got {:?}", result2),
     }
 
     assert_eq!(r.active_request_id(), Some(rid1));

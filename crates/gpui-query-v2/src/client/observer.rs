@@ -8,7 +8,9 @@ use std::cell::Cell;
 
 use gpui::{Context, Entity, Subscription};
 
-use crate::core::{InfiniteQueryResource, MutationResource, MutationStatus, QueryResource, QueryStatus};
+use crate::core::{
+    InfiniteQueryResource, MutationResource, MutationStatus, QueryResource, QueryStatus,
+};
 
 /// Configuration for a query observer.
 #[derive(Clone, Debug)]

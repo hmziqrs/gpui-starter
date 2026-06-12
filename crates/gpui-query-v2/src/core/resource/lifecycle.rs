@@ -123,8 +123,8 @@ impl<T, E> QueryResource<T, E> {
                 self.cancelled_count += 1;
             }
 
-            let request_id = maybe_request_id
-                .unwrap_or_else(|| RequestSequencer::new().next_request());
+            let request_id =
+                maybe_request_id.unwrap_or_else(|| RequestSequencer::new().next_request());
             let status = self.begin_loading(request_id, now_ms);
             return QueryBeginResult::StaleCacheHit {
                 request_id,
@@ -146,8 +146,7 @@ impl<T, E> QueryResource<T, E> {
             self.cancelled_count += 1;
         }
 
-        let request_id = maybe_request_id
-            .unwrap_or_else(|| RequestSequencer::new().next_request());
+        let request_id = maybe_request_id.unwrap_or_else(|| RequestSequencer::new().next_request());
         let status = self.begin_loading(request_id, now_ms);
         QueryBeginResult::Started {
             request_id,

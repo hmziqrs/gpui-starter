@@ -25,11 +25,7 @@ fn test_cancel_queries_cancels_loading_requests(cx: &mut TestAppContext) {
                 .next_request_id_for_key::<String, QueryError>(&key)
                 .expect("should get request id");
             entity.update(cx, |r, _| {
-                r.begin_request_with_id(
-                    Some(request_id),
-                    1_000,
-                    QueryFetchMode::Normal,
-                );
+                r.begin_request_with_id(Some(request_id), 1_000, QueryFetchMode::Normal);
             });
             assert!(entity.read(cx).is_loading());
 
@@ -79,18 +75,9 @@ fn test_remove_queries_removes_matching(cx: &mut TestAppContext) {
     setup_query_client(cx);
     cx.update(|cx| {
         cx.update_global::<QueryClient, _>(|client, cx| {
-            let _u1 = client.resource::<String, QueryError>(
-                QueryKey::from(["users", "1"]),
-                cx,
-            );
-            let _u2 = client.resource::<String, QueryError>(
-                QueryKey::from(["users", "2"]),
-                cx,
-            );
-            let _p1 = client.resource::<String, QueryError>(
-                QueryKey::from(["posts", "1"]),
-                cx,
-            );
+            let _u1 = client.resource::<String, QueryError>(QueryKey::from(["users", "1"]), cx);
+            let _u2 = client.resource::<String, QueryError>(QueryKey::from(["users", "2"]), cx);
+            let _p1 = client.resource::<String, QueryError>(QueryKey::from(["posts", "1"]), cx);
 
             assert_eq!(client.all_queries::<String, QueryError>().len(), 3);
 
@@ -132,11 +119,7 @@ fn test_set_query_data_sets_data_on_existing_resource(cx: &mut TestAppContext) {
             assert_eq!(entity.read(cx).data().unwrap(), "Alice");
 
             // Overwrite via set_query_data
-            client.set_query_data::<String, QueryError>(
-                "user:1",
-                "Bob".to_string(),
-                cx,
-            );
+            client.set_query_data::<String, QueryError>("user:1", "Bob".to_string(), cx);
 
             assert_eq!(entity.read(cx).data().unwrap(), "Bob");
             assert_eq!(
@@ -154,16 +137,9 @@ fn test_set_query_data_creates_resource_if_missing(cx: &mut TestAppContext) {
     cx.update(|cx| {
         cx.update_global::<QueryClient, _>(|client, cx| {
             // set_query_data on a key that does not exist yet
-            client.set_query_data::<String, QueryError>(
-                "new_key",
-                "hello".to_string(),
-                cx,
-            );
+            client.set_query_data::<String, QueryError>("new_key", "hello".to_string(), cx);
 
-            let data = client.get_query_data::<String, QueryError>(
-                &QueryKey::from("new_key"),
-                cx,
-            );
+            let data = client.get_query_data::<String, QueryError>(&QueryKey::from("new_key"), cx);
             assert_eq!(data, Some("hello".to_string()));
         });
     });
@@ -174,10 +150,7 @@ fn test_get_query_data_returns_none_for_missing_key(cx: &mut TestAppContext) {
     setup_query_client(cx);
     cx.update(|cx| {
         cx.update_global::<QueryClient, _>(|client, cx| {
-            let data = client.get_query_data::<String, QueryError>(
-                &QueryKey::from("ghost"),
-                cx,
-            );
+            let data = client.get_query_data::<String, QueryError>(&QueryKey::from("ghost"), cx);
             assert!(data.is_none(), "should return None for nonexistent key");
         });
     });
@@ -198,10 +171,7 @@ fn test_rollback_query_data_via_resource(cx: &mut TestAppContext) {
                 "Alice (optimistic)".to_string(),
                 cx,
             );
-            assert_eq!(
-                entity.read(cx).data().unwrap(),
-                "Alice (optimistic)"
-            );
+            assert_eq!(entity.read(cx).data().unwrap(), "Alice (optimistic)");
 
             // Rollback via the resource directly
             let rolled_back = entity.update(cx, |r, _| r.rollback_to_previous());
@@ -224,8 +194,7 @@ fn test_dehydrate_collects_success_entries(cx: &mut TestAppContext) {
             e1.update(cx, |r, _| r.apply_success("data".to_string(), 1_000));
 
             // Idle resource — should NOT appear
-            let _e2 =
-                client.resource::<String, QueryError>(QueryKey::from("idle"), cx);
+            let _e2 = client.resource::<String, QueryError>(QueryKey::from("idle"), cx);
 
             let state = client.dehydrate(cx);
             assert_eq!(
@@ -296,9 +265,7 @@ fn test_next_request_id_returns_none_for_missing_key(cx: &mut TestAppContext) {
     setup_query_client(cx);
     cx.update(|cx| {
         cx.update_global::<QueryClient, _>(|client, _cx| {
-            let id = client.next_request_id_for_key::<String, QueryError>(
-                &QueryKey::from("ghost"),
-            );
+            let id = client.next_request_id_for_key::<String, QueryError>(&QueryKey::from("ghost"));
             assert!(id.is_none(), "should return None for nonexistent key");
         });
     });

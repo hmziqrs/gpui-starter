@@ -68,8 +68,7 @@ fn test_multiple_observations_same_entity(cx: &mut TestAppContext) {
             cx,
         );
         // Create a second observation on the same entity.
-        let mut observer2 =
-            crate::client::QueryObserver::new(&entity);
+        let mut observer2 = crate::client::QueryObserver::new(&entity);
         let sub2 = observer2
             .observe(cx)
             .expect("second observation should succeed on live entity");
@@ -82,11 +81,7 @@ fn test_multiple_observations_same_entity(cx: &mut TestAppContext) {
 
     // Fetch data — both observations should be active.
     harness.update(cx, |this, cx| {
-        fetch_query(
-            &this.entity,
-            || async { Ok::<_, QueryError>(42_u32) },
-            cx,
-        );
+        fetch_query(&this.entity, || async { Ok::<_, QueryError>(42_u32) }, cx);
     });
 
     cx.run_until_parked();

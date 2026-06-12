@@ -3,8 +3,8 @@
 //! Covers: stale request rejection, reset from every state, retry counter.
 
 use crate::core::*;
-use crate::tests::test_support::test_resource_with_policies;
 use crate::tests::core_lifecycle::transitions::*;
+use crate::tests::test_support::test_resource_with_policies;
 
 // ═══════════════════════════════════════════════════════════════════════
 // 11. Stale request rejection: old results don't overwrite new
@@ -49,11 +49,7 @@ fn stale_failure_does_not_overwrite_newer_request() {
     let (rid1, _) = begin(&mut r, &mut s, 100);
     let (rid2, _) = begin(&mut r, &mut s, 200);
 
-    assert!(!r.complete_current_failure(
-        rid1,
-        QueryError::response("old err"),
-        300
-    ));
+    assert!(!r.complete_current_failure(rid1, QueryError::response("old err"), 300));
 
     assert_eq!(r.status(), QueryStatus::LoadingEmpty);
     assert_eq!(r.active_request_id(), Some(rid2));
@@ -112,11 +108,7 @@ fn reset_from_failure() {
     let mut s = seq();
 
     let (rid, _) = begin(&mut r, &mut s, 100);
-    assert!(r.complete_current_failure(
-        rid,
-        QueryError::response("err"),
-        200
-    ));
+    assert!(r.complete_current_failure(rid, QueryError::response("err"), 200));
 
     r.reset();
 

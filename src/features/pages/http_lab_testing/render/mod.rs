@@ -1,13 +1,13 @@
-mod query_sections;
-mod mutation_sections;
 mod lab_sections;
+mod mutation_sections;
+mod query_sections;
 
 use std::time::Instant;
 
 use gpui::{prelude::*, *};
 use gpui_component::{ActiveTheme as _, v_flex};
 
-use super::{HttpLabTestingPage, RawStatus, RENDER_LOG};
+use super::{HttpLabTestingPage, RENDER_LOG, RawStatus};
 
 impl Render for HttpLabTestingPage {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {

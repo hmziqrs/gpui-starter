@@ -13,9 +13,20 @@ fn invalidate_clears_last_updated_but_retains_data() {
     let mut r = ttl_resource();
     seed_data(&mut r, "cached", STORED_AT_MS);
     r.invalidate();
-    assert_eq!(r.data(), Some(&"cached"), "data is retained after invalidate");
-    assert_eq!(r.last_updated_at_ms(), None, "last_updated_at cleared by invalidate");
-    assert!(!r.is_cache_fresh(STORED_AT_MS + 1), "after invalidate, data is not fresh even within TTL");
+    assert_eq!(
+        r.data(),
+        Some(&"cached"),
+        "data is retained after invalidate"
+    );
+    assert_eq!(
+        r.last_updated_at_ms(),
+        None,
+        "last_updated_at cleared by invalidate"
+    );
+    assert!(
+        !r.is_cache_fresh(STORED_AT_MS + 1),
+        "after invalidate, data is not fresh even within TTL"
+    );
 }
 
 #[test]

@@ -202,10 +202,8 @@ fn test_client_clear(cx: &mut TestAppContext) {
 
         let _u = client.resource::<User, QueryError>(QueryKey::from("user:1"), cx);
         let _p = client.resource::<Post, QueryError>(QueryKey::from("post:1"), cx);
-        let _m = client.mutation_resource::<String, User, QueryError>(
-            &QueryKey::from("mutation:1"),
-            cx,
-        );
+        let _m =
+            client.mutation_resource::<String, User, QueryError>(&QueryKey::from("mutation:1"), cx);
 
         assert_eq!(client.total_count(), 2);
         assert_eq!(client.mutation_count(), 1);

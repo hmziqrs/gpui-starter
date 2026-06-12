@@ -1,12 +1,9 @@
 use gpui::*;
 
-use gpui_query_v2::core::{
-    CachePolicy,
-    QueryError, RequestPolicy, RetryPolicy, SelectTransform,
-};
+use gpui_query_v2::core::{CachePolicy, QueryError, RequestPolicy, RetryPolicy, SelectTransform};
 use gpui_query_v2::hook::{
-    use_infinite_query, use_mutation, use_query, use_query_select,
-    InfiniteQueryOptions, QueryOptions,
+    InfiniteQueryOptions, QueryOptions, use_infinite_query, use_mutation, use_query,
+    use_query_select,
 };
 
 use super::super::{PlaygroundPage, PlaygroundUser, QueryPlaygroundPage};
@@ -209,15 +206,19 @@ impl QueryPlaygroundPage {
                 .retry_policy(RetryPolicy::no_retries()),
             move |last_page: Option<&PlaygroundPage>| {
                 let exec = exec.clone();
-                let page_num = last_page
-                    .map(|p| p.page_number + 1)
-                    .unwrap_or(0);
+                let page_num = last_page.map(|p| p.page_number + 1).unwrap_or(0);
                 async move {
                     exec.timer(std::time::Duration::from_millis(600)).await;
                     let items: Vec<String> = (0..5)
                         .map(|i| format!("page {} item {}", page_num, i))
                         .collect();
-                    Ok((PlaygroundPage { items, page_number: page_num }, page_num < 10))
+                    Ok((
+                        PlaygroundPage {
+                            items,
+                            page_number: page_num,
+                        },
+                        page_num < 10,
+                    ))
                 }
             },
             cx,
@@ -243,9 +244,21 @@ impl QueryPlaygroundPage {
                 async move {
                     exec.timer(std::time::Duration::from_secs(1)).await;
                     Ok(vec![
-                        PlaygroundUser { id: 10, name: "Eve".into(), email: "eve@test.com".into() },
-                        PlaygroundUser { id: 11, name: "Frank".into(), email: "frank@test.com".into() },
-                        PlaygroundUser { id: 12, name: "Grace".into(), email: "grace@test.com".into() },
+                        PlaygroundUser {
+                            id: 10,
+                            name: "Eve".into(),
+                            email: "eve@test.com".into(),
+                        },
+                        PlaygroundUser {
+                            id: 11,
+                            name: "Frank".into(),
+                            email: "frank@test.com".into(),
+                        },
+                        PlaygroundUser {
+                            id: 12,
+                            name: "Grace".into(),
+                            email: "grace@test.com".into(),
+                        },
                     ])
                 }
             },

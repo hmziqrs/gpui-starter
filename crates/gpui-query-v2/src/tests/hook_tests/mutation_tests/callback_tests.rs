@@ -93,7 +93,10 @@ fn test_mutate_with_callbacks_failure(cx: &mut TestAppContext) {
     cx.run_until_parked();
 
     assert!(*error_called.lock().unwrap(), "on_error should fire");
-    assert!(*settled_called.lock().unwrap(), "on_settled should fire on failure");
+    assert!(
+        *settled_called.lock().unwrap(),
+        "on_settled should fire on failure"
+    );
 }
 
 #[gpui::test]
@@ -128,10 +131,12 @@ fn test_mutate_callbacks_all_fire_on_success(cx: &mut TestAppContext) {
                 .on_error(move |err: &QueryError| {
                     *ev.lock().unwrap() = err.to_string();
                 })
-                .on_settled(move |opt_data: Option<&String>, opt_err: Option<&QueryError>| {
-                    *sd.lock().unwrap() = opt_data.map(|d| d.to_string());
-                    *se.lock().unwrap() = opt_err.map(|e| e.to_string());
-                }),
+                .on_settled(
+                    move |opt_data: Option<&String>, opt_err: Option<&QueryError>| {
+                        *sd.lock().unwrap() = opt_data.map(|d| d.to_string());
+                        *se.lock().unwrap() = opt_err.map(|e| e.to_string());
+                    },
+                ),
             cx,
         );
         H { mutation: entity }
@@ -139,7 +144,11 @@ fn test_mutate_callbacks_all_fire_on_success(cx: &mut TestAppContext) {
 
     cx.run_until_parked();
 
-    assert_eq!(*success_val.lock().unwrap(), "yes-all-cb", "on_success should fire with data");
+    assert_eq!(
+        *success_val.lock().unwrap(),
+        "yes-all-cb",
+        "on_success should fire with data"
+    );
     assert!(
         error_val.lock().unwrap().is_empty(),
         "on_error should NOT fire on success"
@@ -193,10 +202,12 @@ fn test_mutate_callbacks_all_fire_on_failure(cx: &mut TestAppContext) {
                 .on_error(move |err: &QueryError| {
                     *em.lock().unwrap() = err.to_string();
                 })
-                .on_settled(move |opt_data: Option<&String>, opt_err: Option<&QueryError>| {
-                    *sd.lock().unwrap() = opt_data.map(|d| d.to_string());
-                    *se.lock().unwrap() = opt_err.map(|e| e.to_string());
-                }),
+                .on_settled(
+                    move |opt_data: Option<&String>, opt_err: Option<&QueryError>| {
+                        *sd.lock().unwrap() = opt_data.map(|d| d.to_string());
+                        *se.lock().unwrap() = opt_err.map(|e| e.to_string());
+                    },
+                ),
             cx,
         );
         H { mutation: entity }
@@ -284,7 +295,10 @@ fn test_mutate_callbacks_settled_always_fires_on_failure(cx: &mut TestAppContext
             "settled-fail".to_string(),
             |_| async { Err::<String, _>(QueryError::response("fail")) },
             MutationCallbacks::<String, QueryError>::new().on_settled(move |opt_data, opt_err| {
-                assert!(opt_data.is_none(), "settled should not have data on failure");
+                assert!(
+                    opt_data.is_none(),
+                    "settled should not have data on failure"
+                );
                 assert!(opt_err.is_some(), "settled should have error on failure");
                 *sc.lock().unwrap() = true;
             }),

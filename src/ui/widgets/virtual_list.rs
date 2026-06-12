@@ -11,7 +11,7 @@ use std::rc::Rc;
 
 use gpui::{prelude::*, *};
 use gpui_component::scroll::{ScrollableElement, ScrollbarAxis};
-use gpui_component::{v_flex, v_virtual_list, VirtualListScrollHandle};
+use gpui_component::{VirtualListScrollHandle, v_flex, v_virtual_list};
 
 // ---------------------------------------------------------------------------
 // Item-size helpers
@@ -83,18 +83,13 @@ where
 {
     let entity = cx.entity();
 
-    let mut list = v_virtual_list(entity, id, item_sizes, render_items)
-        .track_scroll(scroll_handle);
+    let mut list = v_virtual_list(entity, id, item_sizes, render_items).track_scroll(scroll_handle);
 
     if gap > px(0.) {
         list = list.gap(gap);
     }
 
-    let mut container = v_flex()
-        .relative()
-        .w_full()
-        .h(list_height)
-        .child(list);
+    let mut container = v_flex().relative().w_full().h(list_height).child(list);
 
     if show_scrollbar {
         container = container.scrollbar(scroll_handle, ScrollbarAxis::Vertical);

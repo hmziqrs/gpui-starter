@@ -279,8 +279,7 @@ async fn run_fetch_next_page<T, E, F, Fut>(
 
     // We need the request_id that was assigned during begin_fetch_next.
     // Read it from the entity before completing.
-    let request_id: Option<RequestId> =
-        e.read_with(cx, |r, _| r.active_request_id());
+    let request_id: Option<RequestId> = e.read_with(cx, |r, _| r.active_request_id());
 
     let Some(request_id) = request_id else {
         return;
@@ -330,8 +329,7 @@ async fn run_fetch_previous_page<T, E, F, Fut>(
         None => return,
     };
 
-    let request_id: Option<RequestId> =
-        e.read_with(cx, |r, _| r.active_request_id());
+    let request_id: Option<RequestId> = e.read_with(cx, |r, _| r.active_request_id());
 
     let Some(request_id) = request_id else {
         return;

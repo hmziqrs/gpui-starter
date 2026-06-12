@@ -104,10 +104,7 @@ pub(super) fn render_notifications_section(
                                         "settings_test_native_notification",
                                         None,
                                     ),
-                                    crate::i18n::localize(
-                                        "settings_hello_notification",
-                                        None,
-                                    ),
+                                    crate::i18n::localize("settings_hello_notification", None),
                                 ),
                                 window,
                                 cx,
@@ -118,10 +115,7 @@ pub(super) fn render_notifications_section(
                     Button::new("request-notification-permission")
                         .outline()
                         .disabled(!can_request_permission)
-                        .label(crate::i18n::localize(
-                            "settings_request_permission",
-                            None,
-                        ))
+                        .label(crate::i18n::localize("settings_request_permission", None))
                         .on_click(|_, window, cx| {
                             notifications::request_permission_from_window(window, cx);
                         }),
@@ -178,14 +172,8 @@ pub(super) fn render_notifications_section(
                         .on_click(|_, window, cx| {
                             notifications::send_from_window(
                                 NotificationRequest::reply(
-                                    crate::i18n::localize(
-                                        "settings_test_reply_notification",
-                                        None,
-                                    ),
-                                    crate::i18n::localize(
-                                        "settings_reply_notification_body",
-                                        None,
-                                    ),
+                                    crate::i18n::localize("settings_test_reply_notification", None),
+                                    crate::i18n::localize("settings_reply_notification_body", None),
                                 ),
                                 window,
                                 cx,

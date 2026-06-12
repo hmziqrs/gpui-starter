@@ -3,11 +3,7 @@ mod notifications_section;
 
 use gpui::{prelude::*, *};
 use gpui_component::{
-    ActiveTheme as _, Selectable as _, Theme,
-    button::Button,
-    label::Label,
-    switch::Switch,
-    v_flex,
+    ActiveTheme as _, Selectable as _, Theme, button::Button, label::Label, switch::Switch, v_flex,
 };
 
 use crate::app::{self, LOCALE_EN, LOCALE_ZH_CN, LocaleState};

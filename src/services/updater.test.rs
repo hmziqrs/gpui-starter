@@ -52,7 +52,10 @@ fn manifest_parse_valid_full() {
     assert_eq!(manifest.version, "2.0.0");
     assert_eq!(manifest.release_notes, "Big update");
     assert_eq!(manifest.platforms.len(), 1);
-    let asset = manifest.platforms.get("macos-aarch64").expect("platform key");
+    let asset = manifest
+        .platforms
+        .get("macos-aarch64")
+        .expect("platform key");
     assert_eq!(asset.url, "https://example.com/app.tar.gz");
     assert_eq!(asset.signature, "abc123");
     assert_eq!(asset.size, 12345678);
@@ -121,7 +124,10 @@ fn update_status_default_is_idle() {
 fn pending_swap_path_is_consistent() {
     let a = pending_swap_path();
     let b = pending_swap_path();
-    assert_eq!(a, b, "pending_swap_path should return the same path on every call");
+    assert_eq!(
+        a, b,
+        "pending_swap_path should return the same path on every call"
+    );
 }
 
 // ---------------------------------------------------------------------------

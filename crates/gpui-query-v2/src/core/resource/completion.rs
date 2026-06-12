@@ -143,12 +143,7 @@ impl<T, E> QueryResource<T, E> {
         self.last_updated_at = Some(QueryTimestamp::from(now_ms));
     }
 
-    pub(crate) fn apply_failure_with_data(
-        &mut self,
-        data: T,
-        error: impl Into<E>,
-        now_ms: u128,
-    ) {
+    pub(crate) fn apply_failure_with_data(&mut self, data: T, error: impl Into<E>, now_ms: u128) {
         self.status = QueryStatus::Failure;
         self.data = Some(data);
         self.error = Some(error.into());

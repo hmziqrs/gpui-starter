@@ -147,10 +147,7 @@ fn new_request_cancels_old_signal() {
     );
     let new_signal = r.signal().unwrap();
     assert!(!new_signal.is_cancelled(), "new signal must be fresh");
-    assert_ne!(
-        old_signal, *new_signal,
-        "signals must be distinct objects"
-    );
+    assert_ne!(old_signal, *new_signal, "signals must be distinct objects");
 }
 
 /// Design rationale: completing a request deliberately does NOT cancel the
@@ -188,8 +185,5 @@ fn completion_does_not_cancel_signal() {
     assert!(r.complete_current_success(rid, "data", 200));
 
     let sig = r.signal().expect("signal persists after completion");
-    assert!(
-        !sig.is_cancelled(),
-        "completion should not cancel signal"
-    );
+    assert!(!sig.is_cancelled(), "completion should not cancel signal");
 }

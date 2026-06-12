@@ -8,9 +8,7 @@ use crate::core::{
     CachePolicy, QueryKey, QueryResource, QueryStatus, RequestPolicy, RequestSequencer,
 };
 
-use super::types::{
-    BucketEntry, DEFAULT_MAX_ENTRIES, StatusSnapshot,
-};
+use super::types::{BucketEntry, DEFAULT_MAX_ENTRIES, StatusSnapshot};
 
 /// Type-partitioned storage for query resources of a specific `(T, E)` type pair.
 pub struct QueryBucket<T, E> {

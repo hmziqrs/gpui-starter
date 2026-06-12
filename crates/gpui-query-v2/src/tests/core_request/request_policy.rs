@@ -9,7 +9,9 @@ use crate::core::{
     CachePolicy, QueryBeginResult, QueryFetchMode, QueryResource, QuerySignal, QueryStatus,
     RequestId, RequestPolicy,
 };
-use crate::tests::test_support::{assert_status, test_resource_with_policies, test_sequencer, TEST_NOW_MS};
+use crate::tests::test_support::{
+    TEST_NOW_MS, assert_status, test_resource_with_policies, test_sequencer,
+};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // RequestPolicy: LatestWins cancels previous
@@ -164,9 +166,18 @@ fn each_request_gets_a_fresh_signal() {
     resource.begin_request(&mut seq, TEST_NOW_MS, QueryFetchMode::Normal);
     let signal_2 = resource.signal().unwrap().clone();
 
-    assert_ne!(signal_1, signal_2, "each request should get a distinct signal");
-    assert!(signal_1.is_cancelled(), "old signal should be cancelled when replaced");
-    assert!(!signal_2.is_cancelled(), "new signal should not be cancelled");
+    assert_ne!(
+        signal_1, signal_2,
+        "each request should get a distinct signal"
+    );
+    assert!(
+        signal_1.is_cancelled(),
+        "old signal should be cancelled when replaced"
+    );
+    assert!(
+        !signal_2.is_cancelled(),
+        "new signal should not be cancelled"
+    );
 }
 
 #[test]

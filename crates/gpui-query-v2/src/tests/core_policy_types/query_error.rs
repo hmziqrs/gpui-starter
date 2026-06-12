@@ -24,10 +24,22 @@ fn query_error_messages() {
 
 #[test]
 fn query_error_display_format() {
-    assert_eq!(QueryError::cancelled("abort").to_string(), "cancelled: abort");
-    assert_eq!(QueryError::response("not found").to_string(), "response error: not found");
-    assert_eq!(QueryError::transport("timeout").to_string(), "transport error: timeout");
-    assert_eq!(QueryError::unknown("mystery").to_string(), "unknown error: mystery");
+    assert_eq!(
+        QueryError::cancelled("abort").to_string(),
+        "cancelled: abort"
+    );
+    assert_eq!(
+        QueryError::response("not found").to_string(),
+        "response error: not found"
+    );
+    assert_eq!(
+        QueryError::transport("timeout").to_string(),
+        "transport error: timeout"
+    );
+    assert_eq!(
+        QueryError::unknown("mystery").to_string(),
+        "unknown error: mystery"
+    );
 }
 
 #[test]
@@ -169,9 +181,8 @@ fn query_error_sanitized_hex_key_15_chars_not_redacted() {
 
 #[test]
 fn query_error_sanitized_mixed_patterns() {
-    let err = QueryError::transport(
-        "postgres://u:p@h/db bearer sk_live_abc123 user@a.com /home/secret",
-    );
+    let err =
+        QueryError::transport("postgres://u:p@h/db bearer sk_live_abc123 user@a.com /home/secret");
     let clean = err.sanitized();
     assert!(clean.message().contains("[REDACTED_CONNECTION]"));
     assert!(clean.message().contains("[REDACTED_TOKEN]"));
@@ -184,7 +195,11 @@ fn query_error_sanitized_truncation_exact_boundary() {
     let msg = "x".repeat(512);
     let err = QueryError::unknown(&*msg);
     let clean = err.sanitized();
-    assert_eq!(clean.message().len(), 512, "exactly 512 chars, no truncation needed");
+    assert_eq!(
+        clean.message().len(),
+        512,
+        "exactly 512 chars, no truncation needed"
+    );
     assert!(!clean.message().contains("...[truncated]"));
 }
 

@@ -2,8 +2,8 @@ use std::{path::PathBuf, sync::Arc};
 
 use gpui::{App, BorrowAppContext as _, Global};
 
-use super::{StorageBackend, StorageSnapshot};
 use super::backend::SqliteStorage;
+use super::{StorageBackend, StorageSnapshot};
 
 #[derive(Clone)]
 pub struct StorageRuntime {
@@ -94,27 +94,23 @@ pub fn run_health_check(cx: &mut App) {
     cx.spawn(async move |cx| {
         let backend = runtime.backend.clone();
         let backend_clone = Arc::clone(&backend);
-        let result = bg
-            .spawn(async move { backend.health_check() })
-            .await;
+        let result = bg.spawn(async move { backend.health_check() }).await;
         let version_result = bg
             .spawn(async move { backend_clone.schema_version() })
             .await;
 
         let _ = cx.update(|cx| {
-            cx.update_global::<StorageSnapshot, _>(|snap, _cx| {
-                match result {
-                    Ok(()) => {
-                        snap.healthy = true;
-                        snap.last_error = None;
-                        if let Ok(version) = version_result {
-                            snap.schema_version = version;
-                        }
+            cx.update_global::<StorageSnapshot, _>(|snap, _cx| match result {
+                Ok(()) => {
+                    snap.healthy = true;
+                    snap.last_error = None;
+                    if let Ok(version) = version_result {
+                        snap.schema_version = version;
                     }
-                    Err(err) => {
-                        snap.healthy = false;
-                        snap.last_error = Some(err.to_string());
-                    }
+                }
+                Err(err) => {
+                    snap.healthy = false;
+                    snap.last_error = Some(err.to_string());
                 }
             });
         });
@@ -134,20 +130,16 @@ pub fn run_maintenance(cx: &mut App) {
     let bg = cx.background_executor().clone();
     cx.spawn(async move |cx| {
         let backend = runtime.backend.clone();
-        let result = bg
-            .spawn(async move { backend.maintenance() })
-            .await;
+        let result = bg.spawn(async move { backend.maintenance() }).await;
 
         let _ = cx.update(|cx| {
-            cx.update_global::<StorageSnapshot, _>(|snap, _cx| {
-                match result {
-                    Ok(()) => {
-                        snap.last_maintenance_at = Some(chrono::Utc::now().to_rfc3339());
-                        snap.last_error = None;
-                    }
-                    Err(err) => {
-                        snap.last_error = Some(err.to_string());
-                    }
+            cx.update_global::<StorageSnapshot, _>(|snap, _cx| match result {
+                Ok(()) => {
+                    snap.last_maintenance_at = Some(chrono::Utc::now().to_rfc3339());
+                    snap.last_error = None;
+                }
+                Err(err) => {
+                    snap.last_error = Some(err.to_string());
                 }
             });
         });

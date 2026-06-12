@@ -2,34 +2,38 @@ use gpui::prelude::*;
 use gpui::*;
 
 use gpui_component::{
-    ActiveTheme as _,
-    Disableable as _,
+    ActiveTheme as _, Disableable as _,
     button::{Button, ButtonVariants as _},
-    h_flex, v_flex,
+    h_flex,
     input::Input,
+    v_flex,
 };
 
 use gpui_query_v2::core::{MutationStatus, QueryStatus};
 
+use super::super::ui_helpers::{chip, mapped_preview, section_card, source_preview, status_badge};
 use super::super::{PlaygroundPage, QueryPlaygroundPage};
-use super::super::ui_helpers::{section_card, status_badge, chip, source_preview, mapped_preview};
 
 impl QueryPlaygroundPage {
     pub(in super::super) fn render_mutation(&mut self, cx: &mut Context<Self>) -> Div {
-
-        let m_status = self.mutation_entity.as_ref().map_or(
-            MutationStatus::Idle,
-            |(e, _)| e.read_with(cx, |r, _| r.status()),
-        );
-        let m_data = self.mutation_entity.as_ref().and_then(|(e, _)| {
-            e.read_with(cx, |r, _| r.data().cloned())
-        });
-        let m_error = self.mutation_entity.as_ref().and_then(|(e, _)| {
-            e.read_with(cx, |r, _| r.error().cloned())
-        });
-        let m_vars = self.mutation_entity.as_ref().and_then(|(e, _)| {
-            e.read_with(cx, |r, _| r.variables().cloned())
-        });
+        let m_status = self
+            .mutation_entity
+            .as_ref()
+            .map_or(MutationStatus::Idle, |(e, _)| {
+                e.read_with(cx, |r, _| r.status())
+            });
+        let m_data = self
+            .mutation_entity
+            .as_ref()
+            .and_then(|(e, _)| e.read_with(cx, |r, _| r.data().cloned()));
+        let m_error = self
+            .mutation_entity
+            .as_ref()
+            .and_then(|(e, _)| e.read_with(cx, |r, _| r.error().cloned()));
+        let m_vars = self
+            .mutation_entity
+            .as_ref()
+            .and_then(|(e, _)| e.read_with(cx, |r, _| r.variables().cloned()));
         let m_loading = m_status == MutationStatus::Loading;
 
         let status_color = match m_status {
@@ -112,21 +116,27 @@ impl QueryPlaygroundPage {
     }
 
     pub(in super::super) fn render_infinite_query(&mut self, cx: &mut Context<Self>) -> Div {
-
-        let page_count = self.infinite_entity.as_ref().map_or(0, |(e, _)| {
-            e.read_with(cx, |r, _| r.page_count())
-        });
-        let inf_status = self.infinite_entity.as_ref().map_or(QueryStatus::Idle, |(e, _)| {
-            e.read_with(cx, |r, _| r.status())
-        });
-        let has_next = self.infinite_entity.as_ref().map_or(false, |(e, _)| {
-            e.read_with(cx, |r, _| r.has_next_page())
-        });
+        let page_count = self
+            .infinite_entity
+            .as_ref()
+            .map_or(0, |(e, _)| e.read_with(cx, |r, _| r.page_count()));
+        let inf_status = self
+            .infinite_entity
+            .as_ref()
+            .map_or(QueryStatus::Idle, |(e, _)| {
+                e.read_with(cx, |r, _| r.status())
+            });
+        let has_next = self
+            .infinite_entity
+            .as_ref()
+            .map_or(false, |(e, _)| e.read_with(cx, |r, _| r.has_next_page()));
         let has_prev = self.infinite_entity.as_ref().map_or(false, |(e, _)| {
             e.read_with(cx, |r, _| r.has_previous_page())
         });
         let loading = inf_status.is_loading();
-        let pages: Vec<(usize, PlaygroundPage)> = self.infinite_entity.as_ref()
+        let pages: Vec<(usize, PlaygroundPage)> = self
+            .infinite_entity
+            .as_ref()
             .map(|(e, _)| {
                 let mut result = Vec::new();
                 e.read_with(cx, |r, _| {
@@ -198,16 +208,18 @@ impl QueryPlaygroundPage {
     }
 
     pub(in super::super) fn render_select_transform(&mut self, cx: &mut Context<Self>) -> Div {
-
-        let source_data = self.select_source.as_ref().and_then(|e| {
-            e.read_with(cx, |r, _| r.data().cloned())
-        });
-        let mapped_data = self.select_mapped.as_ref().and_then(|e| {
-            e.read_with(cx, |r, _| r.data())
-        });
-        let source_status = self.select_source.as_ref().map_or(QueryStatus::Idle, |e| {
-            e.read_with(cx, |r, _| r.status())
-        });
+        let source_data = self
+            .select_source
+            .as_ref()
+            .and_then(|e| e.read_with(cx, |r, _| r.data().cloned()));
+        let mapped_data = self
+            .select_mapped
+            .as_ref()
+            .and_then(|e| e.read_with(cx, |r, _| r.data()));
+        let source_status = self
+            .select_source
+            .as_ref()
+            .map_or(QueryStatus::Idle, |e| e.read_with(cx, |r, _| r.status()));
         let loading = source_status.is_loading();
 
         section_card(
@@ -256,13 +268,16 @@ impl QueryPlaygroundPage {
     }
 
     pub(in super::super) fn render_imperative_fetch(&mut self, cx: &mut Context<Self>) -> Div {
-
-        let status = self.imperative_query.as_ref().map_or(QueryStatus::Idle, |(e, _)| {
-            e.read_with(cx, |r, _| r.status())
-        });
-        let data = self.imperative_query.as_ref().and_then(|(e, _)| {
-            e.read_with(cx, |r, _| r.data().cloned())
-        });
+        let status = self
+            .imperative_query
+            .as_ref()
+            .map_or(QueryStatus::Idle, |(e, _)| {
+                e.read_with(cx, |r, _| r.status())
+            });
+        let data = self
+            .imperative_query
+            .as_ref()
+            .and_then(|(e, _)| e.read_with(cx, |r, _| r.data().cloned()));
         let signal_cancelled = self.imperative_query.as_ref().map_or(false, |(e, _)| {
             e.read_with(cx, |r, _| {
                 r.signal().map(|s| s.is_cancelled()).unwrap_or(false)
@@ -276,7 +291,11 @@ impl QueryPlaygroundPage {
             cx,
         )
         .child(
-            h_flex().gap_2().flex_wrap().px_4().py_3()
+            h_flex()
+                .gap_2()
+                .flex_wrap()
+                .px_4()
+                .py_3()
                 .child(
                     Button::new("pg-imp-fetch")
                         .primary()
@@ -299,11 +318,13 @@ impl QueryPlaygroundPage {
                 ),
         )
         .child(
-            h_flex().gap_3().items_center().px_4().pb_3()
+            h_flex()
+                .gap_3()
+                .items_center()
+                .px_4()
+                .pb_3()
                 .child(status_badge(status, cx))
-                .when_some(data, |el, d| {
-                    el.child(chip(&d, cx.theme().background, cx))
-                })
+                .when_some(data, |el, d| el.child(chip(&d, cx.theme().background, cx)))
                 .child(chip(
                     &format!("signal cancelled: {}", signal_cancelled),
                     cx.theme().background,

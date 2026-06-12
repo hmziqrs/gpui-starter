@@ -1,14 +1,13 @@
 use gpui::{prelude::*, *};
 use gpui_component::{
-    Disableable as _, button::{Button, ButtonVariants as _}, v_flex,
+    Disableable as _,
+    button::{Button, ButtonVariants as _},
+    v_flex,
 };
 
-
 use super::super::{
-    ui_helpers::{
-        compact_resource_preview, query_resource_row, row, section_card, toggle_button,
-    },
     HttpLabTestingPage, RawStatus,
+    ui_helpers::{compact_resource_preview, query_resource_row, row, section_card, toggle_button},
 };
 
 impl HttpLabTestingPage {
@@ -96,10 +95,7 @@ impl HttpLabTestingPage {
     }
 
     /// Section 2: Cancel Signal
-    pub(super) fn render_cancel_signal_section(
-        &self,
-        cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    pub(super) fn render_cancel_signal_section(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let is_sending = matches!(self.status, RawStatus::Sending);
         let signal_resource = &self.query_signal_resource;
         let signal_status = match signal_resource.signal() {
@@ -165,10 +161,7 @@ impl HttpLabTestingPage {
     }
 
     /// Section 3: Cache & Data Retention
-    pub(super) fn render_data_retention_section(
-        &self,
-        cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    pub(super) fn render_data_retention_section(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let is_sending = matches!(self.status, RawStatus::Sending);
         let placeholder_resource = &self.query_placeholder_resource;
         let ph_data = compact_resource_preview(placeholder_resource.data());

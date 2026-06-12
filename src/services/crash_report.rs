@@ -249,9 +249,7 @@ pub fn upload_pending_reports(cx: &mut App) {
                     let id = report.id.clone();
                     let mark_result = cx
                         .background_executor()
-                        .spawn(async move {
-                            backend.mark_crash_report_uploaded(&id, &uploaded_at)
-                        })
+                        .spawn(async move { backend.mark_crash_report_uploaded(&id, &uploaded_at) })
                         .await;
                     if let Err(err) = mark_result {
                         tracing::warn!(
@@ -287,9 +285,7 @@ pub fn upload_pending_reports(cx: &mut App) {
         let _ = cx.update(|cx| {
             let pending = cx
                 .background_executor()
-                .spawn(async move {
-                    backend.load_pending_crash_reports(1)
-                });
+                .spawn(async move { backend.load_pending_crash_reports(1) });
             // We can't block here; schedule a background update.
             let backend2 = backend_for_spawn.clone();
             cx.spawn(async move |cx| {
@@ -306,9 +302,7 @@ pub fn upload_pending_reports(cx: &mut App) {
                 let backend3 = backend2.clone();
                 let latest = cx
                     .background_executor()
-                    .spawn(async move {
-                        backend3.load_pending_crash_reports(1)
-                    })
+                    .spawn(async move { backend3.load_pending_crash_reports(1) })
                     .await;
                 if let Ok(r) = latest {
                     let _ = cx.update(|cx| {

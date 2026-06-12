@@ -107,7 +107,10 @@ impl<T, E> ObserverConfig<T, E> {
     }
 
     /// Set the settled callback (fires on both success and failure).
-    pub fn on_settled(mut self, f: impl Fn(Option<&T>, Option<&E>) + Send + Sync + 'static) -> Self {
+    pub fn on_settled(
+        mut self,
+        f: impl Fn(Option<&T>, Option<&E>) + Send + Sync + 'static,
+    ) -> Self {
         self.on_settled = Some(Arc::new(f));
         self
     }
@@ -150,14 +153,13 @@ impl<T: 'static, E: 'static> QueryObserver<T, E> {
     /// The observer fires callbacks based on status transitions of the
     /// underlying resource entity. Call this once during component
     /// initialization and store the returned subscription.
-    pub fn observe<W: 'static>(
-        &mut self,
-        cx: &mut gpui::Context<W>,
-    ) -> Subscription {
+    pub fn observe<W: 'static>(&mut self, cx: &mut gpui::Context<W>) -> Subscription {
         let entity = self.entity.clone();
         let config = self.config.clone();
 
-        let upgraded = entity.upgrade().expect("QueryObserver::observe: entity already dropped");
+        let upgraded = entity
+            .upgrade()
+            .expect("QueryObserver::observe: entity already dropped");
 
         cx.observe(&upgraded, move |_this, entity, cx| {
             let resource = entity.read(cx);

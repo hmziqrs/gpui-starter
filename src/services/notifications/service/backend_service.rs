@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use gpui::{Global, SharedString};
 
-use super::{NotificationBackend, NotifyRustBackend, UserNotifyBackend};
 use super::types::{
     NotificationBackendKind, NotificationCapabilities, NotificationImportance,
     NotificationPermissionState, NotificationRequest, NotificationSendResult,
 };
+use super::{NotificationBackend, NotifyRustBackend, UserNotifyBackend};
 
 pub const LOG: &str = "gpui_starter::notifications";
 

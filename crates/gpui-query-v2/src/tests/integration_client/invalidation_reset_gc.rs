@@ -39,10 +39,7 @@ fn test_invalidate_queries_exact_filter(cx: &mut TestAppContext) {
                 e1.read(cx).data().is_some(),
                 "data should survive invalidation"
             );
-            assert!(
-                e2.read(cx).is_cache_fresh(1_500),
-                "e2 should remain fresh"
-            );
+            assert!(e2.read(cx).is_cache_fresh(1_500), "e2 should remain fresh");
         });
     });
 }
@@ -52,12 +49,9 @@ fn test_invalidate_queries_prefix_filter_across_types(cx: &mut TestAppContext) {
     setup_query_client(cx);
     cx.update(|cx| {
         cx.update_global::<QueryClient, _>(|client, cx| {
-            let u1 = client
-                .resource::<String, QueryError>(QueryKey::from(["users", "1"]), cx);
-            let u2 = client
-                .resource::<String, QueryError>(QueryKey::from(["users", "2"]), cx);
-            let p1 = client
-                .resource::<String, QueryError>(QueryKey::from(["posts", "1"]), cx);
+            let u1 = client.resource::<String, QueryError>(QueryKey::from(["users", "1"]), cx);
+            let u2 = client.resource::<String, QueryError>(QueryKey::from(["users", "2"]), cx);
+            let p1 = client.resource::<String, QueryError>(QueryKey::from(["posts", "1"]), cx);
 
             u1.update(cx, |r, _| r.apply_success("user1".to_string(), 1_000));
             u2.update(cx, |r, _| r.apply_success("user2".to_string(), 1_000));
@@ -67,8 +61,14 @@ fn test_invalidate_queries_prefix_filter_across_types(cx: &mut TestAppContext) {
             let prefix = QueryKey::from(["users"]);
             client.invalidate_queries(&QueryKeyFilter::Prefix(&prefix), cx);
 
-            assert!(!u1.read(cx).is_cache_fresh(1_500), "users/1 should be stale");
-            assert!(!u2.read(cx).is_cache_fresh(1_500), "users/2 should be stale");
+            assert!(
+                !u1.read(cx).is_cache_fresh(1_500),
+                "users/1 should be stale"
+            );
+            assert!(
+                !u2.read(cx).is_cache_fresh(1_500),
+                "users/2 should be stale"
+            );
             assert!(
                 p1.read(cx).is_cache_fresh(1_500),
                 "posts/1 should still be fresh"
@@ -130,14 +130,8 @@ fn test_reset_queries_prefix_preserves_non_matching(cx: &mut TestAppContext) {
     setup_query_client(cx);
     cx.update(|cx| {
         cx.update_global::<QueryClient, _>(|client, cx| {
-            let u1 = client.resource::<String, QueryError>(
-                QueryKey::from(["users", "1"]),
-                cx,
-            );
-            let p1 = client.resource::<String, QueryError>(
-                QueryKey::from(["posts", "1"]),
-                cx,
-            );
+            let u1 = client.resource::<String, QueryError>(QueryKey::from(["users", "1"]), cx);
+            let p1 = client.resource::<String, QueryError>(QueryKey::from(["posts", "1"]), cx);
 
             u1.update(cx, |r, _| r.apply_success("user".to_string(), 1_000));
             p1.update(cx, |r, _| r.apply_success("post".to_string(), 1_000));
@@ -147,10 +141,7 @@ fn test_reset_queries_prefix_preserves_non_matching(cx: &mut TestAppContext) {
 
             assert!(u1.read(cx).data().is_none(), "users/1 should be reset");
             assert_eq!(u1.read(cx).status(), QueryStatus::Idle);
-            assert!(
-                p1.read(cx).data().is_some(),
-                "posts/1 should keep its data"
-            );
+            assert!(p1.read(cx).data().is_some(), "posts/1 should keep its data");
         });
     });
 }
@@ -374,9 +365,9 @@ fn test_gc_preserves_success_resources_within_success_threshold(cx: &mut TestApp
             // GC at t=3500: age = 3500 - 2000 = 1500 < success_threshold(2000) -> preserved
             client.gc_with_time(3_500, cx);
 
-            let entity = client
-                .query::<String, QueryError>(&key)
-                .expect("success resource should survive when age (1500ms) < success_threshold (2000ms)");
+            let entity = client.query::<String, QueryError>(&key).expect(
+                "success resource should survive when age (1500ms) < success_threshold (2000ms)",
+            );
             assert_eq!(
                 entity.read(cx).data().unwrap(),
                 "data",

@@ -198,10 +198,14 @@ pub fn update_config(cx: &mut App, update: impl FnOnce(&mut AppConfig)) {
     });
 
     // Only spawn a new debounce task if one is not already scheduled.
-    if SAVE_SCHEDULED.compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed).is_ok() {
+    if SAVE_SCHEDULED
+        .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
+        .is_ok()
+    {
         let bg = cx.background_executor().clone();
         cx.spawn(async move |cx| {
-            bg.timer(std::time::Duration::from_millis(DEBOUNCE_MS)).await;
+            bg.timer(std::time::Duration::from_millis(DEBOUNCE_MS))
+                .await;
 
             // Clear the flag so the next update_config can schedule a fresh timer.
             SAVE_SCHEDULED.store(false, Ordering::Relaxed);
@@ -335,10 +339,11 @@ fn save_config(path: &Path, json_bytes: &[u8]) -> Result<(), AppError> {
             path: path.to_path_buf(),
             details: err.to_string(),
         })?;
-    file.write_all(json_bytes).map_err(|err| AppError::StateWrite {
-        path: path.to_path_buf(),
-        details: err.to_string(),
-    })?;
+    file.write_all(json_bytes)
+        .map_err(|err| AppError::StateWrite {
+            path: path.to_path_buf(),
+            details: err.to_string(),
+        })?;
     file.write_all(b"\n").map_err(|err| AppError::StateWrite {
         path: path.to_path_buf(),
         details: err.to_string(),

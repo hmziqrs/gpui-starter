@@ -9,7 +9,9 @@ use crate::core::{
     CachePolicy, QueryBeginResult, QueryFetchMode, QueryResource, QueryStatus, RequestId,
     RequestPolicy,
 };
-use crate::tests::test_support::{assert_status, test_resource_with_policies, test_sequencer, TEST_NOW_MS};
+use crate::tests::test_support::{
+    TEST_NOW_MS, assert_status, test_resource_with_policies, test_sequencer,
+};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // RequestGuard: proof-of-ownership (obtained via accept_current_request)

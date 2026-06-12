@@ -345,11 +345,13 @@ fn apply_result(
     if !is_failure {
         return None;
     }
-    let retry_count = cx.update_global::<HttpLabState, _>(|state, _cx| {
-        should_retry_action(state, action)
-    })?;
+    let retry_count =
+        cx.update_global::<HttpLabState, _>(|state, _cx| should_retry_action(state, action))?;
     let delay_ms = cx.update_global::<HttpLabState, _>(|state, _cx| {
-        state.resource(action).retry_policy().delay_for_attempt(retry_count)
+        state
+            .resource(action)
+            .retry_policy()
+            .delay_for_attempt(retry_count)
     });
     tracing::info!(
         target: LOG,
@@ -358,9 +360,8 @@ fn apply_result(
         delay_ms,
         "HTTP Lab scheduling retry"
     );
-    let retry_request_id = cx.update_global::<HttpLabState, _>(|state, _cx| {
-        prepare_retry(state, action, now_ms)
-    })?;
+    let retry_request_id =
+        cx.update_global::<HttpLabState, _>(|state, _cx| prepare_retry(state, action, now_ms))?;
     prepare_retry_handle(action, retry_request_id, cx)
 }
 

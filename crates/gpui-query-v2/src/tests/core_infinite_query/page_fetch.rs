@@ -2,8 +2,8 @@
 //! signal cancellation on fetch replacement, loading status transitions,
 //! and has_more propagation.
 
-use crate::core::*;
 use super::helpers::*;
+use crate::core::*;
 
 // ── 2. Page append (fetch_next_page) ────────────────────────────────────
 

@@ -61,7 +61,7 @@ mod use_query;
 
 pub use options::{MutationCallbacks, MutationOptions, QueryOptions};
 pub use use_infinite_query::{
-    fetch_next_page_infinite, fetch_previous_page_infinite, InfiniteQueryOptions,
+    InfiniteQueryOptions, fetch_next_page_infinite, fetch_previous_page_infinite,
     use_infinite_query,
 };
 pub use use_mutation::{

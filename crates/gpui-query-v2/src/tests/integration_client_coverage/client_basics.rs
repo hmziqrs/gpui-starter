@@ -188,15 +188,9 @@ fn test_set_and_get_query_data_with_user_type(cx: &mut TestAppContext) {
     cx.update(|cx| {
         cx.update_global::<QueryClient, _>(|client, cx| {
             let user = User::new(42, "Zara");
-            client.set_query_data::<User, QueryError>(
-                QueryKey::from("user:42"),
-                user.clone(),
-                cx,
-            );
-            let retrieved = client.get_query_data::<User, QueryError>(
-                &QueryKey::from("user:42"),
-                cx,
-            );
+            client.set_query_data::<User, QueryError>(QueryKey::from("user:42"), user.clone(), cx);
+            let retrieved =
+                client.get_query_data::<User, QueryError>(&QueryKey::from("user:42"), cx);
             assert_eq!(retrieved, Some(user));
         });
     });
@@ -214,7 +208,10 @@ fn test_set_query_data_multiple_times_preserves_rollback_chain(cx: &mut TestAppC
             // First set — no previous data
             client.set_query_data::<String, QueryError>(key.clone(), "v1".to_string(), cx);
             let e = client.query::<String, QueryError>(&key).unwrap();
-            assert!(e.read(cx).previous_data().is_none(), "first set has no previous");
+            assert!(
+                e.read(cx).previous_data().is_none(),
+                "first set has no previous"
+            );
 
             // Second set — previous should be v1
             client.set_query_data::<String, QueryError>(key.clone(), "v2".to_string(), cx);
@@ -238,10 +235,8 @@ fn test_get_query_data_none_for_idle_resource(cx: &mut TestAppContext) {
         cx.update_global::<QueryClient, _>(|client, cx| {
             // Create resource but never set data
             let _entity = client.resource::<String, QueryError>("idle_data", cx);
-            let data = client.get_query_data::<String, QueryError>(
-                &QueryKey::from("idle_data"),
-                cx,
-            );
+            let data =
+                client.get_query_data::<String, QueryError>(&QueryKey::from("idle_data"), cx);
             assert!(data.is_none(), "idle resource has no data");
         });
     });
@@ -259,7 +254,10 @@ fn test_rollback_returns_false_without_previous_data(cx: &mut TestAppContext) {
             let entity = client.query::<String, QueryError>(&key).unwrap();
             // No previous_data was set (first set_query_data)
             let rolled_back = entity.update(cx, |r, _| r.rollback_to_previous());
-            assert!(!rolled_back, "rollback should return false with no previous data");
+            assert!(
+                !rolled_back,
+                "rollback should return false with no previous data"
+            );
         });
     });
 }
@@ -274,7 +272,11 @@ fn test_infinite_resource_creates_and_deduplicates(cx: &mut TestAppContext) {
             let key = QueryKey::from("inf:1");
             let e1 = client.infinite_resource::<String, QueryError>(key.clone(), cx);
             let e2 = client.infinite_resource::<String, QueryError>(key.clone(), cx);
-            assert_eq!(e1.entity_id(), e2.entity_id(), "same key returns same entity");
+            assert_eq!(
+                e1.entity_id(),
+                e2.entity_id(),
+                "same key returns same entity"
+            );
 
             let e3 = client.infinite_resource::<String, QueryError>("inf:2", cx);
             assert_ne!(e1.entity_id(), e3.entity_id());
@@ -367,9 +369,8 @@ fn test_next_request_id_for_infinite_key_returns_none_for_missing(cx: &mut TestA
     setup_query_client(cx);
     cx.update(|cx| {
         cx.update_global::<QueryClient, _>(|client, _cx| {
-            let id = client.next_request_id_for_infinite_key::<String, QueryError>(
-                &QueryKey::from("ghost"),
-            );
+            let id = client
+                .next_request_id_for_infinite_key::<String, QueryError>(&QueryKey::from("ghost"));
             assert!(id.is_none());
         });
     });

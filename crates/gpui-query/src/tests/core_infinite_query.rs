@@ -33,7 +33,13 @@ fn test_append_page() {
     let mut seq = RequestSequencer::new();
 
     let id1 = r.begin_fetch_next(&mut seq, 1_000).unwrap();
-    r.complete_page_success(id1, vec!["a".to_string(), "b".to_string()], true, true, 2_000);
+    r.complete_page_success(
+        id1,
+        vec!["a".to_string(), "b".to_string()],
+        true,
+        true,
+        2_000,
+    );
 
     assert_eq!(r.page_count(), 1);
     assert_eq!(r.last_page(), Some(&vec!["a".to_string(), "b".to_string()]));
@@ -42,7 +48,10 @@ fn test_append_page() {
     r.complete_page_success(id2, vec!["c".to_string()], true, true, 4_000);
 
     assert_eq!(r.page_count(), 2);
-    assert_eq!(r.first_page(), Some(&vec!["a".to_string(), "b".to_string()]));
+    assert_eq!(
+        r.first_page(),
+        Some(&vec!["a".to_string(), "b".to_string()])
+    );
     assert_eq!(r.last_page(), Some(&vec!["c".to_string()]));
 }
 
@@ -58,13 +67,7 @@ fn test_prepend_page() {
     // Enable previous page and prepend
     r.set_has_previous_page(true);
     let id2 = r.begin_fetch_previous(&mut seq, 3_000).unwrap();
-    let accepted = r.complete_page_success(
-        id2,
-        vec!["page0".to_string()],
-        false,
-        false,
-        4_000,
-    );
+    let accepted = r.complete_page_success(id2, vec!["page0".to_string()], false, false, 4_000);
 
     assert!(accepted);
     assert_eq!(r.page_count(), 2);
@@ -238,23 +241,11 @@ fn test_complete_page_rejects_stale_request() {
     let id2 = r.begin_fetch_next(&mut seq, 2_000).unwrap();
 
     // Completing the first request should be rejected
-    let accepted = r.complete_page_success(
-        id1,
-        vec!["stale".to_string()],
-        true,
-        true,
-        3_000,
-    );
+    let accepted = r.complete_page_success(id1, vec!["stale".to_string()], true, true, 3_000);
     assert!(!accepted);
 
     // Completing the second request should succeed
-    let accepted = r.complete_page_success(
-        id2,
-        vec!["fresh".to_string()],
-        false,
-        true,
-        3_000,
-    );
+    let accepted = r.complete_page_success(id2, vec!["fresh".to_string()], false, true, 3_000);
     assert!(accepted);
     assert_eq!(r.page_count(), 1);
     assert_eq!(r.last_page(), Some(&vec!["fresh".to_string()]));

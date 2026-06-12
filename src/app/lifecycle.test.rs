@@ -16,7 +16,10 @@ fn render_panic_flag_roundtrip() {
     // Set the flag manually (as the panic hook would).
     RENDER_PANIC_OCCURRED.store(true, Ordering::SeqCst);
     assert!(take_render_panic(), "first read should be true");
-    assert!(!take_render_panic(), "second read should be false (flag reset)");
+    assert!(
+        !take_render_panic(),
+        "second read should be false (flag reset)"
+    );
 }
 
 #[test]
@@ -57,7 +60,10 @@ fn write_and_check_crash_marker() {
     let contents = check_previous_crash();
     assert!(contents.is_some(), "marker should exist after write");
     let text = contents.unwrap();
-    assert!(text.starts_with("pid="), "marker should start with pid=, got: {text}");
+    assert!(
+        text.starts_with("pid="),
+        "marker should start with pid=, got: {text}"
+    );
     // Clean up.
     remove_crash_marker();
     assert!(check_previous_crash().is_none(), "marker should be removed");

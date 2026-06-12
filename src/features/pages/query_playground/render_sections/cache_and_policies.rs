@@ -2,8 +2,7 @@ use gpui::prelude::*;
 use gpui::*;
 
 use gpui_component::{
-    ActiveTheme as _,
-    Disableable as _,
+    ActiveTheme as _, Disableable as _,
     button::{Button, ButtonVariants as _},
     h_flex,
 };
@@ -11,15 +10,17 @@ use gpui_component::{
 use gpui_query_v2::core::{QueryStatus, RetryPolicy};
 
 use super::super::QueryPlaygroundPage;
-use super::super::ui_helpers::{section_card, mini_card, status_badge, chip};
+use super::super::ui_helpers::{chip, mini_card, section_card, status_badge};
 
 impl QueryPlaygroundPage {
     pub(in super::super) fn render_cache_policies(&mut self, cx: &mut Context<Self>) -> Div {
-
         // NoCache
-        let nocache_status = self.nocache_query.as_ref().map_or(QueryStatus::Idle, |(e, _)| {
-            e.read_with(cx, |r, _| r.status())
-        });
+        let nocache_status = self
+            .nocache_query
+            .as_ref()
+            .map_or(QueryStatus::Idle, |(e, _)| {
+                e.read_with(cx, |r, _| r.status())
+            });
         let nocache_loading = self.nocache_query.as_ref().map_or(false, |(e, _)| {
             e.read_with(cx, |r, _| r.status().is_loading())
         });
@@ -40,66 +41,80 @@ impl QueryPlaygroundPage {
             e.read_with(cx, |r, _| r.status().is_loading())
         });
 
-        section_card("Cache Policies", "Compare NoCache, TTL 5s, and StaleWhileRevalidate 3s/7s.", cx)
-            .child(
-                h_flex().gap_4().px_4().py_3()
-                    // NoCache card
-                    .child(
-                        mini_card("NoCache", cx)
-                            .child(status_badge(nocache_status, cx))
-                            .child(
-                                Button::new("pg-nocache-fetch")
-                                    .primary()
-                                    .label(if nocache_loading { "Fetching" } else { "Fetch" })
-                                    .disabled(nocache_loading)
-                                    .on_click(cx.listener(|this, _, _, cx| this.fetch_nocache(cx))),
-                            ),
-                    )
-                    // TTL card
-                    .child(
-                        mini_card("TTL 5s", cx)
-                            .child(status_badge(ttl_status, cx))
-                            .child(
-                                Button::new("pg-ttl-fetch")
-                                    .primary()
-                                    .label(if ttl_loading { "Fetching" } else { "Fetch" })
-                                    .disabled(ttl_loading)
-                                    .on_click(cx.listener(|this, _, _, cx| this.fetch_ttl(cx))),
-                            ),
-                    )
-                    // SWR card
-                    .child(
-                        mini_card("SWR 3s/7s", cx)
-                            .child(status_badge(swr_status, cx))
-                            .child(
-                                Button::new("pg-swr-fetch")
-                                    .primary()
-                                    .label(if swr_loading { "Fetching" } else { "Fetch" })
-                                    .disabled(swr_loading)
-                                    .on_click(cx.listener(|this, _, _, cx| this.fetch_swr(cx))),
-                            ),
-                    ),
-            )
+        section_card(
+            "Cache Policies",
+            "Compare NoCache, TTL 5s, and StaleWhileRevalidate 3s/7s.",
+            cx,
+        )
+        .child(
+            h_flex()
+                .gap_4()
+                .px_4()
+                .py_3()
+                // NoCache card
+                .child(
+                    mini_card("NoCache", cx)
+                        .child(status_badge(nocache_status, cx))
+                        .child(
+                            Button::new("pg-nocache-fetch")
+                                .primary()
+                                .label(if nocache_loading { "Fetching" } else { "Fetch" })
+                                .disabled(nocache_loading)
+                                .on_click(cx.listener(|this, _, _, cx| this.fetch_nocache(cx))),
+                        ),
+                )
+                // TTL card
+                .child(
+                    mini_card("TTL 5s", cx)
+                        .child(status_badge(ttl_status, cx))
+                        .child(
+                            Button::new("pg-ttl-fetch")
+                                .primary()
+                                .label(if ttl_loading { "Fetching" } else { "Fetch" })
+                                .disabled(ttl_loading)
+                                .on_click(cx.listener(|this, _, _, cx| this.fetch_ttl(cx))),
+                        ),
+                )
+                // SWR card
+                .child(
+                    mini_card("SWR 3s/7s", cx)
+                        .child(status_badge(swr_status, cx))
+                        .child(
+                            Button::new("pg-swr-fetch")
+                                .primary()
+                                .label(if swr_loading { "Fetching" } else { "Fetch" })
+                                .disabled(swr_loading)
+                                .on_click(cx.listener(|this, _, _, cx| this.fetch_swr(cx))),
+                        ),
+                ),
+        )
     }
 
     pub(in super::super) fn render_request_policies(&mut self, cx: &mut Context<Self>) -> Div {
-
-        let latest_status = self.latest_wins_query.as_ref().map_or(QueryStatus::Idle, |(e, _)| {
-            e.read_with(cx, |r, _| r.status())
-        });
-        let latest_data = self.latest_wins_query.as_ref().and_then(|(e, _)| {
-            e.read_with(cx, |r, _| r.data().cloned())
-        });
+        let latest_status = self
+            .latest_wins_query
+            .as_ref()
+            .map_or(QueryStatus::Idle, |(e, _)| {
+                e.read_with(cx, |r, _| r.status())
+            });
+        let latest_data = self
+            .latest_wins_query
+            .as_ref()
+            .and_then(|(e, _)| e.read_with(cx, |r, _| r.data().cloned()));
         let latest_loading = self.latest_wins_query.as_ref().map_or(false, |(e, _)| {
             e.read_with(cx, |r, _| r.status().is_loading())
         });
 
-        let ignore_status = self.ignore_query.as_ref().map_or(QueryStatus::Idle, |(e, _)| {
-            e.read_with(cx, |r, _| r.status())
-        });
-        let ignore_data = self.ignore_query.as_ref().and_then(|(e, _)| {
-            e.read_with(cx, |r, _| r.data().cloned())
-        });
+        let ignore_status = self
+            .ignore_query
+            .as_ref()
+            .map_or(QueryStatus::Idle, |(e, _)| {
+                e.read_with(cx, |r, _| r.status())
+            });
+        let ignore_data = self
+            .ignore_query
+            .as_ref()
+            .and_then(|(e, _)| e.read_with(cx, |r, _| r.data().cloned()));
         let ignore_loading = self.ignore_query.as_ref().map_or(false, |(e, _)| {
             e.read_with(cx, |r, _| r.status().is_loading())
         });
@@ -145,13 +160,16 @@ impl QueryPlaygroundPage {
     }
 
     pub(in super::super) fn render_retry_policy(&mut self, cx: &mut Context<Self>) -> Div {
-
-        let status = self.retry_query.as_ref().map_or(QueryStatus::Idle, |(e, _)| {
-            e.read_with(cx, |r, _| r.status())
-        });
-        let retry_count = self.retry_query.as_ref().map_or(0, |(e, _)| {
-            e.read_with(cx, |r, _| r.retry_count())
-        });
+        let status = self
+            .retry_query
+            .as_ref()
+            .map_or(QueryStatus::Idle, |(e, _)| {
+                e.read_with(cx, |r, _| r.status())
+            });
+        let retry_count = self
+            .retry_query
+            .as_ref()
+            .map_or(0, |(e, _)| e.read_with(cx, |r, _| r.retry_count()));
         let loading = status.is_loading();
         let policy = RetryPolicy::new(3).with_delay(200);
 

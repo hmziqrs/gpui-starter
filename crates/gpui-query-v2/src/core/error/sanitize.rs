@@ -19,25 +19,16 @@ pub(crate) fn sanitize_message(msg: &str) -> String {
         "[REDACTED_CONNECTION]",
     ));
     // Redact bearer/token patterns.
-    out = Cow::Owned(out.replace_regex(
-        r"(?i)(bearer\s+|token[=:]\s*)\S+",
-        "$1[REDACTED_TOKEN]",
-    ));
+    out = Cow::Owned(out.replace_regex(r"(?i)(bearer\s+|token[=:]\s*)\S+", "$1[REDACTED_TOKEN]"));
     // Redact common filesystem paths.
-    out = Cow::Owned(out.replace_regex(
-        r"(?i)(/home/|/Users/|/etc/|/var/)\S+",
-        "[REDACTED_PATH]",
-    ));
+    out = Cow::Owned(out.replace_regex(r"(?i)(/home/|/Users/|/etc/|/var/)\S+", "[REDACTED_PATH]"));
     // Redact email addresses.
     out = Cow::Owned(out.replace_regex(
         r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b",
         "[REDACTED_EMAIL]",
     ));
     // Redact long hex sequences (likely API keys or secrets).
-    out = Cow::Owned(out.replace_regex(
-        r"\b[0-9a-fA-F]{16,}\b",
-        "[REDACTED_HEX]",
-    ));
+    out = Cow::Owned(out.replace_regex(r"\b[0-9a-fA-F]{16,}\b", "[REDACTED_HEX]"));
 
     let mut s = out.into_owned();
     if s.len() > SANITIZE_MAX_LEN {
@@ -73,25 +64,17 @@ impl Redact for str {
                 )
             }
             // Bearer/token patterns.
-            p if p.contains("bearer") || p.contains("token") => {
-                redact_tokens(self, replacement)
-            }
+            p if p.contains("bearer") || p.contains("token") => redact_tokens(self, replacement),
             // Filesystem paths.
             p if p.contains("/home/")
                 || p.contains("/Users/")
                 || p.contains("/etc/")
                 || p.contains("/var/") =>
             {
-                redact_paths(
-                    self,
-                    &["/home/", "/Users/", "/etc/", "/var/"],
-                    replacement,
-                )
+                redact_paths(self, &["/home/", "/Users/", "/etc/", "/var/"], replacement)
             }
             // Email addresses.
-            p if p.contains("@") && p.contains(".") => {
-                redact_emails(self, replacement)
-            }
+            p if p.contains("@") && p.contains(".") => redact_emails(self, replacement),
             // Long hex sequences.
             p if p.contains("0-9a-f") => redact_hex(self, replacement),
             _ => self.to_string(),
@@ -243,7 +226,11 @@ fn try_match_email(chars: &[char], start: usize) -> Option<usize> {
         }
         if let Some(dot_pos) = last_dot {
             let tld_len = domain_end - dot_pos - 1;
-            if tld_len >= 2 && chars[dot_pos + 1..domain_end].iter().all(|c| c.is_alphabetic()) {
+            if tld_len >= 2
+                && chars[dot_pos + 1..domain_end]
+                    .iter()
+                    .all(|c| c.is_alphabetic())
+            {
                 return Some(domain_end);
             }
         }

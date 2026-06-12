@@ -1,17 +1,10 @@
 use gpui::{prelude::*, *};
-use gpui_component::{
-    ActiveTheme as _,
-    button::Button,
-    label::Label,
-    v_flex,
-};
+use gpui_component::{ActiveTheme as _, button::Button, label::Label, v_flex};
 
 use crate::telemetry::{self, TelemetryMode};
 
 /// Renders the "Telemetry" mode selection card.
-pub fn render_telemetry_section(
-    cx: &mut Context<super::super::SettingsPage>,
-) -> impl IntoElement {
+pub fn render_telemetry_section(cx: &mut Context<super::super::SettingsPage>) -> impl IntoElement {
     v_flex()
         .gap_3()
         .p_4()
@@ -23,9 +16,7 @@ pub fn render_telemetry_section(
             div()
                 .text_sm()
                 .text_color(cx.theme().muted_foreground)
-                .child(
-                    "Telemetry export is disabled by default until explicit consent.",
-                ),
+                .child("Telemetry export is disabled by default until explicit consent."),
         )
         .child(
             div()
@@ -37,12 +28,7 @@ pub fn render_telemetry_section(
                         .outline()
                         .label("Disable")
                         .on_click(|_, _, cx| {
-                            telemetry::set_mode(
-                                TelemetryMode::Disabled,
-                                false,
-                                None,
-                                cx,
-                            );
+                            telemetry::set_mode(TelemetryMode::Disabled, false, None, cx);
                         }),
                 )
                 .child(
@@ -50,12 +36,7 @@ pub fn render_telemetry_section(
                         .outline()
                         .label("Local Only")
                         .on_click(|_, _, cx| {
-                            telemetry::set_mode(
-                                TelemetryMode::LocalOnly,
-                                true,
-                                None,
-                                cx,
-                            );
+                            telemetry::set_mode(TelemetryMode::LocalOnly, true, None, cx);
                         }),
                 )
                 .child(

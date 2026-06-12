@@ -74,16 +74,14 @@ pub fn check_now(cx: &mut App) {
         };
 
         // Await the interface list (concurrent with the probe above).
-        let interfaces = interfaces_handle
-            .await
-            .unwrap_or_else(|e| {
-                tracing::warn!(
-                    target: "gpui_starter::connectivity",
-                    error = %e,
-                    "failed to read network interfaces"
-                );
-                Vec::new()
-            });
+        let interfaces = interfaces_handle.await.unwrap_or_else(|e| {
+            tracing::warn!(
+                target: "gpui_starter::connectivity",
+                error = %e,
+                "failed to read network interfaces"
+            );
+            Vec::new()
+        });
 
         cx.update(move |cx| {
             cx.update_global::<ConnectivitySnapshot, _>(|next, _cx| {

@@ -1,7 +1,7 @@
 //! Tests for mutation retry behavior, reset, custom retry policy, and concurrent callback rejection.
 
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
 use gpui::{AppContext as _, Entity, TestAppContext};
 

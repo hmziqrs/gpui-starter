@@ -23,12 +23,7 @@ fn crash_report_new_populates_fields() {
 #[test]
 fn write_and_detect_crash_report() {
     let dir = tempdir().expect("tempdir");
-    let report = CrashReport::new(
-        "test panic".into(),
-        "fake backtrace".into(),
-        false,
-        vec![],
-    );
+    let report = CrashReport::new("test panic".into(), "fake backtrace".into(), false, vec![]);
 
     write_crash_report(&report, dir.path()).expect("write");
 

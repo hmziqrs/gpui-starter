@@ -202,9 +202,7 @@ mod live {
                         }
 
                         // Read messages until the stream closes or errors.
-                        while let Some(msg) =
-                            StreamExt::next(&mut read).await
-                        {
+                        while let Some(msg) = StreamExt::next(&mut read).await {
                             match msg {
                                 Ok(Message::Text(text)) => {
                                     if let Some(ref handler) = self.on_message {

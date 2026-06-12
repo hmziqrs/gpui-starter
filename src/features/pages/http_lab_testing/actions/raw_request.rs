@@ -3,8 +3,8 @@ use tokio_util::sync::CancellationToken;
 
 use crate::services::tokio_runtime::TokioRuntimeGlobal;
 
-use super::super::{RawStatus, LOG, TEST_URL};
 use super::super::network::raw_reqwest_get;
+use super::super::{LOG, RawStatus, TEST_URL};
 
 impl super::super::HttpLabTestingPage {
     pub(crate) fn send_raw_get(&mut self, cx: &mut Context<Self>) {

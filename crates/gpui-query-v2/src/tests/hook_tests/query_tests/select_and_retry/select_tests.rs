@@ -32,7 +32,11 @@ fn test_use_query_select_transform_applied(cx: &mut TestAppContext) {
             |_signal| async move { Ok::<_, QueryError>(vec!["a".to_string(), "b".to_string()]) },
             cx,
         );
-        H { mapped, query, _subs: subs }
+        H {
+            mapped,
+            query,
+            _subs: subs,
+        }
     });
 
     cx.run_until_parked();
@@ -43,7 +47,11 @@ fn test_use_query_select_transform_applied(cx: &mut TestAppContext) {
         assert_eq!(query_status, QueryStatus::Success);
 
         let mapped_data = h.mapped.read(cx).data();
-        assert_eq!(mapped_data, Some(2), "transform should produce the length of the vec");
+        assert_eq!(
+            mapped_data,
+            Some(2),
+            "transform should produce the length of the vec"
+        );
     });
 }
 
@@ -82,7 +90,11 @@ fn test_use_query_select_transform_updated_on_refetch(cx: &mut TestAppContext) {
             },
             cx,
         );
-        H { mapped, query, _subs: subs }
+        H {
+            mapped,
+            query,
+            _subs: subs,
+        }
     });
 
     cx.run_until_parked();
@@ -147,20 +159,23 @@ fn test_use_query_select_memoization_consistency(cx: &mut TestAppContext) {
             |_signal| async move { Ok::<_, QueryError>("hello") },
             cx,
         );
-        H { mapped, query, _subs: subs }
+        H {
+            mapped,
+            query,
+            _subs: subs,
+        }
     });
 
     cx.run_until_parked();
 
     // Read the mapped data twice — transform should produce consistent results.
-    let result1 = cx.update(|cx| {
-        harness.read(cx).mapped.read(cx).data()
-    });
-    let result2 = cx.update(|cx| {
-        harness.read(cx).mapped.read(cx).data()
-    });
+    let result1 = cx.update(|cx| harness.read(cx).mapped.read(cx).data());
+    let result2 = cx.update(|cx| harness.read(cx).mapped.read(cx).data());
 
-    assert_eq!(result1, result2, "repeated reads should produce the same result");
+    assert_eq!(
+        result1, result2,
+        "repeated reads should produce the same result"
+    );
     assert_eq!(result1, Some(5), "length of 'hello' is 5");
 }
 
@@ -186,7 +201,11 @@ fn test_use_query_select_handles_fetch_failure(cx: &mut TestAppContext) {
             |_signal| async move { Err::<_, QueryError>(QueryError::response("select-err")) },
             cx,
         );
-        H { mapped, query, _subs: subs }
+        H {
+            mapped,
+            query,
+            _subs: subs,
+        }
     });
 
     cx.run_until_parked();
@@ -198,7 +217,10 @@ fn test_use_query_select_handles_fetch_failure(cx: &mut TestAppContext) {
 
         // Mapped data should be None when query has no data.
         let mapped_data = h.mapped.read(cx).data();
-        assert_eq!(mapped_data, None, "mapped data should be None when query fails");
+        assert_eq!(
+            mapped_data, None,
+            "mapped data should be None when query fails"
+        );
     });
 }
 
@@ -269,7 +291,13 @@ fn test_use_query_select_multiple_transforms_same_query(cx: &mut TestAppContext)
             "same key should return same query entity"
         );
 
-        H { mapped_len, mapped_first, query, _subs_len: subs_len, _subs_first: subs_first }
+        H {
+            mapped_len,
+            mapped_first,
+            query,
+            _subs_len: subs_len,
+            _subs_first: subs_first,
+        }
     });
 
     cx.run_until_parked();
@@ -281,7 +309,11 @@ fn test_use_query_select_multiple_transforms_same_query(cx: &mut TestAppContext)
         // Only one fetch should have occurred (the second select is a cache hit).
         // If the second had re-fetched, the data would be 4 items / "item-2"
         // instead of 3 items / "item-0".
-        assert_eq!(len, Some(3), "length transform should produce 3 (from first fetch only)");
+        assert_eq!(
+            len,
+            Some(3),
+            "length transform should produce 3 (from first fetch only)"
+        );
         assert_eq!(
             first,
             Some(Some("item-0".to_string())),

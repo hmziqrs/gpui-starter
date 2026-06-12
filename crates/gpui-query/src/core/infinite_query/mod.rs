@@ -213,13 +213,7 @@ mod tests {
         // Enable previous page
         r.set_has_previous_page(true);
         let id2 = r.begin_fetch_previous(&mut seq, 3_000).unwrap();
-        let accepted = r.complete_page_success(
-            id2,
-            vec!["page0".to_string()],
-            false,
-            false,
-            4_000,
-        );
+        let accepted = r.complete_page_success(id2, vec!["page0".to_string()], false, false, 4_000);
         assert!(accepted);
         assert_eq!(r.page_count(), 2);
         assert_eq!(r.first_page(), Some(&vec!["page0".to_string()]));
@@ -251,23 +245,11 @@ mod tests {
         let id2 = r.begin_fetch_next(&mut seq, 2_000).unwrap();
 
         // Completing the first request should be rejected
-        let accepted = r.complete_page_success(
-            id1,
-            vec!["stale".to_string()],
-            true,
-            true,
-            3_000,
-        );
+        let accepted = r.complete_page_success(id1, vec!["stale".to_string()], true, true, 3_000);
         assert!(!accepted);
 
         // Completing the second request should succeed
-        let accepted = r.complete_page_success(
-            id2,
-            vec!["fresh".to_string()],
-            false,
-            true,
-            3_000,
-        );
+        let accepted = r.complete_page_success(id2, vec!["fresh".to_string()], false, true, 3_000);
         assert!(accepted);
         assert_eq!(r.page_count(), 1);
         assert_eq!(r.last_page(), Some(&vec!["fresh".to_string()]));
@@ -372,14 +354,8 @@ mod tests {
 
         assert_eq!(r.page_count(), 5);
         assert!(!r.has_next_page());
-        assert_eq!(
-            r.first_page(),
-            Some(&vec!["page0".to_string()])
-        );
-        assert_eq!(
-            r.last_page(),
-            Some(&vec!["page4".to_string()])
-        );
+        assert_eq!(r.first_page(), Some(&vec!["page0".to_string()]));
+        assert_eq!(r.last_page(), Some(&vec!["page4".to_string()]));
     }
 
     #[test]
@@ -395,10 +371,7 @@ mod tests {
         assert_eq!(back.page_count(), 1);
         assert_eq!(back.status(), QueryStatus::Success);
         assert!(back.has_next_page());
-        assert_eq!(
-            back.last_page(),
-            Some(&vec!["a".to_string()])
-        );
+        assert_eq!(back.last_page(), Some(&vec!["a".to_string()]));
         // Signal is skipped during serialization
         assert!(back.signal().is_none());
     }

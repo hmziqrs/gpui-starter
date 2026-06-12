@@ -157,7 +157,8 @@ fn mapped_resource_clone_is_independent() {
 #[test]
 fn mapped_resource_with_unit_error_type() {
     let transform = SelectTransform::new(|s: &String| s.len());
-    let mapped = MappedQueryResource::<String, usize, ()>::new(Some("hello".to_string()), transform);
+    let mapped =
+        MappedQueryResource::<String, usize, ()>::new(Some("hello".to_string()), transform);
     assert_eq!(mapped.data(), Some(5));
 }
 
@@ -191,12 +192,27 @@ fn mapped_resource_complex_projection() {
     });
 
     let users = vec![
-        User { name: "Alice".into(), age: 30, active: true },
-        User { name: "Bob".into(), age: 25, active: false },
-        User { name: "Carol".into(), age: 35, active: true },
+        User {
+            name: "Alice".into(),
+            age: 30,
+            active: true,
+        },
+        User {
+            name: "Bob".into(),
+            age: 25,
+            active: false,
+        },
+        User {
+            name: "Carol".into(),
+            age: 35,
+            active: true,
+        },
     ];
 
     let mapped: MappedQueryResource<Vec<User>, Vec<String>, ()> =
         MappedQueryResource::new(Some(users), active_names);
-    assert_eq!(mapped.data(), Some(vec!["Alice".to_string(), "Carol".to_string()]));
+    assert_eq!(
+        mapped.data(),
+        Some(vec!["Alice".to_string(), "Carol".to_string()])
+    );
 }

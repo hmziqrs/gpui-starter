@@ -160,8 +160,7 @@ impl<T, E> InfiniteQueryResource<T, E> {
         self.is_fetching_next_page = true;
         self.is_fetching_previous_page = false;
 
-        let request_id = maybe_request_id
-            .unwrap_or_else(|| RequestSequencer::new().next_request());
+        let request_id = maybe_request_id.unwrap_or_else(|| RequestSequencer::new().next_request());
         self.active_request_id = Some(request_id);
         self.status = if self.pages.is_empty() {
             QueryStatus::LoadingEmpty
@@ -216,8 +215,7 @@ impl<T, E> InfiniteQueryResource<T, E> {
         self.is_fetching_previous_page = true;
         self.is_fetching_next_page = false;
 
-        let request_id = maybe_request_id
-            .unwrap_or_else(|| RequestSequencer::new().next_request());
+        let request_id = maybe_request_id.unwrap_or_else(|| RequestSequencer::new().next_request());
         self.active_request_id = Some(request_id);
         self.status = if self.pages.is_empty() {
             QueryStatus::LoadingEmpty

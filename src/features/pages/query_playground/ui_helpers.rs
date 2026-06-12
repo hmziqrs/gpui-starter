@@ -1,9 +1,7 @@
 use gpui::prelude::*;
 use gpui::*;
 
-use gpui_component::{
-    ActiveTheme as _, v_flex,
-};
+use gpui_component::{ActiveTheme as _, v_flex};
 
 use gpui_query_v2::core::QueryStatus;
 
@@ -27,12 +25,18 @@ pub fn section_card(title: &str, description: &str, cx: &App) -> Div {
                 .border_b_1()
                 .border_color(cx.theme().border)
                 .child(
-                    v_flex().gap_1()
+                    v_flex()
+                        .gap_1()
                         .child(
-                            div().text_base().font_weight(FontWeight::SEMIBOLD).child(title.to_string()),
+                            div()
+                                .text_base()
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child(title.to_string()),
                         )
                         .child(
-                            div().text_xs().text_color(cx.theme().muted_foreground)
+                            div()
+                                .text_xs()
+                                .text_color(cx.theme().muted_foreground)
                                 .child(description.to_string()),
                         ),
                 ),
@@ -49,7 +53,10 @@ pub fn mini_card(label: &str, cx: &App) -> Div {
         .bg(cx.theme().background)
         .flex_1()
         .child(
-            div().text_sm().font_weight(FontWeight::SEMIBOLD).child(label.to_string()),
+            div()
+                .text_sm()
+                .font_weight(FontWeight::SEMIBOLD)
+                .child(label.to_string()),
         )
 }
 

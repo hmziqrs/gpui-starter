@@ -65,7 +65,7 @@ impl FilePickerText {
             Self::Browse => "Browse".to_string(),
             Self::DialogDropped => {
                 "The file picker dialog closed before returning a result.".to_string()
-            },
+            }
             Self::PathsSelected { count: 1 } => "1 path selected".to_string(),
             Self::PathsSelected { count } => format!("{count} paths selected"),
         }

@@ -17,7 +17,10 @@ fn cancel_during_loading_sets_failure() {
     assert!(m.is_failure());
     assert_eq!(m.error().unwrap().kind(), QueryErrorKind::Cancelled);
     assert_eq!(m.error().unwrap().message(), "user aborted");
-    assert!(signal.is_cancelled(), "external signal clone must see cancellation");
+    assert!(
+        signal.is_cancelled(),
+        "external signal clone must see cancellation"
+    );
     assert!(m.signal().is_none(), "signal cleared after cancel");
     assert_eq!(m.cancelled_count(), 1);
 }

@@ -3,9 +3,7 @@
 
 use gpui::{AppContext as _, BorrowAppContext as _, TestAppContext};
 
-use crate::client::{
-    MutationObserver, ObserverConfig, QueryClient, QueryObserver,
-};
+use crate::client::{MutationObserver, ObserverConfig, QueryClient, QueryObserver};
 use crate::core::*;
 use crate::tests::test_support::*;
 
@@ -219,17 +217,11 @@ fn test_diagnostics_with_resources(cx: &mut TestAppContext) {
     setup_query_client(cx);
     cx.update(|cx| {
         cx.update_global::<QueryClient, _>(|client, cx| {
-            let _e1 = client.resource::<String, QueryError>(
-                QueryKey::from(["users", "1"]),
-                cx,
-            );
+            let _e1 = client.resource::<String, QueryError>(QueryKey::from(["users", "1"]), cx);
 
             // Use prepare_fetch_query + complete_success for a proper lifecycle
             let prepared = client
-                .prepare_fetch_query::<String, QueryError>(
-                    QueryKey::from(["users", "2"]),
-                    cx,
-                )
+                .prepare_fetch_query::<String, QueryError>(QueryKey::from(["users", "2"]), cx)
                 .expect("should start");
             prepared.complete_success("Bob".to_string(), cx);
 
@@ -327,9 +319,8 @@ fn test_query_observer_observe_returns_subscription(cx: &mut TestAppContext) {
 fn test_mutation_observer_creation(cx: &mut TestAppContext) {
     setup_query_client(cx);
     cx.update(|cx| {
-        let entity = cx.new(|_| {
-            MutationResource::<String, User, QueryError>::new(RetryPolicy::no_retries())
-        });
+        let entity = cx
+            .new(|_| MutationResource::<String, User, QueryError>::new(RetryPolicy::no_retries()));
         let _observer = MutationObserver::<String, User, QueryError>::new(&entity);
         // No panic — observer created
     });

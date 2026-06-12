@@ -1,9 +1,5 @@
 use gpui::{prelude::*, *};
-use gpui_component::{
-    ActiveTheme as _,
-    Icon, IconName,
-    h_flex, v_flex,
-};
+use gpui_component::{ActiveTheme as _, Icon, IconName, h_flex, v_flex};
 use gpui_query::client::QueryClient;
 
 use crate::services::http_lab::{HttpLabDiagnostic, HttpLabState};
@@ -28,16 +24,12 @@ pub struct QueryDevToolsPage {
 impl QueryDevToolsPage {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let mut subscriptions = Vec::new();
-        subscriptions.push(
-            cx.observe_global_in::<QueryClient>(window, |_, _, cx| {
-                cx.notify();
-            }),
-        );
-        subscriptions.push(
-            cx.observe_global_in::<HttpLabState>(window, |_, _, cx| {
-                cx.notify();
-            }),
-        );
+        subscriptions.push(cx.observe_global_in::<QueryClient>(window, |_, _, cx| {
+            cx.notify();
+        }));
+        subscriptions.push(cx.observe_global_in::<HttpLabState>(window, |_, _, cx| {
+            cx.notify();
+        }));
         Self {
             _subscriptions: subscriptions,
             expanded_key: None,
@@ -50,11 +42,17 @@ impl QueryDevToolsPage {
 impl Render for QueryDevToolsPage {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let client_diag = cx.try_global::<QueryClient>().map(|c| c.diagnostics(cx));
-        let lab_diag = cx.try_global::<HttpLabState>()
-            .map(|s| s.diagnostics());
+        let lab_diag = cx.try_global::<HttpLabState>().map(|s| s.diagnostics());
 
         let content = if client_diag.is_some() || lab_diag.is_some() {
-            render_dashboard(&client_diag, &lab_diag, &self.expanded_key, self.sort_by, &self.status_filter, cx)
+            render_dashboard(
+                &client_diag,
+                &lab_diag,
+                &self.expanded_key,
+                self.sort_by,
+                &self.status_filter,
+                cx,
+            )
         } else {
             render_empty_state(cx)
         };
@@ -77,7 +75,9 @@ fn render_empty_state(cx: &mut Context<QueryDevToolsPage>) -> Div {
         .gap_3()
         .py_12()
         .child(
-            Icon::new(IconName::Inbox).size_10().text_color(theme.muted_foreground),
+            Icon::new(IconName::Inbox)
+                .size_10()
+                .text_color(theme.muted_foreground),
         )
         .child(
             div()
@@ -129,7 +129,10 @@ fn render_dashboard(
         .bg(muted)
         .p_4()
         .child(
-            div().text_xl().font_weight(FontWeight::BOLD).child("Query DevTools"),
+            div()
+                .text_xl()
+                .font_weight(FontWeight::BOLD)
+                .child("Query DevTools"),
         )
         .child(
             div()
@@ -140,26 +143,75 @@ fn render_dashboard(
 
     // Overview cards
     let overview = h_flex().gap_4().children(vec![
-        stat_card("Total Resources", total_resources.to_string(), radius_lg, border, muted, muted_foreground),
-        stat_card("Type Buckets", bucket_count.to_string(), radius_lg, border, muted, muted_foreground),
-        stat_card("HTTP Lab Actions", lab_resources.to_string(), radius_lg, border, muted, muted_foreground),
-        stat_card("Mutations", mutation_count.to_string(), radius_lg, border, muted, muted_foreground),
+        stat_card(
+            "Total Resources",
+            total_resources.to_string(),
+            radius_lg,
+            border,
+            muted,
+            muted_foreground,
+        ),
+        stat_card(
+            "Type Buckets",
+            bucket_count.to_string(),
+            radius_lg,
+            border,
+            muted,
+            muted_foreground,
+        ),
+        stat_card(
+            "HTTP Lab Actions",
+            lab_resources.to_string(),
+            radius_lg,
+            border,
+            muted,
+            muted_foreground,
+        ),
+        stat_card(
+            "Mutations",
+            mutation_count.to_string(),
+            radius_lg,
+            border,
+            muted,
+            muted_foreground,
+        ),
     ]);
 
     // Action bar
     let actions = action_bar::render_action_bar(cx);
 
     // Query registry
-    let registry = registry::render_registry(client_diag, lab_diag, expanded_key, sort_by, status_filter, cx);
+    let registry = registry::render_registry(
+        client_diag,
+        lab_diag,
+        expanded_key,
+        sort_by,
+        status_filter,
+        cx,
+    );
 
-    div().gap_5().flex().flex_col().child(hero).child(overview).child(actions).child(registry)
+    div()
+        .gap_5()
+        .flex()
+        .flex_col()
+        .child(hero)
+        .child(overview)
+        .child(actions)
+        .child(registry)
 }
 
 // ---------------------------------------------------------------------------
 // Stat Card
 // ---------------------------------------------------------------------------
 
-fn stat_card(label: &str, value: String, radius_lg: gpui::Pixels, border: Hsla, muted: Hsla, muted_foreground: Hsla) -> Div {
+fn stat_card(
+    label: &str,
+    value: String,
+    radius_lg: gpui::Pixels,
+    border: Hsla,
+    muted: Hsla,
+    muted_foreground: Hsla,
+) -> Div {
     div()
         .flex_1()
         .rounded(radius_lg)

@@ -1,7 +1,7 @@
 //! Tests for stale request rejection and two-phase completion protocol.
 
-use crate::core::*;
 use super::helpers::*;
+use crate::core::*;
 
 // ── 6. Stale rejection for page fetches ─────────────────────────────────
 

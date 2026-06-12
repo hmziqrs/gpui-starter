@@ -6,8 +6,8 @@
 
 use gpui::{App, Entity};
 
-use crate::core::QueryResource;
 use crate::client::erased::current_time_ms;
+use crate::core::QueryResource;
 
 /// A prepared fetch returned by [`QueryClient::prepare_fetch_query`] or
 /// [`QueryClient::prepare_prefetch_query`].

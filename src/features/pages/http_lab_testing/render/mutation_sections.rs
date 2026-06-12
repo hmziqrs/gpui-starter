@@ -1,19 +1,14 @@
 use gpui::{prelude::*, *};
-use gpui_component::{
-    Disableable as _, button::Button, v_flex,
-};
+use gpui_component::{Disableable as _, button::Button, v_flex};
 
 use super::super::{
-    ui_helpers::{compact_resource_preview, query_resource_row, row, section_card, toggle_button},
     HttpLabTestingPage, RawStatus,
+    ui_helpers::{compact_resource_preview, query_resource_row, row, section_card, toggle_button},
 };
 
 impl HttpLabTestingPage {
     /// Section 4: Optimistic Updates
-    pub(super) fn render_optimistic_section(
-        &self,
-        cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    pub(super) fn render_optimistic_section(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let is_sending = matches!(self.status, RawStatus::Sending);
         let optimistic_resource = &self.query_optimistic_resource;
         let opt_data = compact_resource_preview(optimistic_resource.data());
@@ -85,10 +80,7 @@ impl HttpLabTestingPage {
     }
 
     /// Section 5: Standalone Client Fetch
-    pub(super) fn render_client_fetch_section(
-        &self,
-        cx: &mut Context<Self>,
-    ) -> impl IntoElement {
+    pub(super) fn render_client_fetch_section(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let is_sending = matches!(self.status, RawStatus::Sending);
 
         section_card(

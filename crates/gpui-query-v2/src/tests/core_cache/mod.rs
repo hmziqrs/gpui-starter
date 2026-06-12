@@ -9,13 +9,13 @@
 //! - Data retention: placeholder_data, previous_data, display_data, rollback
 //! - Cache interactions with different request policies
 
-mod cache_policy;
 mod cache_ops;
+mod cache_policy;
 mod data_retention;
 mod request_interactions;
 
-pub(crate) use cache_policy::*;
 pub(crate) use cache_ops::*;
+pub(crate) use cache_policy::*;
 pub(crate) use data_retention::*;
 pub(crate) use request_interactions::*;
 
@@ -65,9 +65,17 @@ pub(crate) fn swr_resource() -> QueryResource<&'static str> {
 }
 
 pub(crate) fn nocache_resource() -> QueryResource<&'static str> {
-    QueryResource::new("nocache-test", CachePolicy::NoCache, RequestPolicy::LatestWins)
+    QueryResource::new(
+        "nocache-test",
+        CachePolicy::NoCache,
+        RequestPolicy::LatestWins,
+    )
 }
 
-pub(crate) fn seed_data(resource: &mut QueryResource<&'static str>, data: &'static str, stored_at_ms: u128) {
+pub(crate) fn seed_data(
+    resource: &mut QueryResource<&'static str>,
+    data: &'static str,
+    stored_at_ms: u128,
+) {
     resource.apply_success(data, stored_at_ms);
 }

@@ -23,7 +23,7 @@ pub use notifications::NotificationsPage;
 pub use query_devtools::QueryDevToolsPage;
 pub use query_devtools_v2::QueryDevToolsV2Page;
 pub use query_playground::QueryPlaygroundPage;
-pub use render_error::RenderErrorPage;
 pub use render_error::ReloadCurrentPage;
+pub use render_error::RenderErrorPage;
 pub use render_error::TriggerRenderError;
 pub use settings::SettingsPage;

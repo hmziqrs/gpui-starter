@@ -1,6 +1,6 @@
 use super::{
-    CachePolicy, QueryKey, QuerySignal, QueryStatus, QueryTimestamp, RequestId, RequestPolicy,
-    InfiniteQueryResource,
+    CachePolicy, InfiniteQueryResource, QueryKey, QuerySignal, QueryStatus, QueryTimestamp,
+    RequestId, RequestPolicy,
 };
 
 // ── Accessors ────────────────────────────────────────────────────────────

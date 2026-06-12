@@ -41,8 +41,14 @@ fn ttl_cache_is_not_fresh_for_future_timestamp() {
 fn ttl_expired_check_after_ttl_window() {
     let mut r = ttl_resource();
     seed_data(&mut r, "cached", STORED_AT_MS);
-    assert!(!r.is_cache_expired(STORED_AT_MS + 500), "within TTL, not expired");
-    assert!(!r.is_cache_expired(AT_TTL_BOUNDARY), "at TTL boundary, not expired");
+    assert!(
+        !r.is_cache_expired(STORED_AT_MS + 500),
+        "within TTL, not expired"
+    );
+    assert!(
+        !r.is_cache_expired(AT_TTL_BOUNDARY),
+        "at TTL boundary, not expired"
+    );
     assert!(r.is_cache_expired(ONE_MS_PAST_TTL), "past TTL, expired");
 }
 
@@ -98,7 +104,10 @@ fn swr_stale_but_serveable_in_stale_window() {
     // stored_at=1000, TTL=1000, stale=2000. Past TTL but within stale window.
     assert!(!r.is_cache_fresh(ONE_MS_PAST_TTL), "past TTL, not fresh");
     assert!(r.is_stale_but_serveable(ONE_MS_PAST_TTL));
-    assert!(r.is_stale_but_serveable(STORED_AT_MS + 2_000), "mid stale window, serveable");
+    assert!(
+        r.is_stale_but_serveable(STORED_AT_MS + 2_000),
+        "mid stale window, serveable"
+    );
 }
 
 #[test]
@@ -137,7 +146,11 @@ fn swr_begin_request_stale_cache_hit_triggers_background_refetch() {
     // One ms past TTL => stale but serveable, triggers background refetch.
     let result = r.begin_request(&mut seq, ONE_MS_PAST_TTL, QueryFetchMode::Normal);
     assert!(matches!(result, QueryBeginResult::StaleCacheHit { .. }));
-    assert_eq!(r.cache_hits(), 1, "stale cache hit should increment cache_hits");
+    assert_eq!(
+        r.cache_hits(),
+        1,
+        "stale cache hit should increment cache_hits"
+    );
     assert_eq!(r.data(), Some(&"cached"), "stale data still accessible");
 }
 

@@ -30,8 +30,8 @@ use gpui::{BackgroundExecutor, TestAppContext};
 
 use crate::client::QueryClient;
 use crate::core::{
-    CachePolicy, QueryBeginResult, QueryError, QueryFetchMode, QueryKey, QueryResource, QueryStatus,
-    RequestId, RequestPolicy, RequestSequencer,
+    CachePolicy, QueryBeginResult, QueryError, QueryFetchMode, QueryKey, QueryResource,
+    QueryStatus, RequestId, RequestPolicy, RequestSequencer,
 };
 
 // ── TestAppContext setup ───────────────────────────────────────────────
@@ -90,7 +90,11 @@ pub fn test_resource_with_policies(
 pub fn typed_test_resource<T: Clone + Send + Sync + 'static>(
     key: impl Into<QueryKey>,
 ) -> QueryResource<T> {
-    QueryResource::new(key, CachePolicy::Ttl { ttl_ms: 1_000 }, RequestPolicy::LatestWins)
+    QueryResource::new(
+        key,
+        CachePolicy::Ttl { ttl_ms: 1_000 },
+        RequestPolicy::LatestWins,
+    )
 }
 
 /// Create a [`RequestSequencer`] for use in lifecycle tests.
@@ -124,8 +128,7 @@ pub fn delayed_fetcher<T: Clone + Send + 'static>(
     value: T,
     delay_ms: u64,
     executor: BackgroundExecutor,
-) -> Box<dyn Fn() -> Pin<Box<dyn Future<Output = Result<T, QueryError>> + Send>> + Send + 'static>
-{
+) -> Box<dyn Fn() -> Pin<Box<dyn Future<Output = Result<T, QueryError>> + Send>> + Send + 'static> {
     Box::new(move || {
         let value = value.clone();
         let executor = executor.clone();
@@ -135,8 +138,7 @@ pub fn delayed_fetcher<T: Clone + Send + 'static>(
                 executor.timer(delay).await;
             }
             Ok(value)
-        })
-            as Pin<Box<dyn Future<Output = Result<T, QueryError>> + Send>>
+        }) as Pin<Box<dyn Future<Output = Result<T, QueryError>> + Send>>
     })
 }
 

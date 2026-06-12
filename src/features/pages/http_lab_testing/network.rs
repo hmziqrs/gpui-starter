@@ -4,7 +4,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::services::http_lab::HttpLabAction;
 
-use super::{LOG, PREVIEW_LIMIT, TEST_URL, RawResponse};
+use super::{LOG, PREVIEW_LIMIT, RawResponse, TEST_URL};
 
 pub(crate) async fn raw_reqwest_get(
     client: reqwest::Client,

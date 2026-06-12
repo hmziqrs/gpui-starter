@@ -24,6 +24,6 @@
 //! and preservation behavior without the hook layer.
 
 mod client_basics;
+mod data_access;
 mod invalidation_reset_gc;
 mod mutations_lifecycle;
-mod data_access;

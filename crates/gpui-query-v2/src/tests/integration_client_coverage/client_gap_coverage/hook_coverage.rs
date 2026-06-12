@@ -12,9 +12,10 @@ use crate::client::QueryClient;
 use crate::core::*;
 #[allow(deprecated)]
 use crate::hook::{
+    InfiniteQueryOptions, MutationCallbacks, MutationOptions, QueryOptions,
     fetch_next_page_infinite, fetch_query, fetch_query_with_signal, mutate, mutate_with_callbacks,
     use_infinite_query, use_mutation, use_mutation_with_options, use_query_manual,
-    use_query_select, MutationCallbacks, MutationOptions, InfiniteQueryOptions, QueryOptions,
+    use_query_select,
 };
 use crate::tests::test_support::*;
 
@@ -91,8 +92,12 @@ fn test_mutation_callbacks_fire_on_entity_drop_during_retry_delay(cx: &mut TestA
             "vars".to_string(),
             |_| async { Err::<String, _>(QueryError::response("fail")) },
             MutationCallbacks::<String, QueryError>::new()
-                .on_error(move |_| { *ec.lock().unwrap() = true; })
-                .on_settled(move |_, _| { *sc.lock().unwrap() = true; }),
+                .on_error(move |_| {
+                    *ec.lock().unwrap() = true;
+                })
+                .on_settled(move |_, _| {
+                    *sc.lock().unwrap() = true;
+                }),
             cx,
         );
         H { mutation: entity }
@@ -134,28 +139,36 @@ fn test_fetch_retry_stops_after_request_replaced(cx: &mut TestAppContext) {
     let harness = cx.new(|cx| {
         let (entity, _sub) = use_query_manual::<&'static str, QueryError, _>(
             QueryKey::from("retry-cancel"),
-            CachePolicy::NoCache, RequestPolicy::LatestWins, cx,
+            CachePolicy::NoCache,
+            RequestPolicy::LatestWins,
+            cx,
         );
-        entity.update(cx, |r, _| r.set_retry_policy(RetryPolicy::new(5).with_delay(0)));
+        entity.update(cx, |r, _| {
+            r.set_retry_policy(RetryPolicy::new(5).with_delay(0))
+        });
 
         // First fetch: always fails, blocks on gate before returning
         let executor = executor.clone();
-        fetch_query(&entity, move || {
-            let cc = cc.clone();
-            let gate_clone = gate_clone.clone();
-            let executor = executor.clone();
-            async move {
-                {
-                    let mut n = cc.lock().unwrap();
-                    *n += 1;
-                } // drop MutexGuard before await
-                // Wait for gate — this keeps the first fetch "in flight"
-                while !gate_clone.load(Ordering::Acquire) {
-                    executor.timer(std::time::Duration::from_millis(1)).await;
+        fetch_query(
+            &entity,
+            move || {
+                let cc = cc.clone();
+                let gate_clone = gate_clone.clone();
+                let executor = executor.clone();
+                async move {
+                    {
+                        let mut n = cc.lock().unwrap();
+                        *n += 1;
+                    } // drop MutexGuard before await
+                    // Wait for gate — this keeps the first fetch "in flight"
+                    while !gate_clone.load(Ordering::Acquire) {
+                        executor.timer(std::time::Duration::from_millis(1)).await;
+                    }
+                    Err::<_, QueryError>(QueryError::response("fail"))
                 }
-                Err::<_, QueryError>(QueryError::response("fail"))
-            }
-        }, cx);
+            },
+            cx,
+        );
         H { entity }
     });
 
@@ -207,13 +220,25 @@ fn test_use_query_select_observer_updates_on_refetch(cx: &mut TestAppContext) {
             move |_signal| {
                 let c1 = c1.clone();
                 async move {
-                    let n = { let mut g = c1.lock().unwrap(); *g += 1; *g };
-                    if n == 1 { Ok::<_, QueryError>("hi") } else { Ok::<_, QueryError>("hello world") }
+                    let n = {
+                        let mut g = c1.lock().unwrap();
+                        *g += 1;
+                        *g
+                    };
+                    if n == 1 {
+                        Ok::<_, QueryError>("hi")
+                    } else {
+                        Ok::<_, QueryError>("hello world")
+                    }
                 }
             },
             cx,
         );
-        H { mapped, query, _subs: subs }
+        H {
+            mapped,
+            query,
+            _subs: subs,
+        }
     });
 
     cx.run_until_parked();
@@ -230,8 +255,16 @@ fn test_use_query_select_observer_updates_on_refetch(cx: &mut TestAppContext) {
             move || {
                 let c2 = c2.clone();
                 async move {
-                    let n = { let mut g = c2.lock().unwrap(); *g += 1; *g };
-                    if n == 1 { Ok::<_, QueryError>("hi") } else { Ok::<_, QueryError>("hello world") }
+                    let n = {
+                        let mut g = c2.lock().unwrap();
+                        *g += 1;
+                        *g
+                    };
+                    if n == 1 {
+                        Ok::<_, QueryError>("hi")
+                    } else {
+                        Ok::<_, QueryError>("hello world")
+                    }
                 }
             },
             cx,
@@ -243,7 +276,8 @@ fn test_use_query_select_observer_updates_on_refetch(cx: &mut TestAppContext) {
     cx.update(|cx| {
         let mapped_data = harness.read(cx).mapped.read(cx).data();
         assert_eq!(
-            mapped_data, Some(11),
+            mapped_data,
+            Some(11),
             "after refetch, observer should propagate update, transform should produce 11"
         );
     });
@@ -268,7 +302,9 @@ fn test_fetch_query_with_signal_no_retry_on_failure(cx: &mut TestAppContext) {
     let harness = cx.new(|cx| {
         let (entity, _sub) = use_query_manual::<&'static str, QueryError, _>(
             QueryKey::from("no-retry-signal"),
-            CachePolicy::NoCache, RequestPolicy::LatestWins, cx,
+            CachePolicy::NoCache,
+            RequestPolicy::LatestWins,
+            cx,
         );
         // Set retry policy that would allow retries if the fetcher were Fn
         entity.update(cx, |r, _| r.set_retry_policy(RetryPolicy::new(3)));
@@ -296,7 +332,8 @@ fn test_fetch_query_with_signal_no_retry_on_failure(cx: &mut TestAppContext) {
         );
     });
     assert_eq!(
-        *call_count.lock().unwrap(), 1,
+        *call_count.lock().unwrap(),
+        1,
         "FnOnce fetcher must only be called once, no retries"
     );
 }
@@ -340,7 +377,9 @@ fn test_infinite_query_stops_retry_after_signal_cancelled(cx: &mut TestAppContex
     let entity_ref = cx.update(|cx| harness.read(cx).entity.clone());
     cx.update(|cx| {
         entity_ref.update(cx, |r, _| {
-            if let Some(s) = r.signal() { s.cancel(); }
+            if let Some(s) = r.signal() {
+                s.cancel();
+            }
         });
     });
 

@@ -1,9 +1,6 @@
 use gpui::*;
 
-use gpui_component::{
-    Selectable,
-    button::Button,
-};
+use gpui_component::{Selectable, button::Button};
 
 use super::dashboard::QueryDevToolsV2Page;
 
@@ -37,10 +34,10 @@ pub(super) fn sort_button(
         btn = btn.selected(true);
     }
     btn.on_click(cx.listener(move |this, _, _, _cx| {
-            this.sort_by = target;
-            this.expanded_key = None;
-            _cx.notify();
-        }))
+        this.sort_by = target;
+        this.expanded_key = None;
+        _cx.notify();
+    }))
 }
 
 // ---------------------------------------------------------------------------
@@ -60,17 +57,15 @@ pub(super) fn filter_button(
     };
     let id = format!("v2-filter-{}", target.unwrap_or("all"));
     let target_owned = target.map(|s| s.to_string());
-    let mut btn = Button::new(id)
-        .outline()
-        .label(label);
+    let mut btn = Button::new(id).outline().label(label);
     if active {
         btn = btn.selected(true);
     }
     btn.on_click(cx.listener(move |this, _, _, _cx| {
-            this.status_filter = target_owned.clone();
-            this.expanded_key = None;
-            _cx.notify();
-        }))
+        this.status_filter = target_owned.clone();
+        this.expanded_key = None;
+        _cx.notify();
+    }))
 }
 
 // ---------------------------------------------------------------------------

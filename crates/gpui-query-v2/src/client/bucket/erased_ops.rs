@@ -115,10 +115,7 @@ impl<T: Clone + Send + Sync + 'static, E: Clone + Send + Sync + 'static> ErasedB
             }
 
             // Only evict if in a terminal, non-success state.
-            let evictable = matches!(
-                snapshot.status,
-                QueryStatus::Idle | QueryStatus::Failure
-            );
+            let evictable = matches!(snapshot.status, QueryStatus::Idle | QueryStatus::Failure);
             if !evictable {
                 return true; // Keep — not evictable (e.g. Cancelled).
             }

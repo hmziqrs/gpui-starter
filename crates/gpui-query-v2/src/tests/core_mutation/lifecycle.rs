@@ -104,7 +104,10 @@ fn reset_cancels_in_flight_signal() {
 
     m.reset();
 
-    assert!(signal.is_cancelled(), "reset must cancel the in-flight signal");
+    assert!(
+        signal.is_cancelled(),
+        "reset must cancel the in-flight signal"
+    );
     assert!(m.signal().is_none());
 }
 
@@ -121,7 +124,10 @@ fn begin_cancels_previous_signal_on_replacement() {
     // Second begin while first is still loading -> LatestWins
     m.begin("second".to_string());
     assert!(first_signal.is_cancelled(), "old signal must be cancelled");
-    assert!(!m.signal().unwrap().is_cancelled(), "new signal must be fresh");
+    assert!(
+        !m.signal().unwrap().is_cancelled(),
+        "new signal must be fresh"
+    );
     assert_eq!(m.variables(), Some(&"second".to_string()));
     assert_eq!(m.retry_count(), 0, "begin resets retry_count");
 }
@@ -217,7 +223,9 @@ fn status_labels() {
 
 #[test]
 fn retry_policy_accessor() {
-    let policy = RetryPolicy::new(5).with_delay(200).with_exponential_backoff();
+    let policy = RetryPolicy::new(5)
+        .with_delay(200)
+        .with_exponential_backoff();
     let m: MutationResource<String, i32> = MutationResource::new(policy.clone());
     assert_eq!(m.retry_policy(), &policy);
     assert_eq!(m.retry_policy().max_retries, 5);

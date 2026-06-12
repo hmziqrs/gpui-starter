@@ -1,9 +1,5 @@
 use gpui::{prelude::*, *};
-use gpui_component::{
-    ActiveTheme as _,
-    h_flex,
-    v_flex,
-};
+use gpui_component::{ActiveTheme as _, h_flex, v_flex};
 
 use gpui_query_v2::client::ClientDiagnostic;
 use gpui_query_v2::core::MutationStatus;
@@ -34,27 +30,23 @@ pub(super) fn render_mutations_table(
         .unwrap_or_default();
 
     // Header
-    let header = h_flex()
-        .gap_3()
-        .px_3()
-        .py_2()
-        .children(vec![
-            div()
-                .text_xs()
-                .font_weight(FontWeight::BOLD)
-                .flex_1()
-                .child("Key"),
-            div()
-                .text_xs()
-                .font_weight(FontWeight::BOLD)
-                .flex_1()
-                .child("Status"),
-            div()
-                .text_xs()
-                .font_weight(FontWeight::BOLD)
-                .flex_1()
-                .child("Retry Count"),
-        ]);
+    let header = h_flex().gap_3().px_3().py_2().children(vec![
+        div()
+            .text_xs()
+            .font_weight(FontWeight::BOLD)
+            .flex_1()
+            .child("Key"),
+        div()
+            .text_xs()
+            .font_weight(FontWeight::BOLD)
+            .flex_1()
+            .child("Status"),
+        div()
+            .text_xs()
+            .font_weight(FontWeight::BOLD)
+            .flex_1()
+            .child("Retry Count"),
+    ]);
 
     if mutations.is_empty() {
         return div()
@@ -71,16 +63,12 @@ pub(super) fn render_mutations_table(
                     .child("Mutations"),
             )
             .child(
-                div()
-                    .py_4()
-                    .flex()
-                    .justify_center()
-                    .child(
-                        div()
-                            .text_sm()
-                            .text_color(muted_foreground)
-                            .child("No mutations registered."),
-                    ),
+                div().py_4().flex().justify_center().child(
+                    div()
+                        .text_sm()
+                        .text_color(muted_foreground)
+                        .child("No mutations registered."),
+                ),
             );
     }
 
@@ -112,8 +100,7 @@ pub(super) fn render_mutations_table(
                 .rounded(radius)
                 .px_3()
                 .py_2()
-                .child(
-                    h_flex().gap_3().items_center().children(vec![
+                .child(h_flex().gap_3().items_center().children(vec![
                         div()
                             .text_sm()
                             .font_family("monospace")
@@ -129,8 +116,7 @@ pub(super) fn render_mutations_table(
                             .text_xs()
                             .text_color(muted_foreground)
                             .child(format!("{}", m.retry_count)),
-                    ]),
-                )
+                    ]))
                 .into_any_element()
         })
         .collect();

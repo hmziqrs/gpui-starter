@@ -39,7 +39,10 @@ impl QueryKey {
     /// Panics if the iterator yields zero segments.
     pub fn new(parts: impl IntoIterator<Item: AsRef<str>>) -> Self {
         let segments: Vec<Arc<str>> = parts.into_iter().map(|s| Arc::from(s.as_ref())).collect();
-        assert!(!segments.is_empty(), "QueryKey must contain at least one segment");
+        assert!(
+            !segments.is_empty(),
+            "QueryKey must contain at least one segment"
+        );
         Self(segments.into())
     }
 

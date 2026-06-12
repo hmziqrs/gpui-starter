@@ -24,10 +24,7 @@ fn test_client_mutation_resource(cx: &mut TestAppContext) {
             m.begin("new-name".to_string(), 0);
         });
         assert!(entity.read(cx).is_loading());
-        assert_eq!(
-            entity.read(cx).variables(),
-            Some(&"new-name".to_string())
-        );
+        assert_eq!(entity.read(cx).variables(), Some(&"new-name".to_string()));
 
         // Complete with success
         entity.update(cx, |m, _| {
@@ -48,33 +45,30 @@ fn test_client_mutation_count(cx: &mut TestAppContext) {
 
         assert_eq!(client.mutation_count(), 0);
 
-        let _m1 = client.mutation_resource::<String, User, QueryError>(
-            &QueryKey::from("mutation:1"),
-            cx,
-        );
+        let _m1 =
+            client.mutation_resource::<String, User, QueryError>(&QueryKey::from("mutation:1"), cx);
         assert_eq!(client.mutation_count(), 1);
 
-        let _m2 = client.mutation_resource::<String, User, QueryError>(
-            &QueryKey::from("mutation:2"),
-            cx,
-        );
+        let _m2 =
+            client.mutation_resource::<String, User, QueryError>(&QueryKey::from("mutation:2"), cx);
         assert_eq!(client.mutation_count(), 2);
 
         // Same key returns same entity (deduplication)
-        let _m3 = client.mutation_resource::<String, User, QueryError>(
-            &QueryKey::from("mutation:1"),
-            cx,
+        let _m3 =
+            client.mutation_resource::<String, User, QueryError>(&QueryKey::from("mutation:1"), cx);
+        assert_eq!(
+            client.mutation_count(),
+            2,
+            "duplicate key should not create new resource"
         );
-        assert_eq!(client.mutation_count(), 2, "duplicate key should not create new resource");
     });
 }
 
 #[gpui::test]
 fn test_client_mutation_retry_lifecycle(cx: &mut TestAppContext) {
     cx.update(|cx| {
-        let mut client =
-            QueryClient::new(CachePolicy::NoCache, RequestPolicy::LatestWins)
-                .with_retry_policy(RetryPolicy::new(2));
+        let mut client = QueryClient::new(CachePolicy::NoCache, RequestPolicy::LatestWins)
+            .with_retry_policy(RetryPolicy::new(2));
 
         let key = QueryKey::from("flaky-mutation");
         let entity = client.mutation_resource::<String, User, QueryError>(&key, cx);
@@ -201,16 +195,18 @@ fn test_client_diagnostics(cx: &mut TestAppContext) {
 
         let _p1 = client.resource::<Post, QueryError>(QueryKey::from(["posts", "1"]), cx);
 
-        let _m1 = client.mutation_resource::<String, User, QueryError>(
-            &QueryKey::from("mutation:1"),
-            cx,
-        );
+        let _m1 =
+            client.mutation_resource::<String, User, QueryError>(&QueryKey::from("mutation:1"), cx);
 
         let diag = client.diagnostics(cx);
         assert_eq!(diag.total_resources, 2);
         assert_eq!(diag.bucket_count, 2);
         assert_eq!(diag.mutation_count, 1);
-        assert_eq!(diag.queries.len(), 2, "should have diagnostics for both queries");
+        assert_eq!(
+            diag.queries.len(),
+            2,
+            "should have diagnostics for both queries"
+        );
 
         // Find the user query diagnostic
         let user_diag = diag

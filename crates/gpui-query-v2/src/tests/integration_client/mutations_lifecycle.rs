@@ -28,10 +28,7 @@ fn test_mutation_lifecycle_through_client(cx: &mut TestAppContext) {
                 m.begin("new_name".to_string());
             });
             assert!(entity.read(cx).is_loading());
-            assert_eq!(
-                entity.read(cx).variables(),
-                Some(&"new_name".to_string())
-            );
+            assert_eq!(entity.read(cx).variables(), Some(&"new_name".to_string()));
 
             // Complete with success
             entity.update(cx, |m, _| {
@@ -48,9 +45,8 @@ fn test_mutation_failure_and_retry(cx: &mut TestAppContext) {
     setup_query_client(cx);
     cx.update(|cx| {
         cx.update_global::<QueryClient, _>(|client, cx| {
-            let entity = cx.new(|_| {
-                MutationResource::<String, User, QueryError>::new(RetryPolicy::new(2))
-            });
+            let entity =
+                cx.new(|_| MutationResource::<String, User, QueryError>::new(RetryPolicy::new(2)));
             client.register_mutation::<String, User, QueryError>(&entity, cx);
 
             // Begin and fail first attempt
@@ -84,9 +80,8 @@ fn test_mutation_failure_and_retry(cx: &mut TestAppContext) {
 fn test_mutation_reset_clears_state(cx: &mut TestAppContext) {
     setup_query_client(cx);
     cx.update(|cx| {
-        let entity = cx.new(|_| {
-            MutationResource::<String, User, QueryError>::new(RetryPolicy::no_retries())
-        });
+        let entity = cx
+            .new(|_| MutationResource::<String, User, QueryError>::new(RetryPolicy::no_retries()));
         entity.update(cx, |m, _| {
             m.begin("vars".to_string());
             m.complete_success(User::default());
@@ -137,9 +132,9 @@ fn test_full_lifecycle_idle_to_loading_to_success_to_gc(cx: &mut TestAppContext)
             client.gc_with_time(2_800, cx);
 
             // 5. Unconditional assertion: the resource MUST survive GC
-            let surviving = client
-                .query::<String, QueryError>(&key)
-                .expect("success resource should survive GC (age 1800ms < success_threshold 10000ms)");
+            let surviving = client.query::<String, QueryError>(&key).expect(
+                "success resource should survive GC (age 1800ms < success_threshold 10000ms)",
+            );
             assert_eq!(
                 surviving.read(cx).data().unwrap(),
                 "Carol",
@@ -254,11 +249,7 @@ fn test_optimistic_update_rollback_on_failure(cx: &mut TestAppContext) {
                 r.begin_request_with_id(Some(rid), 1_100, QueryFetchMode::Force);
             });
             entity.update(cx, |r, _| {
-                r.complete_current_failure(
-                    rid,
-                    QueryError::response("network error"),
-                    1_200,
-                )
+                r.complete_current_failure(rid, QueryError::response("network error"), 1_200)
             });
 
             assert_eq!(entity.read(cx).status(), QueryStatus::Failure);

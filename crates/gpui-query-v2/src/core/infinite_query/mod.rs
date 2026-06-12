@@ -76,13 +76,7 @@ mod tests {
         let mut r = make_resource();
         let mut seq = RequestSequencer::new();
         let id = r.begin_fetch_next(&mut seq, 1_000).unwrap();
-        let accepted = r.complete_page_success(
-            id,
-            vec!["a".to_string()],
-            true,
-            true,
-            2_000,
-        );
+        let accepted = r.complete_page_success(id, vec!["a".to_string()], true, true, 2_000);
         assert!(accepted);
         assert_eq!(r.page_count(), 1);
         assert_eq!(r.status(), QueryStatus::Success);

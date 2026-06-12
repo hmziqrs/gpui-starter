@@ -1,6 +1,5 @@
 use gpui_query::{
-    CachePolicy, QueryBeginResult, QueryError, QueryFetchMode, QueryStatus, RequestGuard,
-    RequestId,
+    CachePolicy, QueryBeginResult, QueryError, QueryFetchMode, QueryStatus, RequestGuard, RequestId,
 };
 
 use crate::services::http_lab::{

@@ -242,7 +242,10 @@ impl<T, E> MutationCallbacks<T, E> {
     }
 
     /// Set the settled callback (fires on both success and failure).
-    pub fn on_settled(mut self, f: impl Fn(Option<&T>, Option<&E>) + Send + Sync + 'static) -> Self {
+    pub fn on_settled(
+        mut self,
+        f: impl Fn(Option<&T>, Option<&E>) + Send + Sync + 'static,
+    ) -> Self {
         self.on_settled = Some(Arc::new(f));
         self
     }

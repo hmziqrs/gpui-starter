@@ -147,7 +147,9 @@ impl HttpLabState {
                 cache_policy: format!("{:?}", resource.cache_policy()),
                 request_policy: format!("{:?}", resource.request_policy()),
                 cache_hits: resource.cache_hits(),
-                active_request: resource.active_request_id().map(|id| id.label().to_string()),
+                active_request: resource
+                    .active_request_id()
+                    .map(|id| id.label().to_string()),
             })
             .collect()
     }

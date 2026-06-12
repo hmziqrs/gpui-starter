@@ -17,13 +17,7 @@ pub(crate) fn test_card(title: &str, description: &str, boundary: bool, cx: &App
         .rounded(theme.radius_lg)
         .overflow_hidden()
         // Colored accent stripe on the left
-        .child(
-            div()
-                .h_full()
-                .w(px(4.))
-                .bg(accent)
-                .flex_shrink_0(),
-        )
+        .child(div().h_full().w(px(4.)).bg(accent).flex_shrink_0())
         // Card body
         .child(
             div()
@@ -39,9 +33,12 @@ pub(crate) fn test_card(title: &str, description: &str, boundary: bool, cx: &App
                         .border_b_1()
                         .border_color(theme.border)
                         .child(
-                            v_flex().gap_1()
+                            v_flex()
+                                .gap_1()
                                 .child(
-                                    div().text_base().font_weight(FontWeight::SEMIBOLD)
+                                    div()
+                                        .text_base()
+                                        .font_weight(FontWeight::SEMIBOLD)
                                         .child(title.to_string()),
                                 )
                                 .child(
@@ -57,12 +54,7 @@ pub(crate) fn test_card(title: &str, description: &str, boundary: bool, cx: &App
 
 /// Row that holds the trigger button(s) and any inline result.
 pub(crate) fn action_row(_cx: &App) -> Div {
-    h_flex()
-        .gap_2()
-        .flex_wrap()
-        .items_center()
-        .px_4()
-        .py_3()
+    h_flex().gap_2().flex_wrap().items_center().px_4().py_3()
 }
 
 /// Inline result text chip.

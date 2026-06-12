@@ -2,7 +2,7 @@ use gpui::*;
 
 use gpui_query::{CachePolicy, QueryError, RequestPolicy};
 
-use super::super::super::{query_now_ms, HttpLabTestingPage, RawResponse};
+use super::super::super::{HttpLabTestingPage, RawResponse, query_now_ms};
 
 impl HttpLabTestingPage {
     // -- Feature 2: Client fetchQuery --
@@ -47,13 +47,22 @@ impl HttpLabTestingPage {
                         now_ms_for_complete,
                     )
                 });
-                let v_started = Self::verdict("request started", true, &format!("request_id={}", rid_label));
-                let v_completed = Self::verdict("request completed", completed, "complete_current_success");
+                let v_started = Self::verdict(
+                    "request started",
+                    true,
+                    &format!("request_id={}", rid_label),
+                );
+                let v_completed =
+                    Self::verdict("request completed", completed, "complete_current_success");
                 let verdict_line = "Client fetch PASSED";
                 self.client_query_message = format!("{v_started}\n{v_completed}\n{verdict_line}");
             }
             None => {
-                let v_started = Self::verdict("request started", false, "returned None (cache hit or ignored)");
+                let v_started = Self::verdict(
+                    "request started",
+                    false,
+                    "returned None (cache hit or ignored)",
+                );
                 let verdict_line = "Client fetch FAILED";
                 self.client_query_message = format!("{v_started}\n{verdict_line}");
             }
@@ -101,13 +110,19 @@ impl HttpLabTestingPage {
                         now_ms_for_complete,
                     )
                 });
-                let v_started = Self::verdict("forced request started", true, &format!("request_id={}", rid_label));
-                let v_completed = Self::verdict("request completed", completed, "complete_current_success");
+                let v_started = Self::verdict(
+                    "forced request started",
+                    true,
+                    &format!("request_id={}", rid_label),
+                );
+                let v_completed =
+                    Self::verdict("request completed", completed, "complete_current_success");
                 let verdict_line = "Client force fetch PASSED";
                 self.client_query_message = format!("{v_started}\n{v_completed}\n{verdict_line}");
             }
             None => {
-                let v_started = Self::verdict("forced request started", false, "returned None (ignored)");
+                let v_started =
+                    Self::verdict("forced request started", false, "returned None (ignored)");
                 let verdict_line = "Client force fetch FAILED";
                 self.client_query_message = format!("{v_started}\n{verdict_line}");
             }

@@ -18,9 +18,7 @@ mod helpers;
 mod sections;
 
 use gpui::{prelude::*, *};
-use gpui_component::{
-    ActiveTheme as _, v_flex,
-};
+use gpui_component::{ActiveTheme as _, v_flex};
 
 // ---------------------------------------------------------------------------
 // Page struct

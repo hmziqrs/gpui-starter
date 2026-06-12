@@ -11,14 +11,12 @@
 
 use gpui::App;
 
-use crate::core::{
-    CachePolicy, QueryKey, QueryStatus, RequestPolicy,
-};
 use crate::client::bucket::QueryBucket;
 use crate::client::devtools::{ClientDiagnostic, DehydratedEntry, DehydratedState};
 use crate::client::erased::current_time_ms;
 use crate::client::infinite_bucket::InfiniteQueryBucket;
 use crate::client::prepared_fetch::PreparedFetch;
+use crate::core::{CachePolicy, QueryKey, QueryStatus, RequestPolicy};
 
 use super::QueryClient;
 use crate::client::erased::QueryPersister;
@@ -103,7 +101,10 @@ impl QueryClient {
     ) {
         let type_id = std::any::TypeId::of::<(T, E)>();
         if let Some(bucket) = self.infinite_buckets.get_mut(&type_id) {
-            if let Some(typed) = bucket.as_any_mut().downcast_mut::<InfiniteQueryBucket<T, E>>() {
+            if let Some(typed) = bucket
+                .as_any_mut()
+                .downcast_mut::<InfiniteQueryBucket<T, E>>()
+            {
                 typed.update_status_snapshot(key, status, last_updated_ms, cache_policy);
             }
         }
@@ -158,7 +159,10 @@ impl QueryClient {
     ) {
         let type_id = std::any::TypeId::of::<(T, E)>();
         if let Some(bucket) = self.infinite_buckets.get_mut(&type_id) {
-            if let Some(typed) = bucket.as_any_mut().downcast_mut::<InfiniteQueryBucket<T, E>>() {
+            if let Some(typed) = bucket
+                .as_any_mut()
+                .downcast_mut::<InfiniteQueryBucket<T, E>>()
+            {
                 typed.retain(key);
             }
         }
@@ -175,7 +179,10 @@ impl QueryClient {
     ) {
         let type_id = std::any::TypeId::of::<(T, E)>();
         if let Some(bucket) = self.infinite_buckets.get_mut(&type_id) {
-            if let Some(typed) = bucket.as_any_mut().downcast_mut::<InfiniteQueryBucket<T, E>>() {
+            if let Some(typed) = bucket
+                .as_any_mut()
+                .downcast_mut::<InfiniteQueryBucket<T, E>>()
+            {
                 typed.release(key);
             }
         }
@@ -362,25 +369,26 @@ impl QueryClient {
         let request_id = self.next_request_id_for_key::<T, E>(&key);
 
         // Begin the request on the resource
-        entity.update(cx, |resource, _| {
-            if let Some(rid) = request_id {
-                let result = resource.begin_request_with_id(
-                    Some(rid),
-                    now_ms,
-                    crate::core::QueryFetchMode::Force,
-                );
-                match result {
-                    crate::core::QueryBeginResult::Started { .. }
-                    | crate::core::QueryBeginResult::StaleCacheHit { .. } => true,
-                    crate::core::QueryBeginResult::CacheHit => false,
-                    crate::core::QueryBeginResult::IgnoredWhileLoading { .. } => false,
+        entity
+            .update(cx, |resource, _| {
+                if let Some(rid) = request_id {
+                    let result = resource.begin_request_with_id(
+                        Some(rid),
+                        now_ms,
+                        crate::core::QueryFetchMode::Force,
+                    );
+                    match result {
+                        crate::core::QueryBeginResult::Started { .. }
+                        | crate::core::QueryBeginResult::StaleCacheHit { .. } => true,
+                        crate::core::QueryBeginResult::CacheHit => false,
+                        crate::core::QueryBeginResult::IgnoredWhileLoading { .. } => false,
+                    }
+                } else {
+                    false
                 }
-            } else {
-                false
-            }
-        })
-        .then(|| false)
-        .unwrap_or(false);
+            })
+            .then(|| false)
+            .unwrap_or(false);
 
         // Re-read to get the signal and request ID
         let (request_id, signal) = entity.read_with(cx, |resource, _| {
@@ -424,12 +432,8 @@ impl QueryClient {
         cx: &mut App,
     ) -> Option<PreparedFetch<T, E>> {
         let key = key.into();
-        let entity = self.resource_with_policies::<T, E>(
-            key.clone(),
-            cache_policy,
-            request_policy,
-            cx,
-        );
+        let entity =
+            self.resource_with_policies::<T, E>(key.clone(), cache_policy, request_policy, cx);
         let now_ms = current_time_ms();
 
         // Get request ID from sequencer

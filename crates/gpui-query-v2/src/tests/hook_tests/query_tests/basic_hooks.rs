@@ -153,7 +153,10 @@ fn test_use_query_signal_not_cancelled_on_normal_fetch(cx: &mut TestAppContext) 
     cx.run_until_parked();
 
     cx.update(|cx| {
-        assert_eq!(harness.read(cx).entity.read(cx).status(), QueryStatus::Success);
+        assert_eq!(
+            harness.read(cx).entity.read(cx).status(),
+            QueryStatus::Success
+        );
     });
     assert!(
         !*signal_cancelled.lock().unwrap(),
@@ -250,20 +253,13 @@ fn test_fetch_query_can_refetch_after_success(cx: &mut TestAppContext) {
 
     // Refetch with different data. NoCache ensures begin_request won't short-circuit.
     harness.update(cx, |this, cx| {
-        fetch_query(
-            &this.entity,
-            || async { Ok::<_, QueryError>("second") },
-            cx,
-        );
+        fetch_query(&this.entity, || async { Ok::<_, QueryError>("second") }, cx);
     });
 
     cx.run_until_parked();
 
     cx.update(|cx| {
-        assert_eq!(
-            harness.read(cx).entity.read(cx).data(),
-            Some(&"second")
-        );
+        assert_eq!(harness.read(cx).entity.read(cx).data(), Some(&"second"));
     });
 }
 
@@ -329,7 +325,10 @@ fn test_multiple_subscriptions_same_key(cx: &mut TestAppContext) {
     });
 
     cx.update(|cx| {
-        assert_eq!(harness.read(cx).entity1.read(cx).status(), QueryStatus::Idle);
+        assert_eq!(
+            harness.read(cx).entity1.read(cx).status(),
+            QueryStatus::Idle
+        );
     });
 }
 
@@ -452,11 +451,7 @@ fn test_fetch_query_refetch_after_success(cx: &mut TestAppContext) {
 
     // Refetch with different data.
     harness.update(cx, |this, cx| {
-        fetch_query(
-            &this.entity,
-            || async { Ok::<_, QueryError>(2_i32) },
-            cx,
-        );
+        fetch_query(&this.entity, || async { Ok::<_, QueryError>(2_i32) }, cx);
     });
 
     cx.run_until_parked();

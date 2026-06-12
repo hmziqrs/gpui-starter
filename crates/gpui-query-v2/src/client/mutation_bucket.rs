@@ -100,9 +100,15 @@ impl<
     /// prevent wraparound after `u64::MAX` insertions. If the counter
     /// overflows, the method panics — consistent with the principle that
     /// IDs must be unique and wraparound would cause data loss.
-    pub(crate) fn insert(&mut self, entity: &gpui::Entity<MutationResource<V, T, E>>, _cx: &App) -> u64 {
+    pub(crate) fn insert(
+        &mut self,
+        entity: &gpui::Entity<MutationResource<V, T, E>>,
+        _cx: &App,
+    ) -> u64 {
         let id = self.next_id;
-        self.next_id = self.next_id.checked_add(1)
+        self.next_id = self
+            .next_id
+            .checked_add(1)
             .expect("MutationBucket::insert: next_id overflow after u64::MAX insertions");
         self.resources.insert(
             id,

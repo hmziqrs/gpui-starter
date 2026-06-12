@@ -14,8 +14,8 @@
 //! 4. **Concurrency guard tests**: Verify that the two-phase completion protocol
 //!    maintains invariants even when requests are interleaved.
 
-mod property_based;
-mod state_transitions;
-mod gc_eviction;
 mod concurrency;
 mod gap_tests;
+mod gc_eviction;
+mod property_based;
+mod state_transitions;

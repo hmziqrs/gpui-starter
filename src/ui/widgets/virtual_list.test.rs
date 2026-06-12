@@ -61,7 +61,11 @@ fn bounded_list_height_no_gap() {
 
 #[test]
 fn bounded_list_height_with_gap() {
-    let items = vec![size(px(0.), px(100.)), size(px(0.), px(100.)), size(px(0.), px(100.))];
+    let items = vec![
+        size(px(0.), px(100.)),
+        size(px(0.), px(100.)),
+        size(px(0.), px(100.)),
+    ];
     // 3 items * 100px = 300px + 2 gaps * 10px = 20px => 320px
     let result = bounded_list_height(&items, px(10.), px(500.));
     assert_eq!(result, px(320.));

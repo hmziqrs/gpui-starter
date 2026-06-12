@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use gpui::{
-    AnyWindowHandle, App, AppContext as _, BorrowAppContext as _, SharedString, Window,
-};
+use gpui::{AnyWindowHandle, App, AppContext as _, BorrowAppContext as _, SharedString, Window};
 use gpui_component::WindowExt as _;
 
 use super::backend_service::{

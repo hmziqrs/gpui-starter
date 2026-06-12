@@ -4,9 +4,7 @@
 use gpui::{BorrowAppContext as _, Context, Entity, Subscription};
 
 use crate::client::{QueryClient, QueryObserver};
-use crate::core::{
-    QueryFetchMode, QueryKey, QueryResource, QuerySignal, QueryStatus,
-};
+use crate::core::{QueryFetchMode, QueryKey, QueryResource, QuerySignal, QueryStatus};
 
 use super::current_time_ms;
 use super::fetch_retry::{begin_request_on_entity, fetch_signal_with_retry, fetch_with_retry};
@@ -78,15 +76,8 @@ where
             let weak = entity.downgrade();
             let retry_policy = entity.read_with(cx, |r, _| r.retry_policy().clone());
             cx.spawn(async move |_this, cx| {
-                fetch_signal_with_retry(
-                    &fetcher,
-                    signal,
-                    request_id,
-                    &retry_policy,
-                    &weak,
-                    cx,
-                )
-                .await;
+                fetch_signal_with_retry(&fetcher, signal, request_id, &retry_policy, &weak, cx)
+                    .await;
                 Ok::<_, ()>(())
             })
             .detach();
@@ -236,8 +227,7 @@ pub fn fetch_query<T, E, C, F, Fut>(
     Fut: std::future::Future<Output = Result<T, E>> + Send + 'static,
 {
     // Audit fix #3: Only spawn fetch if begin_request returns a real RequestId.
-    let Some(request_id) = begin_request_on_entity(entity, cx, QueryFetchMode::Normal, None)
-    else {
+    let Some(request_id) = begin_request_on_entity(entity, cx, QueryFetchMode::Normal, None) else {
         return;
     };
     let weak = entity.downgrade();
@@ -279,8 +269,7 @@ pub fn fetch_query_with_signal<T, E, C, F, Fut>(
     Fut: std::future::Future<Output = Result<T, E>> + Send + 'static,
 {
     // Audit fix #3: Only spawn fetch if begin_request returns a real RequestId.
-    let Some(request_id) = begin_request_on_entity(entity, cx, QueryFetchMode::Normal, None)
-    else {
+    let Some(request_id) = begin_request_on_entity(entity, cx, QueryFetchMode::Normal, None) else {
         return;
     };
     let signal = entity.read_with(cx, |r, _| {

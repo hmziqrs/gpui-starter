@@ -1,9 +1,5 @@
 use gpui::{prelude::*, *};
-use gpui_component::{
-    ActiveTheme as _, Selectable,
-    button::Button,
-    h_flex, v_flex,
-};
+use gpui_component::{ActiveTheme as _, Selectable, button::Button, h_flex, v_flex};
 
 use crate::services::http_lab::HttpLabDiagnostic;
 
@@ -123,15 +119,15 @@ pub(crate) fn render_registry(
         })
         .collect();
 
-    let table = v_flex().gap_0p5().children(
-        table_rows.into_iter().flat_map(|(row, detail)| {
+    let table = v_flex()
+        .gap_0p5()
+        .children(table_rows.into_iter().flat_map(|(row, detail)| {
             let mut children = vec![row];
             if let Some(d) = detail {
                 children.push(d);
             }
             children
-        }),
-    );
+        }));
 
     div()
         .rounded(radius_lg)
@@ -147,15 +143,26 @@ pub(crate) fn render_registry(
                 .child("Query Registry"),
         )
         .child(
-            v_flex().gap_2().mb_3().child(
-                v_flex().gap_1()
-                    .child(div().text_xs().text_color(muted_foreground).child("Sort:"))
-                    .child(sort_controls)
-            ).child(
-                v_flex().gap_1()
-                    .child(div().text_xs().text_color(muted_foreground).child("Status:"))
-                    .child(filter_controls)
-            ),
+            v_flex()
+                .gap_2()
+                .mb_3()
+                .child(
+                    v_flex()
+                        .gap_1()
+                        .child(div().text_xs().text_color(muted_foreground).child("Sort:"))
+                        .child(sort_controls),
+                )
+                .child(
+                    v_flex()
+                        .gap_1()
+                        .child(
+                            div()
+                                .text_xs()
+                                .text_color(muted_foreground)
+                                .child("Status:"),
+                        )
+                        .child(filter_controls),
+                ),
         )
         .child(table)
 }
@@ -272,8 +279,7 @@ fn unified_row(
             };
             cx.notify();
         }))
-        .child(
-            h_flex().gap_3().items_center().children(vec![
+        .child(h_flex().gap_3().items_center().children(vec![
                 div().text_xs().text_color(muted_foreground).child(chevron.to_string()),
                 source_label,
                 div()
@@ -294,8 +300,7 @@ fn unified_row(
                     .text_xs()
                     .text_color(muted_foreground)
                     .child(format!("hits:{}", r.cache_hits)),
-            ]),
-        )
+            ]))
 }
 
 // ---------------------------------------------------------------------------
@@ -322,8 +327,13 @@ fn expanded_detail_for(r: &UnifiedRow) -> Div {
         .children(fields.into_iter().map(|(label, value)| {
             h_flex().gap_2().child(
                 div().text_xs().child(
-                    h_flex().gap_1()
-                        .child(div().font_weight(FontWeight::BOLD).child(format!("{}:", label)))
+                    h_flex()
+                        .gap_1()
+                        .child(
+                            div()
+                                .font_weight(FontWeight::BOLD)
+                                .child(format!("{}:", label)),
+                        )
                         .child(div().child(value)),
                 ),
             )

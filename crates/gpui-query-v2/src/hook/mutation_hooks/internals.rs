@@ -6,7 +6,6 @@
 
 use std::sync::Arc;
 
-
 use crate::core::{MutationResource, RetryPolicy};
 
 use super::super::options::MutationCallbacks;

@@ -1,2 +1,2 @@
-mod select_tests;
 mod retry_tests;
+mod select_tests;

@@ -27,7 +27,10 @@ fn test_gc_preserves_resources_with_active_observers(cx: &mut TestAppContext) {
             let entity = client.resource::<String, QueryError>(key.clone(), cx);
             entity.update(cx, |r, _| r.apply_success("data".to_string(), 1_000));
             client.update_query_snapshot::<String, QueryError>(
-                &key, QueryStatus::Success, Some(1_000), CachePolicy::Ttl { ttl_ms: 5_000 },
+                &key,
+                QueryStatus::Success,
+                Some(1_000),
+                CachePolicy::Ttl { ttl_ms: 5_000 },
             );
 
             // Retain the resource (simulates an active observer subscription)
@@ -39,7 +42,8 @@ fn test_gc_preserves_resources_with_active_observers(cx: &mut TestAppContext) {
 
             let remaining = client.all_queries::<String, QueryError>();
             assert_eq!(
-                remaining.len(), 1,
+                remaining.len(),
+                1,
                 "observed resource must survive GC even when age exceeds success threshold"
             );
             assert_eq!(remaining[0].read(cx).data().unwrap(), "data");
@@ -69,13 +73,22 @@ fn test_gc_preserves_swr_resources_within_stale_window(cx: &mut TestAppContext) 
     cx.update(|cx| {
         cx.update_global::<QueryClient, _>(|client, cx| {
             let key = QueryKey::from("swr_gc");
-            let swr = CachePolicy::StaleWhileRevalidate { ttl_ms: 1_000, stale_ms: 5_000 };
+            let swr = CachePolicy::StaleWhileRevalidate {
+                ttl_ms: 1_000,
+                stale_ms: 5_000,
+            };
             let entity = client.resource_with_policies::<String, QueryError>(
-                key.clone(), swr, RequestPolicy::LatestWins, cx,
+                key.clone(),
+                swr,
+                RequestPolicy::LatestWins,
+                cx,
             );
             entity.update(cx, |r, _| r.apply_success("data".to_string(), 1_000));
             client.update_query_snapshot::<String, QueryError>(
-                &key, QueryStatus::Success, Some(1_000), swr,
+                &key,
+                QueryStatus::Success,
+                Some(1_000),
+                swr,
             );
 
             // GC at t=3000: age=2000, ttl expired (2000 > 1000), but within
@@ -105,13 +118,22 @@ fn test_gc_preserves_swr_resources_within_ttl(cx: &mut TestAppContext) {
     cx.update(|cx| {
         cx.update_global::<QueryClient, _>(|client, cx| {
             let key = QueryKey::from("swr_fresh");
-            let swr = CachePolicy::StaleWhileRevalidate { ttl_ms: 5_000, stale_ms: 3_000 };
+            let swr = CachePolicy::StaleWhileRevalidate {
+                ttl_ms: 5_000,
+                stale_ms: 3_000,
+            };
             let entity = client.resource_with_policies::<String, QueryError>(
-                key.clone(), swr, RequestPolicy::LatestWins, cx,
+                key.clone(),
+                swr,
+                RequestPolicy::LatestWins,
+                cx,
             );
             entity.update(cx, |r, _| r.apply_success("fresh".to_string(), 1_000));
             client.update_query_snapshot::<String, QueryError>(
-                &key, QueryStatus::Success, Some(1_000), swr,
+                &key,
+                QueryStatus::Success,
+                Some(1_000),
+                swr,
             );
 
             // GC at t=3000: age=2000 < ttl(5000), still fresh
@@ -279,7 +301,8 @@ fn test_bucket_default_max_entries_allows_many_resources(cx: &mut TestAppContext
 
             let all = client.all_queries::<String, QueryError>();
             assert_eq!(
-                all.len(), 100,
+                all.len(),
+                100,
                 "all 100 resources should exist within default max_entries(10_000)"
             );
         });
@@ -313,7 +336,8 @@ fn test_loading_mutation_survives_gc(cx: &mut TestAppContext) {
 
             let mutations = client.all_mutations::<String, String, QueryError>();
             assert_eq!(
-                mutations.len(), 1,
+                mutations.len(),
+                1,
                 "loading mutation must survive GC regardless of age"
             );
         });

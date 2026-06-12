@@ -7,9 +7,9 @@ use gpui_component::{
 };
 
 use crate::app::ToggleSearch;
+use crate::routes::AppRoute;
 use crate::sidebar::Page;
 use crate::views::{ReloadCurrentPage, RenderErrorPage, TriggerRenderError};
-use crate::routes::AppRoute;
 
 use super::super::actions::{NavigateToPage, RefreshPage, is_rtl_locale};
 use super::super::frame_time;
@@ -107,16 +107,10 @@ impl Render for AppRoot {
                                 .child(page_title),
                         ),
                 )
-                .child(
-                    div()
-                        .id("page")
-                        .flex_1()
-                        .overflow_y_scroll()
-                        .child({
-                            let _render_guard = crate::lifecycle::enter_render_path();
-                            self.active_page_view(cx)
-                        }),
-                ),
+                .child(div().id("page").flex_1().overflow_y_scroll().child({
+                    let _render_guard = crate::lifecycle::enter_render_path();
+                    self.active_page_view(cx)
+                })),
         );
 
         // In RTL locales the sidebar appears on the right; swap panel order.
@@ -167,9 +161,7 @@ impl Render for AppRoot {
                     "error boundary activated via TriggerRenderError action"
                 );
                 this.render_error = true;
-                this.error_page = Some(cx.new(|_| {
-                    RenderErrorPage::new(action.message.clone())
-                }));
+                this.error_page = Some(cx.new(|_| RenderErrorPage::new(action.message.clone())));
                 cx.notify();
             }))
             .flex_1()

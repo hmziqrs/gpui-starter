@@ -5,6 +5,6 @@
 //!
 //! Note: NetworkMode is tested inline in core/network_mode.rs.
 
-mod retry_policy;
-mod query_error;
 mod policy_and_status_types;
+mod query_error;
+mod retry_policy;

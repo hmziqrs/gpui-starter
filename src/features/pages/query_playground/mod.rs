@@ -14,16 +14,15 @@ use gpui::prelude::*;
 use gpui::*;
 
 use gpui_component::{
-    ActiveTheme as _, v_flex,
+    ActiveTheme as _, VirtualListScrollHandle,
     input::{InputEvent, InputState},
-    VirtualListScrollHandle,
+    v_flex,
 };
 use serde::{Deserialize, Serialize};
 
 use gpui_query_v2::client::QueryClient;
 use gpui_query_v2::core::{
-    InfiniteQueryResource, MappedQueryResource, MutationResource,
-    QueryError, QueryResource,
+    InfiniteQueryResource, MappedQueryResource, MutationResource, QueryError, QueryResource,
 };
 
 // ---------------------------------------------------------------------------
@@ -50,25 +49,44 @@ pub struct PlaygroundPage {
 pub struct QueryPlaygroundPage {
     pub(super) _subscriptions: Vec<Subscription>,
     // Simple query
-    pub(super) simple_query: Option<(Entity<QueryResource<PlaygroundUser, QueryError>>, Subscription)>,
+    pub(super) simple_query: Option<(
+        Entity<QueryResource<PlaygroundUser, QueryError>>,
+        Subscription,
+    )>,
     // Cache policy demos
-    pub(super) nocache_query: Option<(Entity<QueryResource<PlaygroundUser, QueryError>>, Subscription)>,
-    pub(super) ttl_query: Option<(Entity<QueryResource<PlaygroundUser, QueryError>>, Subscription)>,
-    pub(super) swr_query: Option<(Entity<QueryResource<PlaygroundUser, QueryError>>, Subscription)>,
+    pub(super) nocache_query: Option<(
+        Entity<QueryResource<PlaygroundUser, QueryError>>,
+        Subscription,
+    )>,
+    pub(super) ttl_query: Option<(
+        Entity<QueryResource<PlaygroundUser, QueryError>>,
+        Subscription,
+    )>,
+    pub(super) swr_query: Option<(
+        Entity<QueryResource<PlaygroundUser, QueryError>>,
+        Subscription,
+    )>,
     // Request policy demos
     pub(super) latest_wins_query: Option<(Entity<QueryResource<String, QueryError>>, Subscription)>,
     pub(super) ignore_query: Option<(Entity<QueryResource<String, QueryError>>, Subscription)>,
     // Retry demo
     pub(super) retry_query: Option<(Entity<QueryResource<String, QueryError>>, Subscription)>,
     // Mutation demo
-    pub(super) mutation_entity: Option<(Entity<MutationResource<String, String, QueryError>>, Subscription)>,
+    pub(super) mutation_entity: Option<(
+        Entity<MutationResource<String, String, QueryError>>,
+        Subscription,
+    )>,
     // Mutation input state
     pub(super) mutation_input_state: Entity<InputState>,
     // Infinite query
-    pub(super) infinite_entity: Option<(Entity<InfiniteQueryResource<PlaygroundPage, QueryError>>, Subscription)>,
+    pub(super) infinite_entity: Option<(
+        Entity<InfiniteQueryResource<PlaygroundPage, QueryError>>,
+        Subscription,
+    )>,
     // Select transform
     pub(super) select_source: Option<Entity<QueryResource<Vec<PlaygroundUser>, QueryError>>>,
-    pub(super) select_mapped: Option<Entity<MappedQueryResource<Vec<PlaygroundUser>, Vec<String>, QueryError>>>,
+    pub(super) select_mapped:
+        Option<Entity<MappedQueryResource<Vec<PlaygroundUser>, Vec<String>, QueryError>>>,
     pub(super) _select_subs: Option<(Subscription, Subscription)>,
     // Imperative fetch
     pub(super) imperative_query: Option<(Entity<QueryResource<String, QueryError>>, Subscription)>,
@@ -82,28 +100,23 @@ pub struct QueryPlaygroundPage {
 impl QueryPlaygroundPage {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let mut subs = Vec::new();
-        subs.push(
-            cx.observe_global_in::<QueryClient>(window, |_, _, cx| {
-                cx.notify();
-            }),
-        );
+        subs.push(cx.observe_global_in::<QueryClient>(window, |_, _, cx| {
+            cx.notify();
+        }));
 
         // Finding 1/8: Create a proper editable InputState for mutation input.
-        let mutation_input_state = cx.new(|cx| {
-            InputState::new(window, cx).placeholder("Enter mutation variables...")
-        });
+        let mutation_input_state =
+            cx.new(|cx| InputState::new(window, cx).placeholder("Enter mutation variables..."));
 
         // Subscribe to input changes so the UI re-reads from mutation_input_state.
-        subs.push(
-            cx.subscribe(
-                &mutation_input_state,
-                |_this: &mut Self, _state: Entity<InputState>, ev: &InputEvent, cx| {
-                    if let InputEvent::Change = ev {
-                        cx.notify();
-                    }
-                },
-            ),
-        );
+        subs.push(cx.subscribe(
+            &mutation_input_state,
+            |_this: &mut Self, _state: Entity<InputState>, ev: &InputEvent, cx| {
+                if let InputEvent::Change = ev {
+                    cx.notify();
+                }
+            },
+        ));
 
         let callback_log = Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
 
@@ -172,9 +185,12 @@ impl Render for QueryPlaygroundPage {
                     .border_color(border)
                     .bg(muted)
                     .child(
-                        v_flex().gap_3()
+                        v_flex()
+                            .gap_3()
                             .child(
-                                div().text_2xl().font_weight(FontWeight::BOLD)
+                                div()
+                                    .text_2xl()
+                                    .font_weight(FontWeight::BOLD)
                                     .child("Query V2 Playground"),
                             )
                             .child(

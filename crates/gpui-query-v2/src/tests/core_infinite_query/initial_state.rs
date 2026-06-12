@@ -1,7 +1,7 @@
 //! Tests for initial state, empty pages state, and FetchDirection modes.
 
-use crate::core::*;
 use super::helpers::*;
+use crate::core::*;
 
 // ── 1. Initial state ────────────────────────────────────────────────────
 

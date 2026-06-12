@@ -75,10 +75,7 @@ pub(crate) fn compact_resource_preview(resource: Option<&RawResponse>) -> String
     }
 }
 
-pub(crate) fn local_lab_history_panel(
-    page: &super::HttpLabTestingPage,
-    cx: &App,
-) -> Div {
+pub(crate) fn local_lab_history_panel(page: &super::HttpLabTestingPage, cx: &App) -> Div {
     let render_started = Instant::now();
     let mut body = v_flex().gap_1();
     for (action, response) in page.local_lab_history.iter().take(6) {
@@ -117,7 +114,11 @@ pub(crate) fn local_lab_history_panel(
     view
 }
 
-pub(crate) fn query_resource_row(label: &str, resource: &QueryResource<RawResponse>, cx: &App) -> Div {
+pub(crate) fn query_resource_row(
+    label: &str,
+    resource: &QueryResource<RawResponse>,
+    cx: &App,
+) -> Div {
     let active = resource
         .active_request_id()
         .map(|id| id.label())

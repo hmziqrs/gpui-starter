@@ -37,14 +37,10 @@ pub fn begin(
     let result = r.begin_request(seq, now_ms, QueryFetchMode::Normal);
     match &result {
         QueryBeginResult::Started {
-            request_id,
-            status,
-            ..
+            request_id, status, ..
         } => (*request_id, *status),
         QueryBeginResult::StaleCacheHit {
-            request_id,
-            status,
-            ..
+            request_id, status, ..
         } => (*request_id, *status),
         QueryBeginResult::CacheHit => {
             panic!(
@@ -93,11 +89,7 @@ fn idle_to_loading_empty_transitions_correctly() {
     assert!(r.is_pending());
     assert_eq!(r.active_request_id(), Some(rid));
     assert_eq!(r.started_at_ms(), Some(100));
-    assert_eq!(
-        r.error(),
-        None,
-        "error should be cleared on begin_loading"
-    );
+    assert_eq!(r.error(), None, "error should be cleared on begin_loading");
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -131,18 +123,10 @@ fn loading_empty_to_failure() {
 
     let (rid, _) = begin(&mut r, &mut s, 100);
 
-    assert!(r.complete_current_failure(
-        rid,
-        QueryError::response("server error"),
-        200
-    ));
+    assert!(r.complete_current_failure(rid, QueryError::response("server error"), 200));
 
     assert_eq!(r.status(), QueryStatus::Failure);
-    assert_eq!(
-        r.data(),
-        None,
-        "no prior data, so data should remain None"
-    );
+    assert_eq!(r.data(), None, "no prior data, so data should remain None");
     assert_eq!(
         err_str(&r),
         Some("response error: server error".to_string())
@@ -221,11 +205,7 @@ fn loading_with_data_to_failure_retains_data() {
 
     // Refetch fails
     let (rid2, _) = begin(&mut r, &mut s, 1_500);
-    assert!(r.complete_current_failure(
-        rid2,
-        QueryError::transport("timeout"),
-        1_600
-    ));
+    assert!(r.complete_current_failure(rid2, QueryError::transport("timeout"), 1_600));
 
     assert_eq!(r.status(), QueryStatus::Failure);
     assert_eq!(
@@ -233,10 +213,7 @@ fn loading_with_data_to_failure_retains_data() {
         Some(&"cached"),
         "apply_failure retains existing data (only cancel() clears it)"
     );
-    assert_eq!(
-        err_str(&r),
-        Some("transport error: timeout".to_string())
-    );
+    assert_eq!(err_str(&r), Some("transport error: timeout".to_string()));
     assert_eq!(
         r.last_updated_at_ms(),
         Some(1_600),

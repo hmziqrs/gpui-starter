@@ -1,7 +1,7 @@
 //! Tests for max_pages enforcement, edge cases, and evicted pages returns.
 
-use crate::core::*;
 use super::helpers::*;
+use crate::core::*;
 
 // ── 4. max_pages enforcement ────────────────────────────────────────────
 

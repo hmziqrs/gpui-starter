@@ -1,11 +1,7 @@
 use gpui::{prelude::*, *};
-use gpui_component::{
-    ActiveTheme as _, Disableable,
-    button::Button,
-    h_flex,
-};
-use gpui_query::client::QueryClient;
+use gpui_component::{ActiveTheme as _, Disableable, button::Button, h_flex};
 use gpui_query::QueryKeyFilter;
+use gpui_query::client::QueryClient;
 
 use super::QueryDevToolsPage;
 
@@ -107,6 +103,9 @@ pub(crate) fn render_action_bar(cx: &mut Context<QueryDevToolsPage>) -> Div {
                 .child("Actions"),
         )
         .child(
-            h_flex().gap_2().flex_wrap().children(vec![invalidate, reset, gc, remove, clear]),
+            h_flex()
+                .gap_2()
+                .flex_wrap()
+                .children(vec![invalidate, reset, gc, remove, clear]),
         )
 }

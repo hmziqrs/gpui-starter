@@ -4,6 +4,6 @@
 //! with `TestAppContext` and the `test_support` helpers.
 
 mod client_basics;
+mod client_gap_coverage;
 mod client_mutations;
 mod client_operations;
-mod client_gap_coverage;

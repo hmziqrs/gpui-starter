@@ -22,18 +22,51 @@ fn test_all_actions_have_policies() {
 fn test_state_resource_retry_policy_integration() {
     let state = HttpLabState::default();
     // GET resources should have retry
-    assert!(state.resource(HttpLabAction::GetText).retry_policy().max_retries > 0);
-    assert!(state.resource(HttpLabAction::GetJson).retry_policy().max_retries > 0);
-    assert!(state.resource(HttpLabAction::GetXml).retry_policy().max_retries > 0);
+    assert!(
+        state
+            .resource(HttpLabAction::GetText)
+            .retry_policy()
+            .max_retries
+            > 0
+    );
+    assert!(
+        state
+            .resource(HttpLabAction::GetJson)
+            .retry_policy()
+            .max_retries
+            > 0
+    );
+    assert!(
+        state
+            .resource(HttpLabAction::GetXml)
+            .retry_policy()
+            .max_retries
+            > 0
+    );
     // POST resources should not
-    assert_eq!(state.resource(HttpLabAction::PostJson).retry_policy().max_retries, 0);
-    assert_eq!(state.resource(HttpLabAction::PostForm).retry_policy().max_retries, 0);
+    assert_eq!(
+        state
+            .resource(HttpLabAction::PostJson)
+            .retry_policy()
+            .max_retries,
+        0
+    );
+    assert_eq!(
+        state
+            .resource(HttpLabAction::PostForm)
+            .retry_policy()
+            .max_retries,
+        0
+    );
 }
 
 #[test]
 fn test_state_reset_preserves_policies() {
     let mut state = HttpLabState::default();
-    let policy = state.resource(HttpLabAction::GetText).retry_policy().clone();
+    let policy = state
+        .resource(HttpLabAction::GetText)
+        .retry_policy()
+        .clone();
 
     let _reset = state.reset_for_user();
 

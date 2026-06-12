@@ -35,7 +35,11 @@ fn assert_key_invariants(key: &QueryKey, expected_path: &str) {
     assert_eq!(key, &cloned, "clone should be equal");
 
     // Hash consistency
-    assert_eq!(hash_of(key), hash_of(&cloned), "hash should match for equal keys");
+    assert_eq!(
+        hash_of(key),
+        hash_of(&cloned),
+        "hash should match for equal keys"
+    );
 
     // Serde roundtrip
     let json = serde_json::to_string(key).unwrap();
@@ -43,7 +47,11 @@ fn assert_key_invariants(key: &QueryKey, expected_path: &str) {
     assert_eq!(key, &back, "serde roundtrip should produce equal key");
 
     // to_path format
-    assert_eq!(key.to_path(), expected_path, "to_path should match expected");
+    assert_eq!(
+        key.to_path(),
+        expected_path,
+        "to_path should match expected"
+    );
 }
 
 #[test]
@@ -201,7 +209,11 @@ fn key_deeply_nested_200_segments() {
     for depth in [1, 50, 100, 199] {
         let prefix_segs: Vec<String> = segments[..depth].to_vec();
         let prefix = make_key(&prefix_segs);
-        assert!(key.starts_with(&prefix), "should match prefix of depth {}", depth);
+        assert!(
+            key.starts_with(&prefix),
+            "should match prefix of depth {}",
+            depth
+        );
     }
 }
 
@@ -221,7 +233,14 @@ fn key_unicode_edge_cases_distinct_keys() {
     assert_ne!(zwj, bom);
 
     // They should also have distinct hashes (not guaranteed but very likely)
-    let hashes: Vec<u64> = [&zwsp, &zwnj, &zwj, &bom].iter().map(|k| hash_of(k)).collect();
+    let hashes: Vec<u64> = [&zwsp, &zwnj, &zwj, &bom]
+        .iter()
+        .map(|k| hash_of(k))
+        .collect();
     let unique_hashes: std::collections::HashSet<u64> = hashes.into_iter().collect();
-    assert_eq!(unique_hashes.len(), 4, "four distinct zero-width chars should have distinct hashes");
+    assert_eq!(
+        unique_hashes.len(),
+        4,
+        "four distinct zero-width chars should have distinct hashes"
+    );
 }
