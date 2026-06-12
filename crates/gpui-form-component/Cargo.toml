@@ -1,0 +1,35 @@
+[package]
+name = "gpui-form-component"
+description = """
+Custom components for gpui-form, including InfiniteSelect for nested enum support
+"""
+version = "0.5.1"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+repository = "https://github.com/hmziqrs/gpui-starter"
+
+[features]
+default = [  ]
+derive = [ "dep:gpui-form-component-derive" ]
+
+[dependencies]
+chrono = { workspace = true }
+es-fluent = { features = [ "derive" ], workspace = true }
+es-fluent-manager-embedded = { workspace = true }
+gpui = { workspace = true }
+gpui-component = { workspace = true }
+gpui-form-component-derive = { optional = true, workspace = true }
+icu_calendar = { workspace = true }
+icu_datetime = { workspace = true }
+icu_locale_core = { workspace = true }
+jiff = { workspace = true }
+serde = { workspace = true }
+
+[build-dependencies]
+es-fluent-build = { workspace = true }
+
+[dev-dependencies]
+gpui-form-component-derive = { workspace = true }
+serde_json = { workspace = true }
+unic-langid = { workspace = true }

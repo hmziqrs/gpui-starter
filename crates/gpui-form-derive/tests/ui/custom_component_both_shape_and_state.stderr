@@ -1,0 +1,5 @@
+error: custom component may specify only one of `shape` or `state`
+ --> tests/ui/custom_component_both_shape_and_state.rs:5:27
+  |
+5 |     #[gpui_form(component(custom(shape = crate::shape::DemoShape, state = crate::state::DemoState)))]
+  |                           ^^^^^^
