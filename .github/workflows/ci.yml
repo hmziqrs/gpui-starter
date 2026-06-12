@@ -46,6 +46,8 @@ jobs:
 
       - name: Run tests
         run: cargo test
+        env:
+          CARGO_BUILD_JOBS: 2
 
   clippy:
     name: Clippy
