@@ -6,6 +6,32 @@ on:
   pull_request:
     branches: [master]
 
+# Whole-graph (Zed gpui + gpui-component + this app) builds are heavy, and the
+# `Test` job historically crashed during test-binary compilation with SIGBUS
+# (signal 10). The crash is NOT heap OOM — it is a proc-macro THREAD STACK
+# OVERFLOW: gpui_macros recurses through syn while expanding the test target,
+# and that recursion is also deeper than the default recursion_limit. So the
+# real fix is two knobs, applied to every job:
+#   - RUST_MIN_STACK=536870912   proc-macro thread stack large enough to hold the
+#                                 ~thousands of syn frames the test target expands
+#                                 (paired with recursion_limit=8192 in src/lib.rs).
+#   - recursion limit             src/lib.rs sets `#![recursion_limit = "8192"]`.
+# The rest is hygiene to cap peak memory on the 14 GB macOS runner:
+#   - CARGO_BUILD_JOBS=2          fewer concurrent rustc processes
+#   - CARGO_INCREMENTAL=0         no extra incremental state in RAM/disk
+#   - *_CODEGEN_UNITS=256         many tiny LLVM modules → lower peak RSS
+#   - *_DEBUG=line-tables-only    drop the memory-heavy variable debuginfo
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_BUILD_JOBS: "2"
+  CARGO_INCREMENTAL: "0"
+  CARGO_PROFILE_DEV_CODEGEN_UNITS: "256"
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
+  CARGO_PROFILE_TEST_CODEGEN_UNITS: "256"
+  CARGO_PROFILE_TEST_DEBUG: line-tables-only
+  RUST_MIN_STACK: "536870912"
+  RUST_BACKTRACE: "1"
+
 jobs:
   check:
     name: Check
@@ -46,8 +72,6 @@ jobs:
 
       - name: Run tests
         run: cargo test
-        env:
-          CARGO_BUILD_JOBS: 2
 
   clippy:
     name: Clippy

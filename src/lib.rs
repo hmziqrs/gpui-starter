@@ -1,4 +1,11 @@
-#![recursion_limit = "512"]
+// 8192 (was 512): the test target expands several thousand macro levels
+// (the gpui proc-macros recurse through syn). On CI this is paired with
+// RUST_MIN_STACK=512 MiB (see .github/workflows/ci.yml) so the deeper
+// expansion does not overflow the proc-macro thread stack — which on the
+// macOS runner surfaces as SIGBUS (signal 10) and was the real cause of the
+// long-standing "Test" job failure (not heap OOM, as the limit build jobs
+// suggested).
+#![recursion_limit = "8192"]
 #![allow(
     clippy::map_unwrap_or,
     clippy::let_unit_value,

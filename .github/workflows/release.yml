@@ -21,6 +21,14 @@ jobs:
   build-macos:
     name: Build macOS
     runs-on: macos-latest
+    env:
+      # Same peak-memory discipline as ci.yml: cap concurrent rustc/linker
+      # processes and give the gpui proc-macros a large thread stack so the
+      # full-graph release build does not SIGBUS on the runner.
+      CARGO_BUILD_JOBS: "2"
+      CARGO_INCREMENTAL: "0"
+      RUST_MIN_STACK: "536870912"
+      RUST_BACKTRACE: "1"
 
     steps:
       - uses: actions/checkout@v4
