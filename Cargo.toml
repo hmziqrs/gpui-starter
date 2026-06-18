@@ -1,8 +1,6 @@
 [workspace]
 members = [
 	".",
-	"crates/gpui-query",
-	"crates/gpui-query-v2",
 	"crates/gpui-form",
 	"crates/gpui-form-core",
 	"crates/gpui-form-schema",
@@ -14,8 +12,6 @@ members = [
 
 [workspace.dependencies]
 # Internal workspace crates
-gpui-query = { path = "crates/gpui-query" }
-gpui-query-v2 = { path = "crates/gpui-query-v2" }
 gpui-form = { path = "crates/gpui-form" }
 gpui-form-core = { path = "crates/gpui-form-core" }
 gpui-form-schema = { path = "crates/gpui-form-schema" }
@@ -109,8 +105,8 @@ websocket = ["dep:tokio-tungstenite", "dep:tokio-stream"]
 
 [dependencies]
 gpui.workspace = true
-gpui-query = { workspace = true, features = ["hook"] }
-gpui-query-v2 = { workspace = true, features = ["hook"] }
+gpui-query = { package = "gpui-query-legacy", version = "0.1.4", features = ["hook"] }
+gpui-query-v2 = { package = "gpui-query", version = "0.1.4", features = ["hook"] }
 gpui_platform.workspace = true
 gpui-component.workspace = true
 gpui-component-assets.workspace = true
@@ -219,3 +215,7 @@ split-debuginfo = "unpacked"
 gpui = { opt-level = 3 }
 gpui_platform = { opt-level = 3 }
 gpui_macros = { opt-level = 3 }
+
+[patch.crates-io]
+gpui = { git = "https://github.com/zed-industries/zed" }
+gpui_platform = { git = "https://github.com/zed-industries/zed" }
