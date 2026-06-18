@@ -22,13 +22,13 @@ jobs:
     name: Build macOS
     runs-on: macos-latest
     env:
-      # Same peak-memory discipline as ci.yml: give the gpui proc-macros a large
-      # thread stack so the full-graph release build does not SIGBUS on the
-      # runner. We do NOT cap CARGO_BUILD_JOBS — the earlier cap (justified by a
-      # misdiagnosed "OOM" that was really the stack overflow RUST_MIN_STACK
-      # fixes) made cold compiles take hours. target/ for this graph (~13 GB)
-      # also exceeds the GHA 10 GB cache cap, so release builds are cold.
+      # Same discipline as ci.yml: large proc-macro stack (avoids SIGBUS),
+      # CARGO_BUILD_JOBS=2 (the 14 GB runner swaps with more parallel rustc on
+      # the heavy gpui/gpui_component crates), and many codegen units to keep
+      # peak RSS down on a release build (optimization-heavy) so it doesn't OOM.
+      CARGO_BUILD_JOBS: "2"
       CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "256"
       RUST_MIN_STACK: "536870912"
       RUST_BACKTRACE: "1"
 
@@ -40,11 +40,17 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: |
-            ~/.cargo
-            target/
-          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-release-deps-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-release-
+            ${{ runner.os }}-cargo-release-deps-
+      - uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-release-target-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-release-target-
 
       - name: Determine version
         id: version

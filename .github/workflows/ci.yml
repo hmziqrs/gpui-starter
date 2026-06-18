@@ -6,36 +6,42 @@ on:
   pull_request:
     branches: [master]
 
-# Whole-graph (Zed gpui + gpui-component + this app) builds are heavy, and the
-# `Test` job historically crashed during test-binary compilation with SIGBUS
-# (signal 10). The crash is NOT heap OOM — it is a proc-macro THREAD STACK
-# OVERFLOW: gpui_macros recurses through syn while expanding the test target,
-# and that recursion is also deeper than the default recursion_limit. So the
-# real fix is two knobs, applied to every job:
-#   - RUST_MIN_STACK=536870912   proc-macro thread stack large enough to hold the
-#                                 ~thousands of syn frames the test target expands
-#                                 (paired with recursion_limit=8192 in src/lib.rs).
-#   - recursion limit             src/lib.rs sets `#![recursion_limit = "8192"]`.
+# Two problems had to be solved for this graph (Zed gpui + gpui-component + app):
 #
-# Why we do NOT cap CARGO_BUILD_JOBS any more: an earlier config set it to 2 to
-# avoid "OOM", but that diagnosis was wrong (it was the stack overflow above).
-# Capping parallelism made cold compiles take 3h+ on this graph. The remaining
-# knobs are peak-memory hygiene so the runner can use all its cores without
-# genuinely OOMing on the heavy (gpui) crates:
-#   - CARGO_INCREMENTAL=0         no extra incremental state in RAM/disk
-#   - *_CODEGEN_UNITS=256         many tiny LLVM modules → lower peak RSS
-#   - *_DEBUG=line-tables-only    drop the memory-heavy variable debuginfo
+# 1) SIGBUS (signal 10) during test-binary compilation. NOT heap OOM — it is a
+#    proc-macro THREAD STACK OVERFLOW: gpui_macros recurses through syn while
+#    expanding the test target, deeper than the default recursion_limit. Fixed
+#    with two knobs applied to every job:
+#      - RUST_MIN_STACK=536870912   proc-macro stack big enough for the thousands
+#                                   of syn frames (paired with recursion_limit=8192
+#                                   in src/lib.rs).
+#      - recursion_limit            src/lib.rs sets `#![recursion_limit = "8192"]`.
 #
-# NOTE on build time: target/ for this graph is ~13 GB, which exceeds the 10 GB
-# GitHub Actions cache cap, so the target/ cache save fails silently and every
-# run compiles Zed's gpui stack cold. Expect the Test job to take ~1-2 h.
+# 2) The Test job took 5h+ / timed out. Root cause: cargo test does FULL codegen
+#    of the whole gpui graph (cargo check/clippy only emit metadata, hence their
+#    ~5 min). That cold codegen is ~13 GB of target/, which EXCEEDS GitHub's
+#    10 GB cache cap — so the cache save failed silently and EVERY run rebuilt
+#    Zed from scratch. Fixes:
+#      - *_DEBUG=none              drop ALL debuginfo → target/ shrinks to ~4-5 GB,
+#                                  under the 10 GB cap, so the cache actually saves.
+#                                  (debug_assertions stays on; only DWARF is dropped,
+#                                  so test behavior is unchanged — only backtraces
+#                                  lose symbol names, acceptable for CI.)
+#      - CARGO_BUILD_JOBS=2        the runner is 14 GB; 3 parallel rustc on the heavy
+#                                  gpui/gpui_component crates (each ~80 MB .rlib) plus
+#                                  the linker swaps and is SLOWER than 2 jobs. Measured:
+#                                  the uncapped run hit 5h+ still compiling.
+#      - *_CODEGEN_UNITS=256       many tiny LLVM modules → lower peak RSS per rustc.
+#      - CARGO_INCREMENTAL=0       no incremental state (cache-unfriendly, RAM-heavy).
+#      - cache key bumped to v3    the debug=none change invalidates old artifacts.
 env:
   CARGO_TERM_COLOR: always
+  CARGO_BUILD_JOBS: "2"
   CARGO_INCREMENTAL: "0"
   CARGO_PROFILE_DEV_CODEGEN_UNITS: "256"
-  CARGO_PROFILE_DEV_DEBUG: line-tables-only
+  CARGO_PROFILE_DEV_DEBUG: none
   CARGO_PROFILE_TEST_CODEGEN_UNITS: "256"
-  CARGO_PROFILE_TEST_DEBUG: line-tables-only
+  CARGO_PROFILE_TEST_DEBUG: none
   RUST_MIN_STACK: "536870912"
   RUST_BACKTRACE: "1"
 
@@ -51,11 +57,17 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: |
-            ~/.cargo
-            target/
-          key: ${{ runner.os }}-cargo-v2-${{ hashFiles('**/Cargo.lock') }}
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-v3-deps-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-v2-
+            ${{ runner.os }}-cargo-v3-deps-
+      - uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-v3-target-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-v3-target-
 
       - name: Cargo check
         run: cargo check
@@ -71,11 +83,17 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: |
-            ~/.cargo
-            target/
-          key: ${{ runner.os }}-cargo-v2-${{ hashFiles('**/Cargo.lock') }}
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-v3-deps-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-v2-
+            ${{ runner.os }}-cargo-v3-deps-
+      - uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-v3-target-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-v3-target-
 
       - name: Run tests
         run: cargo test
@@ -93,11 +111,17 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: |
-            ~/.cargo
-            target/
-          key: ${{ runner.os }}-cargo-v2-${{ hashFiles('**/Cargo.lock') }}
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-v3-deps-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-v2-
+            ${{ runner.os }}-cargo-v3-deps-
+      - uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-v3-target-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-v3-target-
 
       - name: Run clippy
         run: cargo clippy -- -D warnings
