@@ -44,8 +44,17 @@ jobs:
           key: ${{ runner.os }}-cargo-v3-deps-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-v3-deps-
-      - name: Cargo check
+      - name: Cargo check (dev)
         run: cargo check
+
+      # `cargo check` uses the DEV profile (debug_assertions on), so it is blind
+      # to any code behind `#[cfg(not(debug_assertions))]`. That class of debug/
+      # release divergence once shipped green here and then broke the release
+      # build. This release-profile check is still metadata-only (no codegen), so
+      # it adds only a few minutes and catches release-only cfg code in the fast
+      # lane — mirroring what `cargo build --release` will actually compile.
+      - name: Cargo check (release)
+        run: cargo check --release
 
   # ---------------------------------------------------------------------
   # NOTE: there is intentionally NO `test` job here. `cargo test` on this

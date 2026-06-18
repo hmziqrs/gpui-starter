@@ -1,7 +1,7 @@
 //! Query hook functions — `use_query`, `use_query_unsignalled`, `use_query_manual`,
 //! `fetch_query`, and `fetch_query_with_signal`.
 
-use gpui::{BorrowAppContext as _, Context, Entity, Subscription};
+use gpui::{AppContext as _, BorrowAppContext as _, Context, Entity, Subscription};
 
 use crate::client::{QueryClient, QueryObserver};
 use crate::core::{QueryFetchMode, QueryKey, QueryResource, QuerySignal, QueryStatus};
