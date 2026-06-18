@@ -31,6 +31,12 @@ jobs:
       CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "256"
       RUST_MIN_STACK: "536870912"
       RUST_BACKTRACE: "1"
+      # Bake the auto-update manifest URL into the binary at compile time
+      # (option_env! in src/services/updater/types.rs). MUST match where the
+      # publish-release job posts manifest.json (the gh-pages branch → GitHub
+      # Pages). Requires GitHub Pages enabled on the gh-pages branch in repo
+      # Settings (one-time manual step) for the URL to actually resolve.
+      GPUI_UPDATE_MANIFEST_URL: "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/manifest.json"
 
     steps:
       - uses: actions/checkout@v4
@@ -56,11 +62,20 @@ jobs:
         id: version
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "value=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+            RAW="${{ inputs.version }}"
           else
-            # Strip leading 'v' from tag.
-            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+            RAW="${GITHUB_REF_NAME}"
           fi
+          # Strip ONE leading 'v' so a dispatch typo ("v0.2.0") and the tag form
+          # ("v0.2.0") both normalize to "0.2.0" — otherwise we would push a
+          # "vv0.2.0" tag and a manifest whose version fails semver parsing
+          # client-side. Then validate it really is X.Y.Z.
+          VALUE="${RAW#v}"
+          if ! printf '%s' "$VALUE" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Error: invalid version '$VALUE' (expected X.Y.Z)" >&2
+            exit 1
+          fi
+          echo "value=$VALUE" >> "$GITHUB_OUTPUT"
 
       - name: Build release binary
         run: cargo build --release
@@ -186,10 +201,18 @@ jobs:
         id: version
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "value=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+            RAW="${{ inputs.version }}"
           else
-            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+            RAW="${GITHUB_REF_NAME}"
           fi
+          # Strip ONE leading 'v' (see the build-macos Determine version step
+          # for rationale) and validate X.Y.Z.
+          VALUE="${RAW#v}"
+          if ! printf '%s' "$VALUE" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Error: invalid version '$VALUE' (expected X.Y.Z)" >&2
+            exit 1
+          fi
+          echo "value=$VALUE" >> "$GITHUB_OUTPUT"
 
       - name: Download DMG artifact
         uses: actions/download-artifact@v4
@@ -213,6 +236,14 @@ jobs:
         run: |
           GITHUB_REPO="${{ github.repository }}"
 
+          # Install the Python signing dependency. ubuntu-latest does NOT ship
+          # the `cryptography` module, so without this Ed25519 signing silently
+          # no-ops (see scripts/generate-manifest.sh). Gated on the secret so
+          # non-signing runs are a no-op.
+          if [ -n "${UPDATE_SIGNING_KEY:-}" ]; then
+            python3 -m pip install --user --break-system-packages cryptography
+          fi
+
           # Generate manifest JSON from the GitHub Release assets.
           ./scripts/generate-manifest.sh \
             "${{ steps.version.outputs.value }}" \
@@ -226,15 +257,34 @@ jobs:
           GH_PAGES_DIR="$(mktemp -d)"
           trap 'rm -rf "$GH_PAGES_DIR"' EXIT
 
-          git clone --branch gh-pages --depth 1 \
-            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPO}.git" \
-            "$GH_PAGES_DIR" 2>/dev/null || {
-              # gh-pages branch does not exist yet — create an orphan branch.
-              git init "$GH_PAGES_DIR"
-              cd "$GH_PAGES_DIR"
-              git checkout --orphan gh-pages
-              cd -
-            }
+          # Authenticated remote URL — reused for BOTH the clone and the orphan
+          # `git remote add` so the two cannot drift apart.
+          REMOTE_URL="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPO}.git"
+
+          # Distinguish "gh-pages branch does not exist yet" from a genuine
+          # clone failure (network/auth), so a transient error does NOT silently
+          # clobber history via a blind orphan re-init.
+          CLONE_ERR="$(mktemp)"
+          if git clone --branch gh-pages --depth 1 "$REMOTE_URL" "$GH_PAGES_DIR" 2>"$CLONE_ERR"; then
+            rm -f "$CLONE_ERR"
+          elif grep -q "Remote branch gh-pages not found" "$CLONE_ERR"; then
+            rm -f "$CLONE_ERR"
+            rm -rf "$GH_PAGES_DIR"
+            mkdir -p "$GH_PAGES_DIR"
+            git init "$GH_PAGES_DIR"
+            cd "$GH_PAGES_DIR"
+            git checkout --orphan gh-pages
+            # A fresh `git init` has NO remotes — add `origin` before the push
+            # below, otherwise `git push origin gh-pages` fails with
+            # "fatal: 'origin' does not appear to be a git repository" (exit 128).
+            git remote add origin "$REMOTE_URL"
+            cd -
+          else
+            cat "$CLONE_ERR" >&2
+            rm -f "$CLONE_ERR"
+            echo "FATAL: git clone of gh-pages failed for a reason other than 'branch not found'" >&2
+            exit 1
+          fi
 
           cp manifest.json "$GH_PAGES_DIR/manifest.json"
 
@@ -244,5 +294,8 @@ jobs:
               -c user.email="github-actions[bot]@users.noreply.github.com" \
               commit -m "Update manifest.json for v${{ steps.version.outputs.value }}" \
               --allow-empty
-          git push origin gh-pages
+          # --force-with-lease is safe here: the depth-1 clone above retained
+          # refs/remotes/origin/gh-pages, so this refuses to overwrite if another
+          # push landed in between (correct behavior for a racing sibling job).
+          git push --force-with-lease origin gh-pages
           cd -
