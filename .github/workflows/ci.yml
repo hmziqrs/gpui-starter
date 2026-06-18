@@ -16,14 +16,21 @@ on:
 #                                 ~thousands of syn frames the test target expands
 #                                 (paired with recursion_limit=8192 in src/lib.rs).
 #   - recursion limit             src/lib.rs sets `#![recursion_limit = "8192"]`.
-# The rest is hygiene to cap peak memory on the 14 GB macOS runner:
-#   - CARGO_BUILD_JOBS=2          fewer concurrent rustc processes
+#
+# Why we do NOT cap CARGO_BUILD_JOBS any more: an earlier config set it to 2 to
+# avoid "OOM", but that diagnosis was wrong (it was the stack overflow above).
+# Capping parallelism made cold compiles take 3h+ on this graph. The remaining
+# knobs are peak-memory hygiene so the runner can use all its cores without
+# genuinely OOMing on the heavy (gpui) crates:
 #   - CARGO_INCREMENTAL=0         no extra incremental state in RAM/disk
 #   - *_CODEGEN_UNITS=256         many tiny LLVM modules → lower peak RSS
 #   - *_DEBUG=line-tables-only    drop the memory-heavy variable debuginfo
+#
+# NOTE on build time: target/ for this graph is ~13 GB, which exceeds the 10 GB
+# GitHub Actions cache cap, so the target/ cache save fails silently and every
+# run compiles Zed's gpui stack cold. Expect the Test job to take ~1-2 h.
 env:
   CARGO_TERM_COLOR: always
-  CARGO_BUILD_JOBS: "2"
   CARGO_INCREMENTAL: "0"
   CARGO_PROFILE_DEV_CODEGEN_UNITS: "256"
   CARGO_PROFILE_DEV_DEBUG: line-tables-only

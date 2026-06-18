@@ -22,10 +22,12 @@ jobs:
     name: Build macOS
     runs-on: macos-latest
     env:
-      # Same peak-memory discipline as ci.yml: cap concurrent rustc/linker
-      # processes and give the gpui proc-macros a large thread stack so the
-      # full-graph release build does not SIGBUS on the runner.
-      CARGO_BUILD_JOBS: "2"
+      # Same peak-memory discipline as ci.yml: give the gpui proc-macros a large
+      # thread stack so the full-graph release build does not SIGBUS on the
+      # runner. We do NOT cap CARGO_BUILD_JOBS — the earlier cap (justified by a
+      # misdiagnosed "OOM" that was really the stack overflow RUST_MIN_STACK
+      # fixes) made cold compiles take hours. target/ for this graph (~13 GB)
+      # also exceeds the GHA 10 GB cache cap, so release builds are cold.
       CARGO_INCREMENTAL: "0"
       RUST_MIN_STACK: "536870912"
       RUST_BACKTRACE: "1"
