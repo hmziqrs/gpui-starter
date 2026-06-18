@@ -62,13 +62,6 @@ jobs:
           key: ${{ runner.os }}-cargo-v3-deps-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-v3-deps-
-      - uses: actions/cache@v4
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-v3-target-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-v3-target-
-
       - name: Cargo check
         run: cargo check
 
@@ -91,7 +84,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: target
-          key: ${{ runner.os }}-cargo-v3-target-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-v3-target-test-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-v3-target-
 
@@ -116,13 +109,6 @@ jobs:
           key: ${{ runner.os }}-cargo-v3-deps-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-v3-deps-
-      - uses: actions/cache@v4
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-v3-target-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-v3-target-
-
       - name: Run clippy
         run: cargo clippy -- -D warnings
 
