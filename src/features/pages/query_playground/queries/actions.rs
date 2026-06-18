@@ -1,7 +1,7 @@
 use gpui::*;
 
-use gpui_query_v2::core::QueryError;
-use gpui_query_v2::hook::{
+use gpui_query::core::QueryError;
+use gpui_query::hook::{
     MutationCallbacks, fetch_next_page_infinite, fetch_previous_page_infinite,
     fetch_query_with_signal, mutate, mutate_with_callbacks,
 };

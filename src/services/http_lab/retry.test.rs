@@ -1,5 +1,5 @@
 use super::*;
-use gpui_query::*;
+use gpui_query_legacy::*;
 
 #[test]
 fn test_action_retry_policies() {

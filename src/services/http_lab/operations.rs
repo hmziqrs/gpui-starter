@@ -15,7 +15,7 @@ use crate::services::{
     },
     tokio_runtime::TokioRuntimeGlobal,
 };
-use gpui_query::{QueryBeginResult, QueryFetchMode, RequestId};
+use gpui_query_legacy::{QueryBeginResult, QueryFetchMode, RequestId};
 
 const LOG: &str = "gpui_starter::http_lab";
 
@@ -220,7 +220,7 @@ pub async fn execute_action(handle: ActionHandle, cx: &mut gpui::AsyncApp) {
 
 pub struct ActionHandle {
     pub action: HttpLabAction,
-    request_id: gpui_query::RequestId,
+    request_id: gpui_query_legacy::RequestId,
     cancellation: tokio_util::sync::CancellationToken,
     http_handle: tokio::task::JoinHandle<Result<Vec<ActionExchange>, String>>,
 }

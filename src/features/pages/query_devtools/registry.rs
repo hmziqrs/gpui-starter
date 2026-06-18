@@ -25,7 +25,7 @@ struct UnifiedRow {
 // ---------------------------------------------------------------------------
 
 pub(crate) fn render_registry(
-    client_diag: &Option<gpui_query::client::devtools::ClientDiagnostic>,
+    client_diag: &Option<gpui_query_legacy::client::devtools::ClientDiagnostic>,
     lab_diag: &Option<Vec<HttpLabDiagnostic>>,
     expanded_key: &Option<String>,
     sort_by: QuerySort,

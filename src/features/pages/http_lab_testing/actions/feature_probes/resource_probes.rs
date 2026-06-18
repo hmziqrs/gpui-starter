@@ -1,5 +1,5 @@
 use gpui::*;
-use gpui_query::{QueryBeginResult, QueryError, QueryFetchMode};
+use gpui_query_legacy::{QueryBeginResult, QueryError, QueryFetchMode};
 
 use super::super::super::{HttpLabTestingPage, fake_response, query_now_ms};
 

@@ -1,5 +1,5 @@
 use super::{transitions::begin_action, *};
-use gpui_query::QueryError;
+use gpui_query_legacy::QueryError;
 
 #[test]
 fn signal_is_created_on_begin_request() {

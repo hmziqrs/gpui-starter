@@ -70,16 +70,16 @@ impl AppRoot {
         let about_page = cx.new(|_| AboutPage::new());
 
         // Eagerly register QueryClient global so DevTools page can observe it.
-        if !cx.has_global::<gpui_query::client::QueryClient>() {
-            cx.set_global(gpui_query::client::QueryClient::new(
-                gpui_query::CachePolicy::default(),
-                gpui_query::RequestPolicy::default(),
+        if !cx.has_global::<gpui_query_legacy::client::QueryClient>() {
+            cx.set_global(gpui_query_legacy::client::QueryClient::new(
+                gpui_query_legacy::CachePolicy::default(),
+                gpui_query_legacy::RequestPolicy::default(),
             ));
         }
 
         // Register v2 QueryClient global.
-        if !cx.has_global::<gpui_query_v2::client::QueryClient>() {
-            cx.set_global(gpui_query_v2::client::QueryClient::new());
+        if !cx.has_global::<gpui_query::client::QueryClient>() {
+            cx.set_global(gpui_query::client::QueryClient::new());
         }
 
         // React to app-wide events coming from launcher/deep links.

@@ -105,8 +105,8 @@ websocket = ["dep:tokio-tungstenite", "dep:tokio-stream"]
 
 [dependencies]
 gpui.workspace = true
-gpui-query = { package = "gpui-query-legacy", version = "0.1.4", features = ["hook"] }
-gpui-query-v2 = { package = "gpui-query", version = "0.1.4", features = ["hook"] }
+gpui-query-legacy = { version = "0.1.4", features = ["hook"] }
+gpui-query = { version = "0.1.4", features = ["hook"] }
 gpui_platform.workspace = true
 gpui-component.workspace = true
 gpui-component-assets.workspace = true

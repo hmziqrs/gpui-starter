@@ -1,7 +1,7 @@
 use gpui::{prelude::*, *};
 use gpui_component::{ActiveTheme as _, Disableable, button::Button, h_flex};
-use gpui_query::QueryKeyFilter;
-use gpui_query::client::QueryClient;
+use gpui_query_legacy::QueryKeyFilter;
+use gpui_query_legacy::client::QueryClient;
 
 use super::QueryDevToolsPage;
 

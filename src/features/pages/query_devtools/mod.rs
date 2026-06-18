@@ -1,6 +1,6 @@
 use gpui::{prelude::*, *};
 use gpui_component::{ActiveTheme as _, Icon, IconName, h_flex, v_flex};
-use gpui_query::client::QueryClient;
+use gpui_query_legacy::client::QueryClient;
 
 use crate::services::http_lab::{HttpLabDiagnostic, HttpLabState};
 
@@ -98,7 +98,7 @@ fn render_empty_state(cx: &mut Context<QueryDevToolsPage>) -> Div {
 // ---------------------------------------------------------------------------
 
 fn render_dashboard(
-    client_diag: &Option<gpui_query::client::devtools::ClientDiagnostic>,
+    client_diag: &Option<gpui_query_legacy::client::devtools::ClientDiagnostic>,
     lab_diag: &Option<Vec<HttpLabDiagnostic>>,
     expanded_key: &Option<String>,
     sort_by: QuerySort,

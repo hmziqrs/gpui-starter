@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 use tokio_util::sync::CancellationToken;
 
-use gpui_query::{CachePolicy, QueryResource, RequestPolicy, RequestSequencer};
+use gpui_query_legacy::{CachePolicy, QueryResource, RequestPolicy, RequestSequencer};
 
 use crate::services::http_lab::HttpLabAction;
 

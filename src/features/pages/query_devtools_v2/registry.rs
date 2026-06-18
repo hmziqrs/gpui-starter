@@ -4,8 +4,8 @@ use gpui::{prelude::*, *};
 use gpui_component::{ActiveTheme as _, VirtualListScrollHandle, h_flex, v_flex};
 
 use crate::ui::widgets::{bounded_list_height, render_virtual_list, variable_item_sizes};
-use gpui_query_v2::client::ClientDiagnostic;
-use gpui_query_v2::core::QueryStatus;
+use gpui_query::client::ClientDiagnostic;
+use gpui_query::core::QueryStatus;
 
 use super::dashboard::QueryDevToolsV2Page;
 use super::helpers::{QuerySort, filter_button, format_cache_age, rems_from_px, sort_button};
@@ -256,7 +256,7 @@ pub(super) fn render_query_registry(
 // ---------------------------------------------------------------------------
 
 fn query_row(
-    q: &gpui_query_v2::client::QueryDiagnostic,
+    q: &gpui_query::client::QueryDiagnostic,
     is_expanded: bool,
     cx: &mut Context<QueryDevToolsV2Page>,
 ) -> Stateful<Div> {
@@ -355,7 +355,7 @@ fn query_row(
 // ---------------------------------------------------------------------------
 
 fn query_expanded_detail(
-    q: &gpui_query_v2::client::QueryDiagnostic,
+    q: &gpui_query::client::QueryDiagnostic,
     radius: Pixels,
     secondary: Hsla,
 ) -> Div {

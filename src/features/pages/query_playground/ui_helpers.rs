@@ -3,7 +3,7 @@ use gpui::*;
 
 use gpui_component::{ActiveTheme as _, v_flex};
 
-use gpui_query_v2::core::QueryStatus;
+use gpui_query::core::QueryStatus;
 
 use super::PlaygroundUser;
 

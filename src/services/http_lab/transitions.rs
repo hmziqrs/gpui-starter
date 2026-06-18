@@ -1,4 +1,4 @@
-use gpui_query::{
+use gpui_query_legacy::{
     CachePolicy, QueryBeginResult, QueryError, QueryFetchMode, QueryStatus, RequestGuard, RequestId,
 };
 

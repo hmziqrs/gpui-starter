@@ -1,7 +1,7 @@
 use gpui::*;
 
-use gpui_query_v2::core::{CachePolicy, QueryError, RequestPolicy, RetryPolicy, SelectTransform};
-use gpui_query_v2::hook::{
+use gpui_query::core::{CachePolicy, QueryError, RequestPolicy, RetryPolicy, SelectTransform};
+use gpui_query::hook::{
     InfiniteQueryOptions, QueryOptions, use_infinite_query, use_mutation, use_query,
     use_query_select,
 };

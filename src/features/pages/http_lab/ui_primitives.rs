@@ -1,7 +1,7 @@
 use gpui::{prelude::*, *};
 use gpui_component::{ActiveTheme as _, v_flex};
 
-use gpui_query::QueryStatus;
+use gpui_query_legacy::QueryStatus;
 
 pub fn panel(title: &str, cx: &App) -> Div {
     v_flex()

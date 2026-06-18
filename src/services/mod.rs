@@ -9,7 +9,7 @@ pub mod http_lab;
 pub mod i18n;
 pub mod logging;
 pub mod notifications;
-// query module is now provided by the gpui_query crate
+// query module is now provided by the gpui_query_legacy crate
 pub mod secure_storage;
 pub mod session;
 pub mod storage;

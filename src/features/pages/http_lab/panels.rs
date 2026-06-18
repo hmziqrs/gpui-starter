@@ -8,7 +8,7 @@ use gpui_component::{
 };
 
 use crate::http_lab::{self, HttpExchange, HttpLabAction, HttpLabState};
-use gpui_query::{QueryResource, RequestPolicy};
+use gpui_query_legacy::{QueryResource, RequestPolicy};
 
 use super::ui_primitives::{
     callout, chip, empty_state, kv, panel, preview_block, status_chip, status_dot,

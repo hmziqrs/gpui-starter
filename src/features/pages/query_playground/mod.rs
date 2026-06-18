@@ -20,8 +20,8 @@ use gpui_component::{
 };
 use serde::{Deserialize, Serialize};
 
-use gpui_query_v2::client::QueryClient;
-use gpui_query_v2::core::{
+use gpui_query::client::QueryClient;
+use gpui_query::core::{
     InfiniteQueryResource, MappedQueryResource, MutationResource, QueryError, QueryResource,
 };
 

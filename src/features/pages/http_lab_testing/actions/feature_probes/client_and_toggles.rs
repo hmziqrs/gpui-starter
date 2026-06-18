@@ -1,6 +1,6 @@
 use gpui::*;
 
-use gpui_query::{CachePolicy, QueryError, RequestPolicy};
+use gpui_query_legacy::{CachePolicy, QueryError, RequestPolicy};
 
 use super::super::super::{HttpLabTestingPage, RawResponse, query_now_ms};
 
@@ -8,17 +8,17 @@ impl HttpLabTestingPage {
     // -- Feature 2: Client fetchQuery --
 
     pub(crate) fn exercise_client_fetch_query(&mut self, cx: &mut Context<Self>) {
-        let key = gpui_query::QueryKey::from_single("http_lab_testing/client_fetch");
+        let key = gpui_query_legacy::QueryKey::from_single("http_lab_testing/client_fetch");
         let now_ms = query_now_ms();
 
-        if !cx.has_global::<gpui_query::client::QueryClient>() {
-            cx.set_global(gpui_query::client::QueryClient::new(
-                gpui_query::CachePolicy::default(),
-                gpui_query::RequestPolicy::default(),
+        if !cx.has_global::<gpui_query_legacy::client::QueryClient>() {
+            cx.set_global(gpui_query_legacy::client::QueryClient::new(
+                gpui_query_legacy::CachePolicy::default(),
+                gpui_query_legacy::RequestPolicy::default(),
             ));
         }
 
-        let result = cx.update_global::<gpui_query::client::QueryClient, _>(|client, cx| {
+        let result = cx.update_global::<gpui_query_legacy::client::QueryClient, _>(|client, cx| {
             client.fetch_query::<RawResponse, QueryError>(
                 key,
                 CachePolicy::NoCache,
@@ -71,17 +71,17 @@ impl HttpLabTestingPage {
     }
 
     pub(crate) fn exercise_client_force_fetch_query(&mut self, cx: &mut Context<Self>) {
-        let key = gpui_query::QueryKey::from_single("http_lab_testing/client_force_fetch");
+        let key = gpui_query_legacy::QueryKey::from_single("http_lab_testing/client_force_fetch");
         let now_ms = query_now_ms();
 
-        if !cx.has_global::<gpui_query::client::QueryClient>() {
-            cx.set_global(gpui_query::client::QueryClient::new(
-                gpui_query::CachePolicy::default(),
-                gpui_query::RequestPolicy::default(),
+        if !cx.has_global::<gpui_query_legacy::client::QueryClient>() {
+            cx.set_global(gpui_query_legacy::client::QueryClient::new(
+                gpui_query_legacy::CachePolicy::default(),
+                gpui_query_legacy::RequestPolicy::default(),
             ));
         }
 
-        let result = cx.update_global::<gpui_query::client::QueryClient, _>(|client, cx| {
+        let result = cx.update_global::<gpui_query_legacy::client::QueryClient, _>(|client, cx| {
             client.force_fetch_query::<RawResponse, QueryError>(
                 key,
                 CachePolicy::NoCache,

@@ -4,7 +4,7 @@ use super::{
     transitions::{apply_result_to_state, begin_action, cancel_action_in_state},
     *,
 };
-use gpui_query::QueryStatus;
+use gpui_query_legacy::QueryStatus;
 
 fn state_after_scope_advances(count: usize) -> HttpLabState {
     let mut state = HttpLabState::default();

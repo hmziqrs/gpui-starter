@@ -3,7 +3,7 @@ use super::{
     transitions::begin_action,
     *,
 };
-use gpui_query::QueryStatus;
+use gpui_query_legacy::QueryStatus;
 
 #[test]
 fn starts_each_action_with_its_own_resource() {

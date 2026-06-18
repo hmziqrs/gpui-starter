@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use gpui_query::{CachePolicy, QueryKey, RequestPolicy, RetryPolicy};
+use gpui_query_legacy::{CachePolicy, QueryKey, RequestPolicy, RetryPolicy};
 
 const GET_CACHE_TTL_MS: u64 = 60_000;
 const REVALIDATE_TTL_MS: u64 = 30_000;

@@ -1,8 +1,8 @@
 use gpui::{prelude::*, *};
 use gpui_component::{ActiveTheme as _, h_flex, v_flex};
 
-use gpui_query_v2::client::ClientDiagnostic;
-use gpui_query_v2::core::MutationStatus;
+use gpui_query::client::ClientDiagnostic;
+use gpui_query::core::MutationStatus;
 
 use super::dashboard::QueryDevToolsV2Page;
 

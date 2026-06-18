@@ -7,7 +7,7 @@ use gpui_component::{
     v_flex,
 };
 
-use gpui_query::QueryResource;
+use gpui_query_legacy::QueryResource;
 
 use super::{RENDER_LOG, RawResponse};
 

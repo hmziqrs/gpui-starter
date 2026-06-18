@@ -3,7 +3,7 @@ use super::{
     transitions::{apply_result_to_state, begin_action},
     *,
 };
-use gpui_query::QueryStatus;
+use gpui_query_legacy::QueryStatus;
 
 // Use PostJson (NoCache policy) for all tests to avoid cache-hit short-circuits.
 

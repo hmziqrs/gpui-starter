@@ -3,8 +3,8 @@ use gpui_component::{
     ActiveTheme as _, Disableable, Icon, IconName, button::Button, h_flex, v_flex,
 };
 
-use gpui_query_v2::client::QueryClient;
-use gpui_query_v2::core::QueryKeyFilter;
+use gpui_query::client::QueryClient;
+use gpui_query::core::QueryKeyFilter;
 
 use super::helpers::QuerySort;
 use super::mutations::render_mutations_table;
@@ -99,7 +99,7 @@ fn render_empty_state(cx: &mut Context<QueryDevToolsV2Page>) -> Div {
 // ---------------------------------------------------------------------------
 
 fn render_dashboard(
-    diagnostic: &Option<gpui_query_v2::client::ClientDiagnostic>,
+    diagnostic: &Option<gpui_query::client::ClientDiagnostic>,
     expanded_key: &Option<String>,
     sort_by: QuerySort,
     status_filter: &Option<String>,
@@ -122,7 +122,7 @@ fn render_dashboard(
         .map(|d| {
             d.queries
                 .iter()
-                .filter(|q| q.status == gpui_query_v2::core::QueryStatus::Success)
+                .filter(|q| q.status == gpui_query::core::QueryStatus::Success)
                 .count()
         })
         .unwrap_or(0);
@@ -131,7 +131,7 @@ fn render_dashboard(
         .map(|d| {
             d.queries
                 .iter()
-                .filter(|q| q.status == gpui_query_v2::core::QueryStatus::Failure)
+                .filter(|q| q.status == gpui_query::core::QueryStatus::Failure)
                 .count()
         })
         .unwrap_or(0);

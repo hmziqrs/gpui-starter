@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use gpui::Global;
 use serde::{Deserialize, Serialize};
 
-use gpui_query::{QueryResource, QuerySignal, RequestId, RequestSequencer};
+use gpui_query_legacy::{QueryResource, QuerySignal, RequestId, RequestSequencer};
 
 use crate::services::http_lab::types::{HttpCookieSnapshot, HttpExchange, HttpLabAction};
 

@@ -4,7 +4,7 @@ use super::{
     transitions::{apply_result_to_state, begin_action},
     *,
 };
-use gpui_query::QueryStatus;
+use gpui_query_legacy::QueryStatus;
 
 #[test]
 fn full_flow_populates_individual_resources_and_flow_resource() {

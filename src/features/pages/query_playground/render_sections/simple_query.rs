@@ -7,7 +7,7 @@ use gpui_component::{
     h_flex,
 };
 
-use gpui_query_v2::core::QueryStatus;
+use gpui_query::core::QueryStatus;
 
 use super::super::QueryPlaygroundPage;
 use super::super::ui_helpers::{chip, section_card, status_badge};

@@ -3,7 +3,7 @@ use super::{
     transitions::begin_action,
     *,
 };
-use gpui_query::QueryStatus;
+use gpui_query_legacy::QueryStatus;
 
 #[test]
 fn display_data_returns_data_when_present() {

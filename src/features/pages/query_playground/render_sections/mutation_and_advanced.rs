@@ -9,7 +9,7 @@ use gpui_component::{
     v_flex,
 };
 
-use gpui_query_v2::core::{MutationStatus, QueryStatus};
+use gpui_query::core::{MutationStatus, QueryStatus};
 
 use super::super::ui_helpers::{chip, mapped_preview, section_card, source_preview, status_badge};
 use super::super::{PlaygroundPage, QueryPlaygroundPage};

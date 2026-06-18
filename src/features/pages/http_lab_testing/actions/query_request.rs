@@ -3,7 +3,7 @@ use std::time::Instant;
 use gpui::*;
 use tokio_util::sync::CancellationToken;
 
-use gpui_query::{QueryBeginResult, QueryError, QueryFetchMode};
+use gpui_query_legacy::{QueryBeginResult, QueryError, QueryFetchMode};
 
 use crate::services::tokio_runtime::TokioRuntimeGlobal;
 
