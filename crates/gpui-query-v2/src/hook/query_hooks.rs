@@ -1,7 +1,12 @@
 //! Query hook functions — `use_query`, `use_query_unsignalled`, `use_query_manual`,
 //! `fetch_query`, and `fetch_query_with_signal`.
 
-use gpui::{AppContext as _, BorrowAppContext as _, Context, Entity, Subscription};
+// `AppContext` is only needed by the release-only `cx.new(...)` call below
+// (`#[cfg(not(debug_assertions))]`). Gating the import avoids an unused-import
+// warning under the dev profile (where that call is compiled out).
+#[cfg(not(debug_assertions))]
+use gpui::AppContext as _;
+use gpui::{BorrowAppContext as _, Context, Entity, Subscription};
 
 use crate::client::{QueryClient, QueryObserver};
 use crate::core::{QueryFetchMode, QueryKey, QueryResource, QuerySignal, QueryStatus};
