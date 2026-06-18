@@ -21,3 +21,15 @@ test:
 
 test-publish:
     cargo publish --workspace --dry-run --allow-dirty
+
+# Use local path checkout for gpui-query (for active development of gpui-query).
+gpui-query-local:
+    ./scripts/toggle-gpui-query.sh local
+
+# Use crates.io published version of gpui-query (run before committing).
+gpui-query-cratesio:
+    ./scripts/toggle-gpui-query.sh cratesio
+
+# Show whether gpui-query is using the local path or crates.io.
+gpui-query-status:
+    ./scripts/toggle-gpui-query.sh status

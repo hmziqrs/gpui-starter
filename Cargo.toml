@@ -219,3 +219,8 @@ gpui_macros = { opt-level = 3 }
 [patch.crates-io]
 gpui = { git = "https://github.com/zed-industries/zed" }
 gpui_platform = { git = "https://github.com/zed-industries/zed" }
+# Toggle local gpui-query checkout: `just gpui-query-local` / `just gpui-query-cratesio`
+# >>> gpui-query-local >>>
+gpui-query = { path = "/Users/hmziq/fo/gpui-query/crates/gpui-query" }
+gpui-query-legacy = { path = "/Users/hmziq/fo/gpui-query/crates/gpui-query-legacy" }
+# <<< gpui-query-local <<<
