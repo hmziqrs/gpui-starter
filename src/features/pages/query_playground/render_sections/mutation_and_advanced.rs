@@ -143,7 +143,7 @@ impl QueryPlaygroundPage {
                 let mut result = Vec::new();
                 e.read_with(cx, |r, _| {
                     for (i, page) in r.pages().iter().enumerate() {
-                        result.push((i, page.clone()));
+                        result.push((i, Arc::new(page.clone())));
                     }
                 });
                 result
