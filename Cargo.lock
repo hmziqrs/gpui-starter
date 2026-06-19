@@ -3206,8 +3206,6 @@ dependencies = [
 [[package]]
 name = "gpui-query"
 version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90dd2a2172123b17109a9e87a091e36a0a0eda818ead2f7628b42dc74698452f"
 dependencies = [
  "ahash 0.8.12",
  "gpui",
@@ -3217,8 +3215,6 @@ dependencies = [
 [[package]]
 name = "gpui-query-legacy"
 version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44892e1558747ccbdd1e0015c677e5c1edfcd1ae5c8a1d29a27b76c2902ad62d"
 dependencies = [
  "gpui",
  "serde",

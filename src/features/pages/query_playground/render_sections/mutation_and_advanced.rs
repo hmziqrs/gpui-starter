@@ -1,6 +1,8 @@
 use gpui::prelude::*;
 use gpui::*;
 
+use std::sync::Arc;
+
 use gpui_component::{
     ActiveTheme as _, Disableable as _,
     button::{Button, ButtonVariants as _},
@@ -134,7 +136,7 @@ impl QueryPlaygroundPage {
             e.read_with(cx, |r, _| r.has_previous_page())
         });
         let loading = inf_status.is_loading();
-        let pages: Vec<(usize, PlaygroundPage)> = self
+        let pages: Vec<(usize, Arc<PlaygroundPage>)> = self
             .infinite_entity
             .as_ref()
             .map(|(e, _)| {
