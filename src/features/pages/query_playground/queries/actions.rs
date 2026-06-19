@@ -422,10 +422,18 @@ impl QueryPlaygroundPage {
         self.log("Imperative: fetch triggered");
         fetch_query_with_signal(
             &entity,
-            move |_signal| {
+            move |signal| {
                 let exec = exec.clone();
                 async move {
-                    exec.timer(std::time::Duration::from_secs(2)).await;
+                    // Cooperative cancellation: poll the signal between short
+                    // timer slices (40 × 50ms = 2s total) so a mid-flight cancel
+                    // is observed within ~50ms instead of running the full 2s.
+                    for _ in 0..40 {
+                        if signal.is_cancelled() {
+                            return Err(QueryError::cancelled("cancelled mid-flight"));
+                        }
+                        exec.timer(std::time::Duration::from_millis(50)).await;
+                    }
                     Ok("imperative result".into())
                 }
             },
@@ -435,14 +443,17 @@ impl QueryPlaygroundPage {
 
     pub(in super::super) fn cancel_imperative(&mut self, cx: &mut Context<Self>) {
         if let Some((entity, _)) = &self.imperative_query {
+            // Mark the active request as cancelled: this clears
+            // `active_request_id` (so the in-flight result is discarded by
+            // `accept_current_request`), transitions status to `Cancelled`,
+            // and cancels the cooperative signal. Merely flipping the signal
+            // flag — as this previously did — left the request active, so the
+            // late result still landed as Success and nothing re-rendered.
             entity.update(cx, |r, _| {
-                if let Some(s) = r.signal() {
-                    s.cancel();
-                }
+                r.cancel(QueryError::cancelled("cancelled mid-flight"));
             });
-            self.log("Imperative: signal cancelled mid-flight");
-            // Finding 7: Removed redundant cx.notify() — the QueryObserver
-            // already triggers re-render on status change.
+            self.log("Imperative: cancelled mid-flight");
+            cx.notify();
         }
     }
 
