@@ -136,6 +136,10 @@ impl QueryPlaygroundPage {
             e.read_with(cx, |r, _| r.has_previous_page())
         });
         let loading = inf_status.is_loading();
+        // Bootstrap fix: the entity is created lazily on the first "Load Next
+        // Page" click, so enable that button while no entity exists yet —
+        // otherwise `!has_next` disables it before it can ever be clicked.
+        let entity_exists = self.infinite_entity.is_some();
         let pages: Vec<(usize, Arc<PlaygroundPage>)> = self
             .infinite_entity
             .as_ref()
@@ -152,7 +156,7 @@ impl QueryPlaygroundPage {
 
         section_card(
             "Infinite Query",
-            "Paginated data with max_pages=3 so eviction is visible. Fetcher generates pages of 5 items each.",
+            "Bidirectional pagination (max 3 pages kept). Starts at page 5; Load Next pages toward 10, Load Previous toward 0.",
             cx,
         )
         .child(
@@ -161,16 +165,16 @@ impl QueryPlaygroundPage {
                     Button::new("pg-inf-next")
                         .primary()
                         .label("Load Next Page")
-                        .disabled(loading || !has_next)
+                        .disabled(loading || (entity_exists && !has_next))
                         .on_click(cx.listener(|this, _, _, cx| this.load_next_page(cx))),
                 )
                 .child(
                     Button::new("pg-inf-prev")
                         .outline()
                         .label("Load Previous Page")
-                        // Finding 3: Disable when has_prev is false, mirroring
-                        // the 'Load Next Page' button's !has_next check.
-                        .disabled(loading || !has_prev)
+                        // Mirror the bootstrap logic of 'Load Next Page' so either
+                        // button can create the entity on first click.
+                        .disabled(loading || (entity_exists && !has_prev))
                         .on_click(cx.listener(|this, _, _, cx| this.load_prev_page(cx))),
                 )
                 .child(

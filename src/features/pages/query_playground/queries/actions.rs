@@ -2,7 +2,7 @@ use gpui::*;
 
 use gpui_query::core::QueryError;
 use gpui_query::hook::{
-    MutationCallbacks, fetch_next_page_infinite, fetch_previous_page_infinite,
+    MutationCallbacks, fetch_next_page_infinite, fetch_previous_page_infinite, fetch_query,
     fetch_query_with_signal, mutate, mutate_with_callbacks,
 };
 
@@ -197,9 +197,14 @@ impl QueryPlaygroundPage {
         let entity = entity.clone();
         let exec = cx.background_executor().clone();
         self.log("Retry: triggered failing fetch (3 retries, 200ms backoff)");
-        fetch_query_with_signal(
+        self.retry_peak = 0;
+        // NOTE: use `fetch_query` (retry-aware, Fn fetcher), NOT
+        // `fetch_query_with_signal` — the latter is FnOnce/single-shot and the
+        // crate explicitly skips retries for it, so the RetryPolicy would never
+        // fire and the count would be stuck at 1.
+        fetch_query(
             &entity,
-            move |_signal| {
+            move || {
                 let exec = exec.clone();
                 async move {
                     exec.timer(std::time::Duration::from_millis(300)).await;
@@ -316,7 +321,7 @@ impl QueryPlaygroundPage {
             &entity,
             move |last_page: Option<&PlaygroundPage>| {
                 let exec = exec.clone();
-                let page_num = last_page.map(|p| p.page_number + 1).unwrap_or(0);
+                let page_num = last_page.map(|p| p.page_number + 1).unwrap_or(5);
                 async move {
                     exec.timer(std::time::Duration::from_millis(600)).await;
                     let items: Vec<String> = (0..5)
@@ -349,7 +354,7 @@ impl QueryPlaygroundPage {
                 let exec = exec.clone();
                 let page_num = first_page
                     .map(|p| p.page_number.saturating_sub(1))
-                    .unwrap_or(0);
+                    .unwrap_or(5);
                 async move {
                     exec.timer(std::time::Duration::from_millis(600)).await;
                     let items: Vec<String> = (0..5)
@@ -360,7 +365,7 @@ impl QueryPlaygroundPage {
                             items,
                             page_number: page_num,
                         },
-                        true,
+                        page_num > 0,
                     ))
                 }
             },

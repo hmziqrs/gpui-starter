@@ -166,10 +166,9 @@ impl QueryPlaygroundPage {
             .map_or(QueryStatus::Idle, |(e, _)| {
                 e.read_with(cx, |r, _| r.status())
             });
-        let retry_count = self
-            .retry_query
-            .as_ref()
-            .map_or(0, |(e, _)| e.read_with(cx, |r, _| r.retry_count()));
+        // The crate resets `retry_count` to 0 on terminal failure, so display
+        // the high-water mark tracked by the observer in `ensure_retry_query`.
+        let retry_count = self.retry_peak;
         let loading = status.is_loading();
         let policy = RetryPolicy::new(3).with_delay(200);
 

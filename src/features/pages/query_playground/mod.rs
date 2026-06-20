@@ -133,6 +133,9 @@ pub struct QueryPlaygroundPage {
     pub(super) ignore_query: Option<(Entity<QueryResource<String, QueryError>>, Subscription)>,
     // Retry demo
     pub(super) retry_query: Option<(Entity<QueryResource<String, QueryError>>, Subscription)>,
+    /// High-water mark of retry attempts for the retry demo. The crate resets
+    /// `retry_count` to 0 on terminal failure, so we track the peak for display.
+    pub(super) retry_peak: u32,
     // Mutation demo
     pub(super) mutation_entity: Option<(
         Entity<MutationResource<String, String, QueryError>>,
@@ -196,6 +199,7 @@ impl QueryPlaygroundPage {
             latest_wins_query: None,
             ignore_query: None,
             retry_query: None,
+            retry_peak: 0,
             mutation_entity: None,
             mutation_input_state,
             infinite_entity: None,
