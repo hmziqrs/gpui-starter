@@ -6,7 +6,10 @@ use gpui_query::hook::{
     use_query_select,
 };
 
-use super::super::{PlaygroundPage, PlaygroundUser, QueryPlaygroundPage};
+use crate::services::tokio_runtime::TokioRuntimeGlobal;
+
+use super::actions::run_http;
+use super::super::{HttpFetchKind, PlaygroundPage, PlaygroundUser, QueryPlaygroundPage};
 
 // ---------------------------------------------------------------------------
 // Lazy init helpers — each sets up the entity on first call
@@ -289,5 +292,39 @@ impl QueryPlaygroundPage {
             cx,
         );
         self.imperative_query = Some((entity, sub));
+    }
+
+    /// Real HTTP query (reqwest over the tokio runtime). Created lazily on the
+    /// first HTTP button click — never auto-fetched on page load. The initial
+    /// fetcher does GET JSON; `fetch_http` re-fetches with the chosen kind.
+    pub(super) fn ensure_http_query(&mut self, cx: &mut Context<Self>) {
+        if self.http_query.is_some() {
+            return;
+        }
+        // reqwest must run on tokio; clone the shared client + runtime out of the
+        // global (releasing the cx borrow) before entering the fetch closure.
+        let (client, runtime) = match cx.try_global::<TokioRuntimeGlobal>() {
+            Some(g) => (g.0.http_client.clone(), g.0.runtime.clone()),
+            None => return, // fetch_http also guards and logs this
+        };
+        let (entity, sub) = use_query(
+            QueryOptions::new("playground::http")
+                .cache_policy(CachePolicy::NoCache)
+                .request_policy(RequestPolicy::LatestWins)
+                .retry_policy(RetryPolicy::no_retries()),
+            move |signal| {
+                let client = client.clone();
+                let runtime = runtime.clone();
+                async move {
+                    if signal.is_cancelled() {
+                        return Err(QueryError::cancelled("cancelled before send"));
+                    }
+                    let result = run_http(&client, &runtime, HttpFetchKind::GetJson).await?;
+                    Ok(result)
+                }
+            },
+            cx,
+        );
+        self.http_query = Some((entity, sub));
     }
 }

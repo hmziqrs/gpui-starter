@@ -6,7 +6,8 @@ use gpui_query::hook::{
     fetch_query_with_signal, mutate, mutate_with_callbacks,
 };
 
-use super::super::{PlaygroundPage, PlaygroundUser, QueryPlaygroundPage};
+use crate::services::tokio_runtime::TokioRuntimeGlobal;
+use super::super::{HttpFetchKind, HttpFetchResult, PlaygroundPage, PlaygroundUser, QueryPlaygroundPage};
 
 // ---------------------------------------------------------------------------
 // Actions
@@ -463,5 +464,148 @@ impl QueryPlaygroundPage {
             self.log("Imperative: reset");
             cx.notify();
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // HTTP Fetching — real network requests via reqwest over the tokio runtime.
+    // -----------------------------------------------------------------------
+
+    pub(in super::super) fn fetch_http(&mut self, kind: HttpFetchKind, cx: &mut Context<Self>) {
+        self.ensure_http_query(cx);
+        let Some((entity, _)) = self.http_query.as_ref() else {
+            return;
+        };
+        let entity = entity.clone();
+
+        // reqwest must run on tokio; clone the shared client + runtime out of the
+        // global (releasing the cx borrow) before entering the fetch closure.
+        let (client, runtime) = match cx.try_global::<TokioRuntimeGlobal>() {
+            Some(g) => (g.0.http_client.clone(), g.0.runtime.clone()),
+            None => {
+                self.log(format!(
+                    "HTTP: tokio runtime unavailable — cannot {} {}",
+                    kind.method(),
+                    kind.url()
+                ));
+                return;
+            }
+        };
+
+        self.log(format!(
+            "HTTP: {} {} → {}",
+            kind.label(),
+            kind.method(),
+            kind.url()
+        ));
+
+        fetch_query_with_signal(
+            &entity,
+            move |signal| {
+                let client = client.clone();
+                let runtime = runtime.clone();
+                async move {
+                    if signal.is_cancelled() {
+                        return Err(QueryError::cancelled("cancelled before send"));
+                    }
+                    run_http(&client, &runtime, kind).await
+                }
+            },
+            cx,
+        );
+    }
+
+    pub(in super::super) fn reset_http(&mut self, cx: &mut Context<Self>) {
+        if let Some((entity, _)) = &self.http_query {
+            entity.update(cx, |r, _| r.reset());
+            self.log("HTTP: reset");
+            cx.notify();
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Shared HTTP executor (free functions)
+//
+// reqwest cannot run on gpui's (non-tokio) executor, so each request is
+// `runtime.spawn`-ed onto the tokio runtime and the JoinHandle is awaited from
+// the fetch closure. Shared by the lazy initial fetch (GET JSON, in `init`) and
+// `fetch_http`.
+// ---------------------------------------------------------------------------
+
+pub(super) async fn run_http(
+    client: &reqwest::Client,
+    runtime: &std::sync::Arc<tokio::runtime::Runtime>,
+    kind: HttpFetchKind,
+) -> Result<HttpFetchResult, QueryError> {
+    let started = std::time::Instant::now();
+    let url = kind.url().to_string();
+    let join = {
+        let client = client.clone();
+        let url = url.clone();
+        runtime.spawn(async move {
+            let resp = build_request(&client, kind, &url)
+                .send()
+                .await
+                .map_err(|e| QueryError::response(format!("send: {e}")))?;
+            let status = resp.status().as_u16();
+            let content_type = resp
+                .headers()
+                .get(reqwest::header::CONTENT_TYPE)
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("")
+                .to_string();
+            let raw = resp
+                .text()
+                .await
+                .map_err(|e| QueryError::response(format!("body: {e}")))?;
+            Ok::<_, QueryError>((status, content_type, raw))
+        })
+    };
+    let (status, content_type, raw) = join
+        .await
+        .map_err(|e| QueryError::response(format!("join: {e}")))??;
+
+    // Pretty-print JSON bodies for readability; truncate long bodies for display.
+    let is_json = matches!(kind, HttpFetchKind::GetJson | HttpFetchKind::PostJson);
+    let body = if is_json {
+        serde_json::from_str::<serde_json::Value>(&raw)
+            .ok()
+            .and_then(|v| serde_json::to_string_pretty(&v).ok())
+            .unwrap_or(raw)
+    } else {
+        raw
+    };
+    let body = if body.chars().count() > 1500 {
+        format!("{}…", body.chars().take(1500).collect::<String>())
+    } else {
+        body
+    };
+
+    Ok(HttpFetchResult {
+        method: kind.method().into(),
+        label: kind.label().into(),
+        url,
+        status,
+        content_type,
+        body,
+        elapsed_ms: started.elapsed().as_millis() as u64,
+    })
+}
+
+fn build_request(
+    client: &reqwest::Client,
+    kind: HttpFetchKind,
+    url: &str,
+) -> reqwest::RequestBuilder {
+    match kind {
+        HttpFetchKind::PostJson => {
+            let payload = serde_json::json!({
+                "name": "gpui-starter",
+                "section": "query_playground",
+                "nested": { "source": "httpbin" },
+            });
+            client.post(url).json(&payload)
+        }
+        _ => client.get(url).header("accept", kind.accept_header()),
     }
 }

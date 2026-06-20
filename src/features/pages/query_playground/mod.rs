@@ -42,6 +42,68 @@ pub struct PlaygroundPage {
     pub page_number: u32,
 }
 
+/// A real httpbin response captured by the HTTP Fetching section, used to demo
+/// gpui-query managing live network requests (reqwest over the tokio runtime).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct HttpFetchResult {
+    pub method: String,
+    pub label: String,
+    pub url: String,
+    pub status: u16,
+    pub content_type: String,
+    pub body: String,
+    pub elapsed_ms: u64,
+}
+
+/// Which httpbin request the HTTP Fetching section should perform.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum HttpFetchKind {
+    GetJson,
+    GetXml,
+    GetText,
+    PostJson,
+    GetFail,
+}
+
+impl HttpFetchKind {
+    pub(super) fn method(self) -> &'static str {
+        match self {
+            Self::GetJson | Self::GetXml | Self::GetText | Self::GetFail => "GET",
+            Self::PostJson => "POST",
+        }
+    }
+
+    pub(super) fn label(self) -> &'static str {
+        match self {
+            Self::GetJson => "GET JSON",
+            Self::GetXml => "GET XML",
+            Self::GetText => "GET text",
+            Self::PostJson => "POST JSON",
+            Self::GetFail => "GET fail",
+        }
+    }
+
+    pub(super) fn url(self) -> &'static str {
+        match self {
+            Self::GetJson => "https://httpbin.org/json",
+            Self::GetXml => "https://httpbin.org/xml",
+            Self::GetText => "https://httpbin.org/encoding/utf8",
+            Self::PostJson => "https://httpbin.org/post",
+            Self::GetFail => "https://httpbin.org/status/500",
+        }
+    }
+
+    pub(super) fn accept_header(self) -> &'static str {
+        match self {
+            Self::GetJson => "application/json",
+            Self::GetXml => "application/xml",
+            Self::GetText => "text/plain",
+            Self::PostJson => "application/json",
+            Self::GetFail => "*/*",
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Page struct
 // ---------------------------------------------------------------------------
@@ -90,6 +152,11 @@ pub struct QueryPlaygroundPage {
     pub(super) _select_subs: Option<(Subscription, Subscription)>,
     // Imperative fetch
     pub(super) imperative_query: Option<(Entity<QueryResource<String, QueryError>>, Subscription)>,
+    // Real HTTP fetch (reqwest via the tokio runtime)
+    pub(super) http_query: Option<(
+        Entity<QueryResource<HttpFetchResult, QueryError>>,
+        Subscription,
+    )>,
     // UI state
     pub(super) activity_log: Vec<String>,
     pub(super) log_scroll_handle: VirtualListScrollHandle,
@@ -136,6 +203,7 @@ impl QueryPlaygroundPage {
             select_mapped: None,
             _select_subs: None,
             imperative_query: None,
+            http_query: None,
             activity_log: Vec::new(),
             log_scroll_handle: VirtualListScrollHandle::new(),
             _callback_log: callback_log,
@@ -223,7 +291,9 @@ impl Render for QueryPlaygroundPage {
             .child(self.render_select_transform(cx))
             // -- 8. Imperative Fetch --
             .child(self.render_imperative_fetch(cx))
-            // -- 9. Activity Log --
+            // -- 9. HTTP Fetching (real network via reqwest) --
+            .child(self.render_http_fetching(cx))
+            // -- 10. Activity Log --
             .child(self.render_activity_log(cx));
 
         page
