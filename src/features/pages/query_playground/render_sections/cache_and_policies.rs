@@ -166,15 +166,24 @@ impl QueryPlaygroundPage {
             .map_or(QueryStatus::Idle, |(e, _)| {
                 e.read_with(cx, |r, _| r.status())
             });
-        // The crate resets `retry_count` to 0 on terminal failure, so display
-        // the high-water mark tracked by the observer in `ensure_retry_query`.
-        let retry_count = self.retry_peak;
+        let error = self
+            .retry_query
+            .as_ref()
+            .and_then(|(e, _)| e.read_with(cx, |r, _| r.error().cloned()));
         let loading = status.is_loading();
-        let policy = RetryPolicy::new(3).with_delay(200);
+        // Read the actual policy off the entity so the chips stay truthful.
+        let policy = self
+            .retry_query
+            .as_ref()
+            .map_or(RetryPolicy::new(3).with_delay(400), |(e, _)| {
+                e.read_with(cx, |r, _| r.retry_policy().clone())
+            });
 
         section_card(
             "Retry Policy",
-            "Fetcher always returns Err. Shows retry count incrementing with exponential backoff (3 retries, 200ms base).",
+            "Fetcher always fails. The RetryPolicy retries 3× with backoff before \
+             giving up — the button stays \"Retrying…\" through all attempts (that \
+             delay IS the retries happening), then ends in Failure.",
             cx,
         )
         .child(
@@ -182,7 +191,7 @@ impl QueryPlaygroundPage {
                 .child(
                     Button::new("pg-retry-trigger")
                         .primary()
-                        .label(if loading { "Retrying..." } else { "Trigger Failing Fetch" })
+                        .label(if loading { "Retrying…" } else { "Trigger Failing Fetch" })
                         .disabled(loading)
                         .on_click(cx.listener(|this, _, _, cx| this.trigger_failing_fetch(cx))),
                 ),
@@ -190,8 +199,16 @@ impl QueryPlaygroundPage {
         .child(
             h_flex().gap_3().items_center().px_4().pb_3()
                 .child(status_badge(status, cx))
-                .child(chip(&format!("retries: {}/{}", retry_count, policy.max_retries), cx.theme().background, cx))
-                .child(chip(&format!("backoff: {}ms base", policy.retry_delay_ms), cx.theme().background, cx)),
+                .child(chip(&format!("max retries: {}", policy.max_retries), cx.theme().background, cx))
+                .child(chip(&format!("backoff: {}ms", policy.retry_delay_ms), cx.theme().background, cx))
+                .when_some(error, |el, _| {
+                    el.child(
+                        div()
+                            .text_xs()
+                            .text_color(cx.theme().danger)
+                            .child(format!("Gave up after {} retries.", policy.max_retries)),
+                    )
+                }),
         )
     }
 }

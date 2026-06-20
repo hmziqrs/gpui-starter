@@ -176,7 +176,7 @@ impl QueryPlaygroundPage {
             QueryOptions::new("playground::retry")
                 .cache_policy(CachePolicy::NoCache)
                 .request_policy(RequestPolicy::LatestWins)
-                .retry_policy(RetryPolicy::new(3).with_delay(200)),
+                .retry_policy(RetryPolicy::new(3).with_delay(400)),
             move |_signal| {
                 let exec = exec.clone();
                 async move {
@@ -190,18 +190,6 @@ impl QueryPlaygroundPage {
         // status-deduped QueryObserver won't re-render on each increment — the
         // climbing count would be invisible. Attach a raw observer so the retry
         // counter is visible during the retry loop.
-        cx.observe(&entity, |this, entity, cx| {
-            // The crate bumps `retry_count` on each attempt but resets it to 0 on
-            // terminal failure (and never notifies on the bump). Track the peak
-            // here so the UI can show how many retries actually happened.
-            let count = entity.read(cx).retry_count();
-            if count > this.retry_peak {
-                this.retry_peak = count;
-            }
-            cx.notify();
-        })
-        .detach();
-
         self.retry_query = Some((entity, sub));
     }
 
@@ -242,16 +230,6 @@ impl QueryPlaygroundPage {
             },
             cx,
         );
-        // Bidirectional demo: seed both directions enabled and start at page 5
-        // (set in the fetchers) so "Load Previous" can page toward 0 and "Load
-        // Next" toward 10. Without seeding `has_previous_page`, that button
-        // stays disabled forever — the crate only sets it after a backward fetch.
-        entity.update(cx, |r, _| {
-            r.set_direction(gpui_query::core::FetchDirection::Bidirectional);
-            r.set_has_previous_page(true);
-            r.set_has_next_page(true);
-        });
-
         self.infinite_entity = Some((entity, sub));
     }
 

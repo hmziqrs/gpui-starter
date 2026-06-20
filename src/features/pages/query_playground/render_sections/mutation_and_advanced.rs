@@ -128,18 +128,29 @@ impl QueryPlaygroundPage {
             .map_or(QueryStatus::Idle, |(e, _)| {
                 e.read_with(cx, |r, _| r.status())
             });
-        let has_next = self
+        let loading = inf_status.is_loading();
+
+        // Derive the button-enabled state from the ACTUAL loaded page range
+        // (data lives in pages 0..=10), NOT from the crate's has_next/has_previous
+        // flags. Those flags are only updated for the direction that was last
+        // fetched, so they go stale and disable the wrong button (e.g. after a
+        // "previous" load, "next" would wrongly disable). The crate flag is only
+        // a fetch gate; `load_next_page`/`load_prev_page` force it to true before
+        // fetching, and we compute the real boundaries here for display.
+        let (first_pg, last_pg) = self
             .infinite_entity
             .as_ref()
-            .map_or(false, |(e, _)| e.read_with(cx, |r, _| r.has_next_page()));
-        let has_prev = self.infinite_entity.as_ref().map_or(false, |(e, _)| {
-            e.read_with(cx, |r, _| r.has_previous_page())
-        });
-        let loading = inf_status.is_loading();
-        // Bootstrap fix: the entity is created lazily on the first "Load Next
-        // Page" click, so enable that button while no entity exists yet —
-        // otherwise `!has_next` disables it before it can ever be clicked.
-        let entity_exists = self.infinite_entity.is_some();
+            .map_or((None, None), |(e, _)| {
+                e.read_with(cx, |r, _| {
+                    (
+                        r.pages().front().map(|p| p.page_number),
+                        r.pages().back().map(|p| p.page_number),
+                    )
+                })
+            });
+        let can_next = !loading && last_pg.map_or(true, |n| n < 10);
+        let can_prev = !loading && first_pg.map_or(true, |n| n > 0);
+
         let pages: Vec<(usize, Arc<PlaygroundPage>)> = self
             .infinite_entity
             .as_ref()
@@ -154,9 +165,16 @@ impl QueryPlaygroundPage {
             })
             .unwrap_or_default();
 
+        let range_label = match (first_pg, last_pg) {
+            (Some(f), Some(l)) => format!("range: page {f}..{l}"),
+            _ => "range: (empty)".to_string(),
+        };
+
         section_card(
             "Infinite Query",
-            "Bidirectional pagination (max 3 pages kept). Starts at page 5; Load Next pages toward 10, Load Previous toward 0.",
+            "Bidirectional pagination (max 3 pages kept). Data is pages 0..=10; \
+             Load Next goes toward 10, Load Previous toward 0. Either is disabled \
+             only at its end of the range.",
             cx,
         )
         .child(
@@ -165,16 +183,14 @@ impl QueryPlaygroundPage {
                     Button::new("pg-inf-next")
                         .primary()
                         .label("Load Next Page")
-                        .disabled(loading || (entity_exists && !has_next))
+                        .disabled(!can_next)
                         .on_click(cx.listener(|this, _, _, cx| this.load_next_page(cx))),
                 )
                 .child(
                     Button::new("pg-inf-prev")
                         .outline()
                         .label("Load Previous Page")
-                        // Mirror the bootstrap logic of 'Load Next Page' so either
-                        // button can create the entity on first click.
-                        .disabled(loading || (entity_exists && !has_prev))
+                        .disabled(!can_prev)
                         .on_click(cx.listener(|this, _, _, cx| this.load_prev_page(cx))),
                 )
                 .child(
@@ -185,8 +201,7 @@ impl QueryPlaygroundPage {
                 )
                 .child(status_badge(inf_status, cx))
                 .child(chip(&format!("pages: {}/3 (max)", page_count), cx.theme().background, cx))
-                .child(chip(&format!("has_next: {}", has_next), cx.theme().background, cx))
-                .child(chip(&format!("has_prev: {}", has_prev), cx.theme().background, cx)),
+                .child(chip(&range_label, cx.theme().background, cx)),
         )
         .when(!pages.is_empty(), |el| {
             el.child(

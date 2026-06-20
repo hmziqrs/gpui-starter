@@ -196,8 +196,7 @@ impl QueryPlaygroundPage {
         };
         let entity = entity.clone();
         let exec = cx.background_executor().clone();
-        self.log("Retry: triggered failing fetch (3 retries, 200ms backoff)");
-        self.retry_peak = 0;
+        self.log("Retry: triggered failing fetch (3 retries, 400ms backoff)");
         // NOTE: use `fetch_query` (retry-aware, Fn fetcher), NOT
         // `fetch_query_with_signal` — the latter is FnOnce/single-shot and the
         // crate explicitly skips retries for it, so the RetryPolicy would never
@@ -317,6 +316,11 @@ impl QueryPlaygroundPage {
             "Infinite: load next page (current pages: {})",
             current_pages
         ));
+        // The crate's `has_next_page` is only a fetch gate and goes stale (it's
+        // only updated by forward fetches); force it true so `begin_fetch_next`
+        // proceeds. The UI derives the real "can next" state from the loaded
+        // page range in `render_infinite_query`.
+        entity.update(cx, |r, _| r.set_has_next_page(true));
         fetch_next_page_infinite(
             &entity,
             move |last_page: Option<&PlaygroundPage>| {
@@ -348,6 +352,8 @@ impl QueryPlaygroundPage {
         let entity = entity.clone();
         let exec = cx.background_executor().clone();
         self.log("Infinite: load previous page");
+        // Force the fetch gate open — see the matching note in `load_next_page`.
+        entity.update(cx, |r, _| r.set_has_previous_page(true));
         fetch_previous_page_infinite(
             &entity,
             move |first_page: Option<&PlaygroundPage>| {
