@@ -5,11 +5,10 @@ pub mod crash_report;
 pub mod desktop_actions;
 pub mod error_surface;
 pub mod first_run;
-pub mod http_lab;
 pub mod i18n;
 pub mod logging;
 pub mod notifications;
-// query module is now provided by the gpui_query_legacy crate
+// query module is provided by the gpui_query (v2) crate
 pub mod secure_storage;
 pub mod session;
 pub mod storage;

@@ -198,7 +198,6 @@ pub fn init(cx: &mut App) {
         crate::services::tokio_runtime::TokioRuntime::new(),
     ));
     crate::connectivity::initialize(cx);
-    crate::http_lab::initialize(cx);
     crate::desktop_actions::initialize(cx);
     crate::accessibility::initialize(cx);
     crate::secure_storage::initialize(cx);

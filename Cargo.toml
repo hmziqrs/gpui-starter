@@ -98,7 +98,6 @@ websocket = ["dep:tokio-tungstenite", "dep:tokio-stream"]
 
 [dependencies]
 gpui.workspace = true
-gpui-query-legacy = { version = "0.1.4", features = ["hook"] }
 gpui-query = { version = "0.1.4", features = ["hook"] }
 gpui_platform.workspace = true
 gpui-component.workspace = true
@@ -216,5 +215,4 @@ gpui_macros = { git = "https://github.com/zed-industries/zed", rev = "1d217ee39d
 # Toggle local gpui-query checkout: `just gpui-query-local` / `just gpui-query-cratesio`
 # >>> gpui-query-local >>>
 gpui-query = { path = "/Users/hmziq/fo/gpui-query/crates/gpui-query" }
-gpui-query-legacy = { path = "/Users/hmziq/fo/gpui-query/crates/gpui-query-legacy" }
 # <<< gpui-query-local <<<

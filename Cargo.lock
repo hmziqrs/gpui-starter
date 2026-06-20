@@ -3332,14 +3332,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gpui-query-legacy"
-version = "0.1.4"
-dependencies = [
- "gpui",
- "serde",
-]
-
-[[package]]
 name = "gpui-starter"
 version = "0.2.0"
 dependencies = [
@@ -3364,7 +3356,6 @@ dependencies = [
  "gpui-component-assets",
  "gpui-form",
  "gpui-query",
- "gpui-query-legacy",
  "gpui_platform",
  "insta",
  "interprocess",

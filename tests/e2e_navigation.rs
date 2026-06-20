@@ -11,11 +11,11 @@ use gpui_starter::sidebar::Page;
 #[test]
 fn test_sidebar_pages_exist() {
     let all = Page::all();
-    // The app must expose exactly eleven pages.
+    // The app must expose exactly nine pages.
     assert_eq!(
         all.len(),
-        11,
-        "expected 11 sidebar pages, got {}",
+        9,
+        "expected 9 sidebar pages, got {}",
         all.len()
     );
 
@@ -24,12 +24,9 @@ fn test_sidebar_pages_exist() {
     let expected = [
         Page::Home,
         Page::Form,
-        Page::HttpLab,
-        Page::HttpLabTesting,
         Page::Settings,
         Page::Notifications,
         Page::Diagnostics,
-        Page::QueryDevTools,
         Page::QueryPlayground,
         Page::QueryDevToolsV2,
         Page::About,
@@ -61,11 +58,6 @@ fn test_route_parsing() {
     let cases = &[
         ("gpui-starter://home", AppRoute::Page(Page::Home)),
         ("gpui-starter://form", AppRoute::Page(Page::Form)),
-        ("gpui-starter://http", AppRoute::Page(Page::HttpLab)),
-        (
-            "gpui-starter://httplab-testing",
-            AppRoute::Page(Page::HttpLabTesting),
-        ),
         ("gpui-starter://settings", AppRoute::Page(Page::Settings)),
         (
             "gpui-starter://notifications",

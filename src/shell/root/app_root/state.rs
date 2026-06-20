@@ -3,9 +3,8 @@ use gpui::{prelude::*, *};
 use crate::sidebar::Page;
 use crate::title_bar::AppTitleBar;
 use crate::views::{
-    AboutPage, DiagnosticsPage, ErrorPlaygroundPage, FormPage, HomePage, HttpLabPage,
-    HttpLabTestingPage, NotificationsPage, QueryDevToolsPage, QueryDevToolsV2Page,
-    QueryPlaygroundPage, RenderErrorPage, SettingsPage,
+    AboutPage, DiagnosticsPage, ErrorPlaygroundPage, FormPage, HomePage, NotificationsPage,
+    QueryDevToolsV2Page, QueryPlaygroundPage, RenderErrorPage, SettingsPage,
 };
 use crate::{
     events::{self, AppEventKind},
@@ -21,13 +20,10 @@ pub struct AppRoot {
     pub(crate) collapsed: bool,
     pub(crate) home_page: Entity<HomePage>,
     pub(crate) form_page: Entity<FormPage>,
-    pub(crate) http_lab_page: Entity<HttpLabPage>,
-    pub(crate) http_lab_testing_page: Entity<HttpLabTestingPage>,
     pub(crate) settings_page: Entity<SettingsPage>,
     pub(crate) notifications_page: Entity<NotificationsPage>,
     pub(crate) diagnostics_page: Entity<DiagnosticsPage>,
     pub(crate) error_playground_page: Entity<ErrorPlaygroundPage>,
-    pub(crate) query_devtools_page: Entity<QueryDevToolsPage>,
     pub(crate) query_playground_page: Entity<QueryPlaygroundPage>,
     pub(crate) query_devtools_v2_page: Entity<QueryDevToolsV2Page>,
     pub(crate) about_page: Entity<AboutPage>,
@@ -58,26 +54,15 @@ impl AppRoot {
         let title_bar = cx.new(|cx| AppTitleBar::new(title, window, cx));
         let home_page = cx.new(|_| HomePage::new());
         let form_page = cx.new(|cx| FormPage::new(window, cx));
-        let http_lab_page = cx.new(|cx| HttpLabPage::new(window, cx));
-        let http_lab_testing_page = cx.new(|_| HttpLabTestingPage::new());
         let settings_page = cx.new(|cx| SettingsPage::new(window, cx));
         let notifications_page = cx.new(|cx| NotificationsPage::new(window, cx));
         let diagnostics_page = cx.new(|cx| DiagnosticsPage::new(window, cx));
         let error_playground_page = cx.new(|_| ErrorPlaygroundPage::new());
-        let query_devtools_page = cx.new(|cx| QueryDevToolsPage::new(window, cx));
         let query_playground_page = cx.new(|cx| QueryPlaygroundPage::new(window, cx));
         let query_devtools_v2_page = cx.new(|cx| QueryDevToolsV2Page::new(window, cx));
         let about_page = cx.new(|_| AboutPage::new());
 
-        // Eagerly register QueryClient global so DevTools page can observe it.
-        if !cx.has_global::<gpui_query_legacy::client::QueryClient>() {
-            cx.set_global(gpui_query_legacy::client::QueryClient::new(
-                gpui_query_legacy::CachePolicy::default(),
-                gpui_query_legacy::RequestPolicy::default(),
-            ));
-        }
-
-        // Register v2 QueryClient global.
+        // Register the v2 QueryClient global so DevTools/Playground pages can observe it.
         if !cx.has_global::<gpui_query::client::QueryClient>() {
             cx.set_global(gpui_query::client::QueryClient::new());
         }
@@ -193,13 +178,10 @@ impl AppRoot {
             collapsed: config.sidebar_collapsed,
             home_page,
             form_page,
-            http_lab_page,
-            http_lab_testing_page,
             settings_page,
             notifications_page,
             diagnostics_page,
             error_playground_page,
-            query_devtools_page,
             query_playground_page,
             query_devtools_v2_page,
             about_page,
@@ -258,13 +240,10 @@ impl AppRoot {
         match self.active_route.page_for_render() {
             Page::Home => self.home_page.clone().into(),
             Page::Form => self.form_page.clone().into(),
-            Page::HttpLab => self.http_lab_page.clone().into(),
-            Page::HttpLabTesting => self.http_lab_testing_page.clone().into(),
             Page::Settings => self.settings_page.clone().into(),
             Page::Notifications => self.notifications_page.clone().into(),
             Page::Diagnostics => self.diagnostics_page.clone().into(),
             Page::ErrorPlayground => self.error_playground_page.clone().into(),
-            Page::QueryDevTools => self.query_devtools_page.clone().into(),
             Page::QueryPlayground => self.query_playground_page.clone().into(),
             Page::QueryDevToolsV2 => self.query_devtools_v2_page.clone().into(),
             Page::About => self.about_page.clone().into(),
