@@ -26,6 +26,20 @@ bash scripts/macos-dev-app.sh
 open "$(bash scripts/macos-dev-app.sh)"
 ```
 
+### Linux Development
+
+On Debian/Ubuntu, install the build dependencies before building:
+
+```sh
+sudo apt update
+# Test on Ubuntu 24.04
+sudo apt install -y \
+  gcc g++ clang libfontconfig-dev libwayland-dev \
+  libwebkit2gtk-4.1-dev libxkbcommon-x11-dev libx11-xcb-dev \
+  libssl-dev libzstd-dev \
+  vulkan-validationlayers libvulkan1
+```
+
 ## Features
 
 ### Core
