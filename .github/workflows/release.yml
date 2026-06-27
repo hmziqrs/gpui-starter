@@ -269,7 +269,11 @@ jobs:
         run: |
           cd stage
           TARBALL="gpui-starter-${{ steps.version.outputs.value }}-${{ matrix.arch }}-linux.tar.gz"
-          tar -czf "$TARBALL" gpui-starter lib LICENSE README.md PKGBUILD
+          # `gpui-starter` is the self-contained dir (binary + lib/ + LICENSE +
+          # README) built by the Relink step; `lib`/`LICENSE`/`README.md` live
+          # INSIDE it, not as peers in stage/, so they must not be listed here
+          # (GNU tar exits 2 "Cannot stat" on the missing names -> step fails).
+          tar -czf "$TARBALL" gpui-starter PKGBUILD
           echo "path=$TARBALL" >> "$GITHUB_OUTPUT"
           echo "name=$TARBALL" >> "$GITHUB_OUTPUT"
 
