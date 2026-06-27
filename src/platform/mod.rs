@@ -4,6 +4,7 @@ pub mod dialogs;
 pub mod filesystem;
 pub mod input;
 pub mod ipc;
+#[cfg(target_os = "macos")]
 pub mod liquid_glass;
 pub mod native_notifications;
 pub mod network;
