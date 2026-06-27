@@ -1,4 +1,6 @@
 mod about;
+#[cfg(feature = "ai-chat")]
+pub mod ai_chat;
 mod diagnostics;
 mod error_playground;
 mod form_page;

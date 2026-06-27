@@ -43,20 +43,10 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@nightly
 
-      - uses: actions/cache@v4
+      - uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-release-deps-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-release-deps-
-      - uses: actions/cache@v4
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-release-target-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-release-target-
+          prefix-key: "v2-macos-release"
+          shared-key: "release"
 
       - name: Determine version
         id: version
@@ -66,15 +56,11 @@ jobs:
           else
             RAW="${GITHUB_REF_NAME}"
           fi
-          # Strip ONE leading 'v' so a dispatch typo ("v0.2.0") and the tag form
-          # ("v0.2.0") both normalize to "0.2.0" — otherwise we would push a
-          # "vv0.2.0" tag and a manifest whose version fails semver parsing
-          # client-side. Then validate it really is X.Y.Z.
-          VALUE="${RAW#v}"
-          if ! printf '%s' "$VALUE" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "Error: invalid version '$VALUE' (expected X.Y.Z)" >&2
-            exit 1
-          fi
+          # Shared normalizer: strips one leading 'v', validates X.Y.Z. Used by
+          # every job so a dispatch typo ("v0.2.0") and the tag form both
+          # collapse to "0.2.0" — otherwise we push a "vv0.2.0" tag and a
+          # manifest whose version fails semver parsing client-side.
+          VALUE="$(./scripts/normalize-version.sh "$RAW")"
           echo "value=$VALUE" >> "$GITHUB_OUTPUT"
 
       - name: Build release binary
@@ -187,11 +173,119 @@ jobs:
           if-no-files-found: error
 
   # -----------------------------------------------------------------------
+  # Build the Linux release tarball (x86_64 on GHA, aarch64 on a native ARM
+  # runner). patchelf adds an $ORIGIN/lib rpath and the build bundles the
+  # needed .so files next to the binary — WITHOUT rpath+bundling a linux
+  # tarball fails to start on any machine lacking the exact system libs.
+  # -----------------------------------------------------------------------
+  build-linux:
+    name: Build Linux (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+    runs-on: ${{ matrix.runner }}
+    env:
+      # Same discipline as build-macos / ci.yml.
+      CARGO_BUILD_JOBS: "2"
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "256"
+      RUST_MIN_STACK: "536870912"
+      RUST_BACKTRACE: "1"
+      GPUI_UPDATE_MANIFEST_URL: "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/manifest.json"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        run: ./scripts/install-linux-deps.sh
+
+      - uses: dtolnay/rust-toolchain@nightly
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "v2-linux-release"
+          shared-key: "release-${{ matrix.arch }}"
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            RAW="${{ inputs.version }}"
+          else
+            RAW="${GITHUB_REF_NAME}"
+          fi
+          VALUE="$(./scripts/normalize-version.sh "$RAW")"
+          echo "value=$VALUE" >> "$GITHUB_OUTPUT"
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Relink rpath and bundle shared libraries
+        run: |
+          set -euo pipefail
+          STAGE="stage/gpui-starter"
+          mkdir -p "$STAGE/lib"
+          cp "target/release/gpui-starter" "$STAGE/gpui-starter"
+
+          # Add an $ORIGIN/lib runpath so the binary finds the bundled libs
+          # without requiring them system-wide on the user's machine. patchelf
+          # is required: a linux tarball without an rpath is broken.
+          patchelf --set-rpath '$ORIGIN/lib' "$STAGE/gpui-starter" \
+            || { echo "Error: patchelf not available or failed (rpath step is mandatory)" >&2; exit 1; }
+
+          # Bundle the non-system shared libs the binary actually needs.
+          # libGL/libvulkan/wayland/xcb live here so the binary is portable;
+          # glibc / ld-linux are left to the system (bundling those breaks).
+          for lib in $(ldd "$STAGE/gpui-starter" | awk '/=> \// {print $3}'); do
+            base="$(basename "$lib")"
+            case "$base" in
+              libc.so*|libm.so*|libdl.so*|librt.so*|libpthread.so*|ld-linux*|libgcc_s.so*|libutil.so*|libresolv.so*)
+                # System-provided; never bundle (breaks across glibc versions).
+                continue
+                ;;
+            esac
+            [ -f "$STAGE/lib/$base" ] || cp -L "$lib" "$STAGE/lib/"
+          done
+
+          # Ship LICENSE + README for the tarball + PKGBUILD packaging step.
+          cp LICENSE "$STAGE/" 2>/dev/null || true
+          cp README.md "$STAGE/" 2>/dev/null || true
+
+      - name: Generate PKGBUILD
+        run: |
+          mkdir -p stage
+          TARBALL="gpui-starter-${{ steps.version.outputs.value }}-${{ matrix.arch }}-linux.tar.gz"
+          ./scripts/gen-pkgbuild.sh "${{ steps.version.outputs.value }}" "$TARBALL" > stage/PKGBUILD
+
+      - name: Create Linux tarball
+        id: tarball
+        run: |
+          cd stage
+          TARBALL="gpui-starter-${{ steps.version.outputs.value }}-${{ matrix.arch }}-linux.tar.gz"
+          tar -czf "$TARBALL" gpui-starter lib LICENSE README.md PKGBUILD
+          echo "path=$TARBALL" >> "$GITHUB_OUTPUT"
+          echo "name=$TARBALL" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpui-starter-${{ steps.version.outputs.value }}-${{ matrix.arch }}-linux
+          path: stage/${{ steps.tarball.outputs.path }}
+          if-no-files-found: error
+
+  # -----------------------------------------------------------------------
   # Create GitHub Release and publish the update manifest to gh-pages.
   # -----------------------------------------------------------------------
   publish-release:
     name: Publish Release
-    needs: build-macos
+    needs: [build-macos, build-linux]
     runs-on: ubuntu-latest
 
     steps:
@@ -205,19 +299,24 @@ jobs:
           else
             RAW="${GITHUB_REF_NAME}"
           fi
-          # Strip ONE leading 'v' (see the build-macos Determine version step
-          # for rationale) and validate X.Y.Z.
-          VALUE="${RAW#v}"
-          if ! printf '%s' "$VALUE" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "Error: invalid version '$VALUE' (expected X.Y.Z)" >&2
-            exit 1
-          fi
+          # Shared normalizer (see scripts/normalize-version.sh). Identical to
+          # the build-macos / build-linux steps so every job agrees on the
+          # version without duplicating the strip+validate logic.
+          VALUE="$(./scripts/normalize-version.sh "$RAW")"
           echo "value=$VALUE" >> "$GITHUB_OUTPUT"
 
       - name: Download DMG artifact
         uses: actions/download-artifact@v4
         with:
           name: GPUI-Starter-${{ steps.version.outputs.value }}.dmg
+          path: ./artifacts
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          # merge-multiple so both arches land flat in ./artifacts.
+          pattern: gpui-starter-${{ steps.version.outputs.value }}-*-linux
+          merge-multiple: true
           path: ./artifacts
 
       - name: Create GitHub Release
@@ -228,6 +327,8 @@ jobs:
           generate_release_notes: true
           files: |
             ./artifacts/GPUI-Starter-${{ steps.version.outputs.value }}.dmg
+            ./artifacts/gpui-starter-${{ steps.version.outputs.value }}-x86_64-linux.tar.gz
+            ./artifacts/gpui-starter-${{ steps.version.outputs.value }}-aarch64-linux.tar.gz
 
       - name: Generate and publish update manifest
         env:

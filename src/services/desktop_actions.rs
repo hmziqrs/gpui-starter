@@ -223,6 +223,90 @@ pub fn watch_config_dir(cx: &mut App) -> Result<u64, DesktopActionError> {
     watch_path(path, cx)
 }
 
+/// Watch the config directory for changes and coalesce bursts into a single
+/// config-refresh. Activates the previously inert `notify` scaffolding:
+/// instead of merely logging events, the watcher callback pushes into a flume
+/// channel; a gpui task `recv`s the first event, sleeps 500ms to let an
+/// editor's write burst settle, drains any remaining events, then triggers a
+/// window refresh so the UI picks up the new config.
+pub fn watch_config_dir_reactive(cx: &mut App) -> Result<u64, DesktopActionError> {
+    let state = cx
+        .try_global::<DesktopActionsState>()
+        .ok_or(DesktopActionError::Unavailable)?;
+    let path = crate::app_state::paths(cx).config_dir.clone();
+    let mut inner = state
+        .inner
+        .lock()
+        .map_err(|_| DesktopActionError::LockPoisoned)?;
+    let watcher_id = inner.next_watcher_id;
+    inner.next_watcher_id += 1;
+
+    let (tx, rx) = flume::bounded::<()>(64);
+    let mut watcher =
+        notify::recommended_watcher(move |result: notify::Result<notify::Event>| match result {
+            Ok(event) => {
+                tracing::debug!(
+                    target: "gpui_starter::desktop_actions",
+                    watcher_id,
+                    kind = ?event.kind,
+                    paths = ?event.paths,
+                    "config watch event"
+                );
+                // Best-effort enqueue; a full channel just means a refresh is
+                // already pending — the burst will be coalesced anyway.
+                let _ = tx.try_send(());
+            }
+            Err(err) => tracing::warn!(
+                target: "gpui_starter::desktop_actions",
+                watcher_id,
+                error = %err,
+                "config watch event error"
+            ),
+        })
+        .map_err(DesktopActionError::from)?;
+    watcher
+        .watch(&path, RecursiveMode::NonRecursive)
+        .map_err(DesktopActionError::from)?;
+    inner.watchers.insert(watcher_id, watcher);
+    let active_watchers = inner.watchers.len();
+    drop(inner);
+    cx.update_global::<DesktopActionsState, _>(|state, _cx| {
+        state.snapshot.active_watchers = active_watchers;
+        state.snapshot.last_error = None;
+    });
+
+    // Coalescing task: wait for the first event, settle, drain, refresh.
+    let bg = cx.background_executor().clone();
+    cx.spawn(async move |cx| {
+        loop {
+            // Block until the first event of a new burst arrives.
+            if rx.recv_async().await.is_err() {
+                // Sender half dropped (watcher unregistered): stop.
+                break;
+            }
+            // Let an editor's multi-write burst settle, then drain the rest.
+            bg.timer(std::time::Duration::from_millis(500)).await;
+            while rx.try_recv().is_ok() {}
+            tracing::info!(
+                target: "gpui_starter::desktop_actions",
+                "config change burst settled; refreshing windows"
+            );
+            cx.update(|cx| {
+                cx.refresh_windows();
+            });
+        }
+    })
+    .detach();
+
+    tracing::info!(
+        target: "gpui_starter::desktop_actions",
+        watcher_id,
+        path = %path.display(),
+        "reactive config watcher registered"
+    );
+    Ok(watcher_id)
+}
+
 pub fn unwatch_path(id: u64, cx: &mut App) -> bool {
     let Some(state) = cx.try_global::<DesktopActionsState>() else {
         return false;

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use gpui::Global;
+use gpui::{App, Global};
 
 /// Dedicated tokio runtime for I/O-bound work (HTTP, etc.).
 ///
@@ -57,3 +57,24 @@ impl Default for TokioRuntime {
 pub struct TokioRuntimeGlobal(pub TokioRuntime);
 
 impl Global for TokioRuntimeGlobal {}
+
+/// Borrow the shared tokio runtime handle, if a [`TokioRuntimeGlobal`] has been
+/// installed. Returns `None` when the runtime is absent (callers should
+/// degrade gracefully — e.g. log + return an early result).
+pub fn handle(cx: &App) -> Option<Arc<tokio::runtime::Runtime>> {
+    cx.try_global::<TokioRuntimeGlobal>()
+        .map(|g| g.0.runtime.clone())
+}
+
+/// Spawn `future` on the shared tokio runtime, returning the `JoinHandle`.
+///
+/// Returns `None` when no runtime is installed (graceful degrade). Prefer this
+/// over `TokioRuntimeGlobal::0.runtime.spawn(...)` at call sites that already
+/// hold an `&App` reference.
+pub fn spawn<F>(cx: &App, future: F) -> Option<tokio::task::JoinHandle<F::Output>>
+where
+    F: std::future::Future + Send + 'static,
+    F::Output: Send + 'static,
+{
+    handle(cx).map(|runtime| runtime.spawn(future))
+}

@@ -36,14 +36,10 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@nightly
 
-      - uses: actions/cache@v4
+      - uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-v3-deps-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-v3-deps-
+          prefix-key: "v2-macos"
+
       - name: Cargo check (dev)
         run: cargo check
 
@@ -83,14 +79,10 @@ jobs:
         with:
           components: clippy
 
-      - uses: actions/cache@v4
+      - uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-v3-deps-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-v3-deps-
+          prefix-key: "v2-macos"
+
       - name: Run clippy
         run: cargo clippy -- -D warnings
 
@@ -106,3 +98,52 @@ jobs:
 
       - name: Check formatting
         run: cargo fmt --check
+
+  # ---------------------------------------------------------------------
+  # Linux lane: compiles the cfg(target_os = "linux")-gated code paths
+  # (compositor, layer_shell, detached/session_env) that the macOS-primary
+  # lane never sees. Same no-`test` policy, same stack/codegen discipline.
+  # ---------------------------------------------------------------------
+  check-linux:
+    name: Check (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        run: ./scripts/install-linux-deps.sh
+
+      - uses: dtolnay/rust-toolchain@nightly
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          # Keep the Linux target cache fully separate from the macOS lane:
+          # the gpui git workspace dep is compiled with different cfg flags
+          # (x11/wayland) and a shared key would be poisoned across runners.
+          prefix-key: "v2-linux"
+
+      - name: Cargo check (dev)
+        run: cargo check
+
+      - name: Cargo check (release)
+        run: cargo check --release
+
+  clippy-linux:
+    name: Clippy (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        run: ./scripts/install-linux-deps.sh
+
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "v2-linux"
+
+      - name: Run clippy
+        run: cargo clippy -- -D warnings

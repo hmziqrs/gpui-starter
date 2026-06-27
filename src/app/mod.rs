@@ -1,7 +1,10 @@
 pub mod actions;
+pub mod assets;
 pub mod init;
 pub mod lifecycle;
 pub mod locale;
+#[cfg(unix)]
+pub mod reload;
 pub mod theme;
 pub mod window;
 
@@ -10,9 +13,12 @@ pub mod window;
 // ---------------------------------------------------------------------------
 
 pub use actions::{
-    About, ExecuteCommand, Languages, OpenDiagnostics, Quit, SelectFont, SelectLocale,
+    About, ExecuteCommand, Languages, OpenDiagnostics, Quit, Restart, SelectFont, SelectLocale,
     SelectRadius, SwitchTheme, SwitchThemeMode, ToggleSearch, TriggerTestPanic,
 };
+
+#[cfg(unix)]
+pub use reload::{exec_reload, is_reload_requested, request_reload};
 
 pub use locale::{LOCALE_EN, LOCALE_ZH_CN, LocaleState, current_locale, set_locale};
 

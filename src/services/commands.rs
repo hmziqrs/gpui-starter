@@ -26,6 +26,7 @@ pub enum CommandId {
     OpenConfigFolder,
     Undo,
     Redo,
+    Restart,
 }
 
 #[derive(Clone, Debug)]
@@ -83,6 +84,10 @@ pub fn availability(id: CommandId, cx: &App) -> CommandAvailability {
             disabled_reason: crate::undo_stack::can_redo(cx)
                 .is_none()
                 .then_some("No redo available".into()),
+        },
+        CommandId::Restart => CommandAvailability {
+            enabled: cfg!(unix),
+            disabled_reason: (!cfg!(unix)).then_some("Restart requires exec-reload (unix)".into()),
         },
     }
 }
@@ -185,6 +190,12 @@ pub fn registry() -> Vec<CommandSpec> {
             "Redo last reversed command",
             IconName::Info,
         ),
+        command(
+            CommandId::Restart,
+            "Restart",
+            "Restart the application",
+            IconName::Info,
+        ),
     ]
 }
 
@@ -251,6 +262,18 @@ pub fn execute(id: CommandId, cx: &mut App) {
         }
         CommandId::Redo => {
             let _ = crate::undo_stack::redo(cx);
+        }
+        CommandId::Restart => {
+            #[cfg(unix)]
+            cx.dispatch_action(&crate::app::Restart);
+            #[cfg(not(unix))]
+            {
+                let _ = cx;
+                tracing::warn!(
+                    target: "gpui_starter::commands",
+                    "restart command unavailable on this platform"
+                );
+            }
         }
     }
 }

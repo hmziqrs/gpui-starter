@@ -1,3 +1,24 @@
+//! Command palette (a.k.a. "launcher") — thin adapter over
+//! [`crate::features::palette`].
+//!
+//! Historically a ~466-line monolith, this file is now a thin re-export /
+//! adapter that preserves the existing public surface (`init`,
+//! [`LauncherOpen`], [`LauncherActionKind`], [`LauncherItem`],
+//! [`LauncherEvent`], [`Launcher`], [`LauncherRoot`], [`open_launcher`]) while
+//! delegating its item model and fuzzy scoring to the reusable
+//! [`crate::features::palette`] module.
+//!
+//! Behaviour is preserved: the `Launcher` view still renders its own search bar
+//! and result rows (so the visual layout is byte-for-byte identical), and
+//! [`LauncherRoot`] still installs `LiquidGlass` on macOS. The only functional
+//! upgrade is that filtering now uses `SkimMatcherV2` fuzzy scoring (a strict
+//! superset of the old `contains` filter) when the `fuzzy-matcher` crate is
+//! available; it gracefully falls back to substring matching otherwise.
+//!
+//! The new generic pieces live in [`crate::features::palette`]:
+//! [`palette::BaseDelegate`], [`palette::PaletteDelegate`],
+//! [`palette::ItemFilter`], [`palette::SectionManager`], [`palette::PaletteEntry`].
+
 use gpui::{prelude::*, *};
 use gpui_component::{
     ActiveTheme as _, FocusTrapElement as _, Icon, IconName, Root, Sizable as _, h_flex,
@@ -7,9 +28,9 @@ use gpui_component::{
 };
 
 use crate::commands::{self, CommandId};
+use crate::features::palette::{BaseDelegate, FuzzyMatchConfig, ItemFilter, KindStr, PaletteEntry};
 
 const LOG: &str = "gpui_starter::launcher";
-
 const CONTEXT: &str = "Launcher";
 
 actions!(launcher, [SelectNext, SelectPrev, Dismiss]);
@@ -27,7 +48,7 @@ pub struct LauncherOpen(pub bool);
 impl Global for LauncherOpen {}
 
 // ---------------------------------------------------------------------------
-// Item model
+// Item model  — now an adapter implementing the generic PaletteEntry contract.
 // ---------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Debug)]
@@ -35,6 +56,7 @@ pub enum LauncherActionKind {
     Execute(CommandId),
 }
 
+#[derive(Clone)]
 pub struct LauncherItem {
     pub title: SharedString,
     pub subtitle: SharedString,
@@ -42,8 +64,38 @@ pub struct LauncherItem {
     pub action: LauncherActionKind,
 }
 
+impl PaletteEntry for LauncherItem {
+    type Kind = KindStr;
+
+    fn kind(&self) -> Self::Kind {
+        // Every launcher command belongs to the same group.
+        KindStr("Commands")
+    }
+    fn name(&self) -> &str {
+        &self.title
+    }
+    fn description(&self) -> Option<&str> {
+        Some(&self.subtitle)
+    }
+    fn icon(&self) -> Option<IconName> {
+        Some(self.icon.clone())
+    }
+    fn action_hint(&self) -> Option<&str> {
+        Some("Enter")
+    }
+    fn debug_id(&self) -> Option<SharedString> {
+        match self.action {
+            LauncherActionKind::Execute(id) => Some(format!("{id:?}").into()),
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Launcher view  (pure search UI – emits LauncherEvent)
+//
+// Rendering is intentionally unchanged from the original monolith. Selection
+// state is now held by a `BaseDelegate<LauncherItem>`, and filtering uses the
+// generic `ItemFilter` (SkimMatcherV2) — a superset of the old substring match.
 // ---------------------------------------------------------------------------
 
 pub enum LauncherEvent {
@@ -54,9 +106,10 @@ pub enum LauncherEvent {
 pub struct Launcher {
     focus_handle: FocusHandle,
     pub input: Entity<InputState>,
-    selected_index: usize,
-    items: Vec<LauncherItem>,
-    filtered: Vec<usize>,
+    /// Generic selection / query state helper (from the palette module).
+    state: BaseDelegate<LauncherItem>,
+    /// Fuzzy scorer (from the palette module). Built once.
+    filter: ItemFilter,
 }
 
 impl EventEmitter<LauncherEvent> for Launcher {}
@@ -79,15 +132,14 @@ impl Launcher {
         })
         .detach();
 
-        let items = Self::make_items();
-        let count = items.len();
+        let state = BaseDelegate::new(Self::make_items());
+        let filter = ItemFilter::new(FuzzyMatchConfig::default());
 
         Self {
             focus_handle: cx.focus_handle(),
             input,
-            selected_index: 0,
-            items,
-            filtered: (0..count).collect(),
+            state,
+            filter,
         }
     }
 
@@ -105,36 +157,43 @@ impl Launcher {
 
     fn refilter(&mut self, cx: &mut Context<Self>) {
         let q = self.input.read(cx).value().to_lowercase();
-        self.filtered = if q.is_empty() {
-            (0..self.items.len()).collect()
-        } else {
-            self.items
-                .iter()
-                .enumerate()
-                .filter(|(_, item)| {
-                    item.title.to_lowercase().contains(&q)
-                        || item.subtitle.to_lowercase().contains(&q)
-                })
-                .map(|(i, _)| i)
-                .collect()
-        };
-        self.selected_index = 0;
+        // The generic ItemFilter scores name (preferred) then description
+        // (penalised). This is a strict superset of the old `contains` match.
+        let indices = self.filter.filter_indices(self.state.items(), &q);
+        self.state.apply_filtered_indices(indices);
         tracing::debug!(
             target: LOG,
             query = %q,
-            results = self.filtered.len(),
+            results = self.state.filtered_count(),
             "Launcher filtered"
         );
         cx.notify();
     }
 
+    fn filtered_index(&self, display_ix: usize) -> Option<usize> {
+        self.state.filtered_indices().get(display_ix).copied()
+    }
+
+    fn selected_display(&self) -> usize {
+        self.state.selected_index().unwrap_or(0)
+    }
+
+    fn set_selected_display(&mut self, display_ix: usize) {
+        self.state.set_selected_unchecked(display_ix);
+    }
+
+    fn item(&self, display_ix: usize) -> Option<&LauncherItem> {
+        self.filtered_index(display_ix)
+            .and_then(|i| self.state.items().get(i))
+    }
+
     fn act(&mut self, cx: &mut Context<Self>) {
-        if let Some(&ix) = self.filtered.get(self.selected_index) {
-            let action = self.items[ix].action;
+        if let Some(item) = self.item(self.selected_display()) {
+            let action = item.action; // LauncherActionKind: Copy
             tracing::info!(
                 target: LOG,
                 action = ?action,
-                item = %self.items[ix].title,
+                item = %item.title,
                 "Launcher action triggered"
             );
             cx.emit(LauncherEvent::Act(action));
@@ -148,9 +207,24 @@ impl Launcher {
 impl Render for Launcher {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme().clone();
-        let selected = self.selected_index;
-        let filtered = self.filtered.clone();
-        let has_results = !filtered.is_empty();
+        let selected = self.selected_display();
+        let filtered_count = self.state.filtered_count();
+        let has_results = filtered_count > 0;
+
+        // Snapshot the visible rows up front so the render closure holds only
+        // owned data and can never fail to resolve an item. Degrade gracefully
+        // by skipping any index that (defensively) does not map to an item.
+        let rows: Vec<(usize, IconName, SharedString, SharedString)> = (0..filtered_count)
+            .filter_map(|di| {
+                let item = self.item(di)?;
+                Some((
+                    di,
+                    item.icon.clone(),
+                    item.title.clone(),
+                    item.subtitle.clone(),
+                ))
+            })
+            .collect();
 
         v_flex()
             .size_full()
@@ -162,20 +236,12 @@ impl Render for Launcher {
             .track_focus(&self.focus_handle)
             .focus_trap("launcher", &self.focus_handle)
             .on_action(cx.listener(|this, _: &SelectNext, _, cx| {
-                if !this.filtered.is_empty() {
-                    this.selected_index = (this.selected_index + 1) % this.filtered.len();
-                    cx.notify();
-                }
+                this.state.select_down();
+                cx.notify();
             }))
             .on_action(cx.listener(|this, _: &SelectPrev, _, cx| {
-                if !this.filtered.is_empty() {
-                    this.selected_index = if this.selected_index == 0 {
-                        this.filtered.len() - 1
-                    } else {
-                        this.selected_index - 1
-                    };
-                    cx.notify();
-                }
+                this.state.select_up();
+                cx.notify();
             }))
             .on_action(cx.listener(|_, _: &Dismiss, _, cx| {
                 cx.emit(LauncherEvent::Dismiss);
@@ -208,12 +274,11 @@ impl Render for Launcher {
                     .flex_1()
                     .overflow_y_scrollbar()
                     .py_1()
-                    .children(filtered.iter().enumerate().map(|(display_ix, &item_ix)| {
-                        let item = &self.items[item_ix];
+                    .children(rows.iter().enumerate().map(|(display_ix, row)| {
                         let is_selected = display_ix == selected;
-                        let icon = item.icon.clone();
-                        let title = item.title.clone();
-                        let subtitle = item.subtitle.clone();
+                        let icon = row.1.clone();
+                        let title = row.2.clone();
+                        let subtitle = row.3.clone();
 
                         h_flex()
                             .id(display_ix)
@@ -227,13 +292,13 @@ impl Render for Launcher {
                             .when(is_selected, |el| el.bg(theme.list_active))
                             .when(!is_selected, |el| el.hover(|el| el.bg(theme.list_hover)))
                             .on_mouse_move(cx.listener(move |this, _, _, cx| {
-                                if this.selected_index != display_ix {
-                                    this.selected_index = display_ix;
+                                if this.selected_display() != display_ix {
+                                    this.set_selected_display(display_ix);
                                     cx.notify();
                                 }
                             }))
                             .on_click(cx.listener(move |this, _, _, cx| {
-                                this.selected_index = display_ix;
+                                this.set_selected_display(display_ix);
                                 this.act(cx);
                             }))
                             .child(

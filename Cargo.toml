@@ -100,12 +100,21 @@ name = "gpui-starter"
 version = "0.2.0"
 edition = "2024"
 publish = false
+description = "A full-featured desktop application boilerplate built with GPUI (Zed's UI toolkit)"
+repository = "https://github.com/hmziqrs/gpui-starter"
 
 [features]
 # Enable OTLP export over HTTP/Protobuf for the telemetry module.
 # See src/telemetry.rs for the full list of optional dependencies this pulls in.
 otlp = ["dep:opentelemetry-otlp", "dep:opentelemetry_sdk"]
 websocket = ["dep:tokio-tungstenite", "dep:tokio-stream"]
+# AI chat streaming page (default OFF). flume is unconditional
+# (services/streaming.rs needs it regardless), so this is an empty gate
+# that only controls the ai_chat feature-page module.
+ai-chat = []
+# Wayland clipboard change monitor (default OFF, Linux-only). Activates the
+# optional wayland deps + the monitor.rs module.
+clipboard-history = ["dep:wayland-client", "dep:wayland-protocols-wlr"]
 
 [dependencies]
 gpui.workspace = true
@@ -172,12 +181,17 @@ opentelemetry_sdk = { version = "0.24.1", optional = true, features = [
     "trace",
 ] }
 open = "5.3.2"
-arboard = "3.6.1"
+arboard = { version = "3.6.1", features = ["image-data"] }
 rfd = "0.15.4"
 notify = "8.2.0"
 undo = "0.52.0"
 accesskit = "0.21.1"
 sys-locale = "0.3"
+flume = "0.11"
+fuzzy-matcher = "0.3"
+rust-embed = "8"
+wayland-client = { version = "0.31", optional = true }
+wayland-protocols-wlr = { version = "0.3", optional = true, features = ["client"] }
 
 [dev-dependencies]
 insta.workspace = true
@@ -205,6 +219,9 @@ objc2-app-kit = { version = "0.3.2", default-features = false, features = [
     "NSWindow",
 ] }
 raw-window-handle = "0.6"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [build-dependencies]
 es-fluent-build.workspace = true
