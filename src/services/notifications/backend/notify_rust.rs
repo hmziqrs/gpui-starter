@@ -52,28 +52,50 @@ impl NotificationBackend for NotifyRustBackend {
         notification
             .appname(APP_DISPLAY_NAME)
             .summary(&request.title)
-            .body(&request.body)
-            // Tell the daemon which desktop-entry we are so it can resolve our
-            // .desktop file + icon (.appname is freeform and never looked up).
-            .hint(notify_rust::Hint::DesktopEntry(
-                DESKTOP_ENTRY_ID.to_string(),
-            ));
+            .body(&request.body);
+
+        // Hint::DesktopEntry is Linux/D-Bus-only (notify-rust's macOS backend
+        // doesn't have it). It tells the daemon which desktop-entry we are so it
+        // can resolve our .desktop + icon (.appname alone is freeform, never
+        // looked up).
+        #[cfg(target_os = "linux")]
+        notification.hint(notify_rust::Hint::DesktopEntry(
+            DESKTOP_ENTRY_ID.to_string(),
+        ));
 
         if request.play_sound {
             notification.sound_name("default");
         }
 
-        // show_async() is a real async future driven by zbus's own executor — no
-        // blocking, safe to await here. The sync show() would block_on and park
-        // the executor thread that polls this async trait.
-        match notification.show_async().await {
-            Ok(_) => {
-                tracing::info!(target: LOG, "notify-rust send succeeded");
-                Ok(())
+        #[cfg(target_os = "linux")]
+        {
+            // show_async() is a real async future driven by zbus's own executor
+            // — no blocking, safe to await here. The sync show() would block_on
+            // (async-io) and park the executor that polls this async trait.
+            match notification.show_async().await {
+                Ok(_) => {
+                    tracing::info!(target: LOG, "notify-rust send succeeded");
+                    Ok(())
+                }
+                Err(err) => {
+                    tracing::warn!(target: LOG, error = %err, "notify-rust send failed");
+                    Err(err.into())
+                }
             }
-            Err(err) => {
-                tracing::warn!(target: LOG, error = %err, "notify-rust send failed");
-                Err(err.into())
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            // macOS/Windows: only the sync show() exists (native backend — no
+            // zbus block_on, so it doesn't park the executor like on Linux).
+            match notification.show() {
+                Ok(_) => {
+                    tracing::info!(target: LOG, "notify-rust send succeeded");
+                    Ok(())
+                }
+                Err(err) => {
+                    tracing::warn!(target: LOG, error = %err, "notify-rust send failed");
+                    Err(err.into())
+                }
             }
         }
     }
