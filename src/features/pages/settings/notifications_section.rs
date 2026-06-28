@@ -37,11 +37,16 @@ pub(super) fn render_notifications_section(
                 | NotificationPermissionState::Unknown
                 | NotificationPermissionState::Unavailable(_)
         );
-    let can_open_settings = cfg!(target_os = "macos")
-        && matches!(
-            notifications_snapshot.permission,
-            NotificationPermissionState::Denied | NotificationPermissionState::Unavailable(_)
-        );
+    // Linux has no per-app permission model (always "Unsupported"), so the
+    // button is the user's route to GNOME Settings -> Notifications to check
+    // Do-Not-Disturb / per-app banners. On macOS it only makes sense once the
+    // permission is actually denied/unavailable.
+    let can_open_settings = cfg!(target_os = "linux")
+        || (cfg!(target_os = "macos")
+            && matches!(
+                notifications_snapshot.permission,
+                NotificationPermissionState::Denied | NotificationPermissionState::Unavailable(_)
+            ));
 
     let notifications_snapshot = notifications_snapshot.clone();
 
@@ -107,7 +112,7 @@ pub(super) fn render_notifications_section(
                         ))
                         .on_click(|_, window, cx| {
                             notifications::send_from_window(
-                                NotificationRequest::foreground(
+                                NotificationRequest::test_notification(
                                     crate::i18n::localize(
                                         "settings_test_native_notification",
                                         None,

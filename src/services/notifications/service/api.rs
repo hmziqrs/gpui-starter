@@ -229,6 +229,8 @@ pub fn send_from_window(request: NotificationRequest, window: &mut Window, cx: &
     let fallback_message = request.body.clone();
     let inbox_title = request.title.to_string();
     let inbox_body = request.body.to_string();
+    // Capture before `request` is moved into service.send().
+    let force_in_app_feedback = request.force_in_app_feedback;
     tracing::debug!(
         target: LOG,
         permission = ?state.snapshot.permission,
@@ -246,8 +248,13 @@ pub fn send_from_window(request: NotificationRequest, window: &mut Window, cx: &
             error_summary = ?result.error_summary,
             "notification send completed"
         );
-        let should_show_in_app = !result.delivered_natively
-            && result.importance == NotificationImportance::ForegroundOnly;
+        // A successful native send is NOT proof a banner was shown — DND /
+        // per-app mute / busy / fullscreen all suppress while the daemon still
+        // returns Ok — so explicit test affordances force in-app feedback
+        // regardless of `delivered_natively`.
+        let should_show_in_app = force_in_app_feedback
+            || (!result.delivered_natively
+                && result.importance == NotificationImportance::ForegroundOnly);
         cx.update(move |cx| {
             apply_send_result(&result, cx);
             inbox::record_attempt(
@@ -263,15 +270,26 @@ pub fn send_from_window(request: NotificationRequest, window: &mut Window, cx: &
                 cx,
             );
             if should_show_in_app {
-                // If native delivery failed for a known reason, surface THAT
-                // reason (e.g. "no daemon owns org.freedesktop.Notifications")
-                // instead of silently re-showing the body — turns "nothing
-                // happens" into an actionable message.
-                let feedback: SharedString = result
-                    .error_summary
-                    .as_ref()
-                    .map(|err| format!("Native notification unavailable: {err}").into())
-                    .unwrap_or(fallback_message);
+                let feedback: SharedString = if force_in_app_feedback && result.delivered_natively {
+                    // The daemon accepted the call but display is not
+                    // guaranteed — point the user at the two common
+                    // silent-suppression causes instead of feigning success.
+                    format!(
+                        "Sent to the {} notification daemon. If no banner appeared, \
+                         check Do Not Disturb and the per-app setting for \"{}\".",
+                        result.backend_used, crate::notifications::DESKTOP_ENTRY_ID,
+                    )
+                    .into()
+                } else {
+                    // Native delivery failed for a known reason (e.g. "no
+                    // daemon owns org.freedesktop.Notifications") — surface
+                    // that instead of silently re-showing the body.
+                    result
+                        .error_summary
+                        .as_ref()
+                        .map(|err| format!("Native notification unavailable: {err}").into())
+                        .unwrap_or(fallback_message)
+                };
                 push_in_app_feedback(window_handle, feedback, cx);
             }
         });
@@ -295,7 +313,35 @@ pub fn open_system_settings(cx: &mut App) {
         }
     }
 
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "linux")]
+    {
+        // GNOME/Ubuntu: gnome-control-center is standard. Fall back to xdg-open
+        // on the settings URI for other desktops. Best-effort — a missing
+        // binary just logs a warning (the test-feedback message already gives
+        // the user the manual path).
+        tracing::info!(target: LOG, "opening Linux notification settings");
+        if std::process::Command::new("gnome-control-center")
+            .arg("notifications")
+            .spawn()
+            .is_ok()
+        {
+            return;
+        }
+        tracing::debug!(target: LOG, "gnome-control-center unavailable; trying xdg-open");
+        if let Err(err) = std::process::Command::new("xdg-open")
+            .arg("settings://notifications")
+            .spawn()
+        {
+            tracing::warn!(target: LOG, error = %err, "failed to open Linux notification settings");
+            mutate_snapshot(cx, |snapshot| {
+                snapshot.last_backend_error = Some(
+                    "could not open notification settings; open them manually".into(),
+                );
+            });
+        }
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     {
         tracing::warn!(target: LOG, "system notification settings unsupported on this platform");
         mutate_snapshot(cx, |snapshot| {

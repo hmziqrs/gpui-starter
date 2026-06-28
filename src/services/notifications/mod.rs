@@ -9,4 +9,4 @@ pub use service::{
     send_from_window, set_native_notifications_enabled, snapshot,
 };
 
-pub(crate) use service::{NotificationBackendKind, NotificationCapabilities};
+pub(crate) use service::{NotificationBackendKind, NotificationCapabilities, NotificationImportance};

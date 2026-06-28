@@ -9,7 +9,8 @@ pub use api::{
 pub use backend_service::{NativeNotificationState, NotificationRuntimeSnapshot};
 pub use types::{
     APP_DISPLAY_NAME, CATEGORY_ACTIONS, CATEGORY_REPLY, DESKTOP_ENTRY_ID, NotificationBackendKind,
-    NotificationCapabilities, NotificationPermissionState, NotificationRequest, WM_CLASS,
+    NotificationCapabilities, NotificationImportance, NotificationPermissionState,
+    NotificationRequest, WM_CLASS,
 };
 
 // Re-export items from parent modules that our sub-modules need internally.

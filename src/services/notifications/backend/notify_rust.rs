@@ -63,6 +63,22 @@ impl NotificationBackend for NotifyRustBackend {
             DESKTOP_ENTRY_ID.to_string(),
         ));
 
+        // Urgency: GNOME defaults an omitted urgency to Normal, which
+        // Do-Not-Disturb / per-app banner mute / busy / fullscreen suppress. Only
+        // Critical pierces all those gates (GNOME Shell js/ui/messageTray.js), so
+        // background-worthy events (including the test affordance) map to Critical;
+        // routine foreground events stay Normal. Linux/D-Bus only — notify-rust's
+        // macOS backend has no urgency concept.
+        #[cfg(target_os = "linux")]
+        notification.urgency(match request.importance {
+            crate::notifications::NotificationImportance::BackgroundWorthy => {
+                notify_rust::Urgency::Critical
+            }
+            crate::notifications::NotificationImportance::ForegroundOnly => {
+                notify_rust::Urgency::Normal
+            }
+        });
+
         if request.play_sound {
             notification.sound_name("default");
         }
