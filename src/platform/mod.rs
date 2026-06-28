@@ -4,6 +4,7 @@ pub mod compositor;
 pub mod credentials;
 pub mod desktop_shell;
 pub mod dialogs;
+pub mod environment;
 pub mod filesystem;
 pub mod input;
 pub mod ipc;

@@ -31,6 +31,11 @@ jobs:
       CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "256"
       RUST_MIN_STACK: "536870912"
       RUST_BACKTRACE: "1"
+      # sccache caches compiled artifacts across runs via the zero-config GitHub
+      # Actions cache backend (no external S3/Azure). Complements rust-cache
+      # (registry + target/) for the cold release codegen that recurs per release.
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: "true"
       # Bake the auto-update manifest URL into the binary at compile time
       # (option_env! in src/services/updater/types.rs). MUST match where the
       # publish-release job posts manifest.json (the gh-pages branch → GitHub
@@ -42,6 +47,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: dtolnay/rust-toolchain@nightly
+
+      - uses: mozilla-actions/sccache-action@v0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -198,6 +205,8 @@ jobs:
       CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "256"
       RUST_MIN_STACK: "536870912"
       RUST_BACKTRACE: "1"
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: "true"
       GPUI_UPDATE_MANIFEST_URL: "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/manifest.json"
 
     steps:
@@ -207,6 +216,8 @@ jobs:
         run: ./scripts/install-linux-deps.sh
 
       - uses: dtolnay/rust-toolchain@nightly
+
+      - uses: mozilla-actions/sccache-action@v0
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -257,6 +268,15 @@ jobs:
           # Ship LICENSE + README for the tarball + PKGBUILD packaging step.
           cp LICENSE "$STAGE/" 2>/dev/null || true
           cp README.md "$STAGE/" 2>/dev/null || true
+
+          # Desktop entry + icon + install helper so the desktop environment can
+          # launch the app, show its icon, and group notifications correctly. The
+          # .desktop ships INERT inside the tarball — install-linux.sh installs
+          # them to the user's XDG dirs (run it once after extracting).
+          cp resources/com.gpui-starter.app.desktop "$STAGE/" 2>/dev/null || true
+          cp resources/gpui-starter.png "$STAGE/" 2>/dev/null || true
+          cp scripts/install-linux.sh "$STAGE/" 2>/dev/null || true
+          chmod +x "$STAGE/install-linux.sh" 2>/dev/null || true
 
       - name: Generate PKGBUILD
         run: |

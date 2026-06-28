@@ -73,16 +73,26 @@ package() {
     install -Dm644 "LICENSE" "\${pkgdir}/usr/share/licenses/\${pkgname}/LICENSE"
     install -Dm644 "README.md" "\${pkgdir}/usr/share/doc/\${pkgname}/README.md"
 
-    install -Dm644 /dev/stdin "\${pkgdir}/usr/share/applications/gpui-starter.desktop" <<DESKTOP
+    # Desktop entry: filename MUST be the desktop-entry id (com.gpui-starter.app)
+    # so the app's notify-rust Hint::DesktopEntry resolves it, and StartupWMClass
+    # must equal the binary's WM_CLASS (the gpui app_id == "gpui-starter").
+    install -Dm644 /dev/stdin "\${pkgdir}/usr/share/applications/com.gpui-starter.app.desktop" <<DESKTOP
 [Desktop Entry]
 Type=Application
 Name=GPUI Starter
 Comment=\${pkgdesc}
 Exec=gpui-starter %U
 Icon=gpui-starter
+StartupWMClass=gpui-starter
 Categories=Development;
 Terminal=false
 MimeType=x-scheme-handler/gpui-starter;
 DESKTOP
+
+    # Icon (hicolor) so Icon=gpui-starter resolves. pacman hooks refresh the
+    # icon/desktop caches automatically on install to these standard dirs.
+    if [ -f "gpui-starter.png" ]; then
+        install -Dm644 "gpui-starter.png" "\${pkgdir}/usr/share/icons/hicolor/512x512/apps/gpui-starter.png"
+    fi
 }
 PKGBUILD

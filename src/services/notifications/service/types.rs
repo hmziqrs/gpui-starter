@@ -5,10 +5,22 @@ use gpui::SharedString;
 pub const CATEGORY_ACTIONS: &str = "gpui-starter.actions";
 pub const CATEGORY_REPLY: &str = "gpui-starter.reply";
 
+// --- App identity (Linux desktop integration) --------------------------------
+// Three DISTINCT ids — do not conflate (see the Linux notifications audit):
+/// Display name shown verbatim by the daemon (notify-rust `.appname`).
+pub const APP_DISPLAY_NAME: &str = "GPUI Starter";
+/// Reverse-DNS desktop-entry id: the `.desktop` filename, notify-rust
+/// `Hint::DesktopEntry`, and the Wayland app_id. (Also the macOS bundle id.)
+pub const DESKTOP_ENTRY_ID: &str = "com.gpui-starter.app";
+/// X11 WM_CLASS value (binary basename) — must equal `.desktop` StartupWMClass.
+pub const WM_CLASS: &str = "gpui-starter";
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NotificationBackendKind {
     UserNotify,
     NotifyRust,
+    #[cfg(feature = "notifications-portal")]
+    Portal,
     UiOnly,
 }
 
@@ -17,6 +29,8 @@ impl fmt::Display for NotificationBackendKind {
         match self {
             Self::UserNotify => f.write_str("user-notify"),
             Self::NotifyRust => f.write_str("notify-rust"),
+            #[cfg(feature = "notifications-portal")]
+            Self::Portal => f.write_str("xdg-portal"),
             Self::UiOnly => f.write_str("in-app only"),
         }
     }

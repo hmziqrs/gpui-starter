@@ -3260,11 +3260,12 @@ dependencies = [
 
 [[package]]
 name = "gpui-starter"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "accesskit",
  "anyhow",
  "arboard",
+ "ashpd 0.13.11",
  "async-trait",
  "atomic-write-file",
  "base64",

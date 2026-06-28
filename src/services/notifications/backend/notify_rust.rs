@@ -2,8 +2,8 @@ use async_trait::async_trait;
 
 use super::NotificationBackend;
 use crate::notifications::{
-    NotificationBackendKind, NotificationCapabilities, NotificationPermissionState,
-    NotificationRequest,
+    APP_DISPLAY_NAME, DESKTOP_ENTRY_ID, NotificationBackendKind, NotificationCapabilities,
+    NotificationPermissionState, NotificationRequest,
 };
 
 const LOG: &str = "gpui_starter::notifications::notify_rust";
@@ -50,15 +50,23 @@ impl NotificationBackend for NotifyRustBackend {
 
         let mut notification = notify_rust::Notification::new();
         notification
-            .appname("GPUI Starter")
+            .appname(APP_DISPLAY_NAME)
             .summary(&request.title)
-            .body(&request.body);
+            .body(&request.body)
+            // Tell the daemon which desktop-entry we are so it can resolve our
+            // .desktop file + icon (.appname is freeform and never looked up).
+            .hint(notify_rust::Hint::DesktopEntry(
+                DESKTOP_ENTRY_ID.to_string(),
+            ));
 
         if request.play_sound {
             notification.sound_name("default");
         }
 
-        match notification.show() {
+        // show_async() is a real async future driven by zbus's own executor — no
+        // blocking, safe to await here. The sync show() would block_on and park
+        // the executor thread that polls this async trait.
+        match notification.show_async().await {
             Ok(_) => {
                 tracing::info!(target: LOG, "notify-rust send succeeded");
                 Ok(())

@@ -40,6 +40,7 @@ fn main() {
     // spawn-then-exit instead of exec(). See reload.rs.
     #[cfg(unix)]
     {
+        #[allow(clippy::collapsible_if)]
         if app::is_reload_requested() {
             if let Err(err) = app::exec_reload() {
                 eprintln!("reload failed: {err}");

@@ -49,6 +49,7 @@ pub fn initialize(cx: &mut App) {
         cx,
     );
     refresh_permission_state(cx);
+    refresh_daemon_state(cx);
 }
 
 pub fn snapshot(cx: &App) -> NotificationRuntimeSnapshot {
@@ -107,6 +108,68 @@ pub fn refresh_permission_state(cx: &mut App) {
         cx.update(move |cx| {
             mutate_snapshot(cx, |snapshot| {
                 snapshot.permission = permission;
+            });
+        });
+    })
+    .detach();
+}
+
+/// Probe the FreeDesktop notification daemon once at startup and annotate the
+/// snapshot so Settings can show "no daemon" immediately — instead of only
+/// revealing it after the first failed send.
+///
+/// `notify_rust::get_server_information` / `get_capabilities` are synchronous
+/// wrappers over `zbus::block_on` (async-io) that PARK the calling thread, so
+/// they run on the tokio runtime's blocking pool — never on the gpui main/UI
+/// thread. The send path is unaffected: NotifyRust stays the active backend and
+/// still returns a real D-Bus `Err` on no-daemon (firing the in-app fallback).
+pub fn refresh_daemon_state(cx: &mut App) {
+    let Some(runtime) = crate::services::tokio_runtime::handle(cx) else {
+        tracing::debug!(target: LOG, "no tokio runtime available; skipping daemon probe");
+        return;
+    };
+    tracing::debug!(target: LOG, "scheduling async notification-daemon probe");
+    cx.spawn(async move |cx| {
+        let probe = runtime
+            .spawn_blocking(|| {
+                // Both calls hit org.freedesktop.Notifications over D-Bus.
+                let info = notify_rust::get_server_information();
+                let caps = notify_rust::get_capabilities();
+                (info, caps)
+            })
+            .await;
+        let (info, caps) = match probe {
+            Ok((info, caps)) => (info.ok(), caps.ok()),
+            Err(err) => {
+                tracing::warn!(target: LOG, error = %err, "daemon probe task failed");
+                (None, None)
+            }
+        };
+        let daemon_present = info.is_some();
+        let caps_display = caps.as_ref().map(|c| c.join(", ")).map(SharedString::from);
+        tracing::info!(
+            target: LOG,
+            daemon_present,
+            server = ?info.as_ref().map(|i| i.name.clone()),
+            capabilities = ?caps,
+            "notification-daemon probe completed"
+        );
+        cx.update(move |cx| {
+            mutate_snapshot(cx, |snapshot| {
+                snapshot.daemon_capabilities = caps_display;
+                if daemon_present {
+                    snapshot.degraded_reason = None;
+                    snapshot.last_backend_error = None;
+                } else {
+                    snapshot.degraded_reason = Some(
+                        "No notification daemon owns org.freedesktop.Notifications — \
+                         install notify-osd / dunst / mako"
+                            .into(),
+                    );
+                    snapshot.last_backend_error = Some(
+                        "org.freedesktop.Notifications is not reachable on the session bus".into(),
+                    );
+                }
             });
         });
     })
@@ -186,7 +249,16 @@ pub fn send_from_window(request: NotificationRequest, window: &mut Window, cx: &
                 cx,
             );
             if should_show_in_app {
-                push_in_app_feedback(window_handle, fallback_message, cx);
+                // If native delivery failed for a known reason, surface THAT
+                // reason (e.g. "no daemon owns org.freedesktop.Notifications")
+                // instead of silently re-showing the body — turns "nothing
+                // happens" into an actionable message.
+                let feedback: SharedString = result
+                    .error_summary
+                    .as_ref()
+                    .map(|err| format!("Native notification unavailable: {err}").into())
+                    .unwrap_or(fallback_message);
+                push_in_app_feedback(window_handle, feedback, cx);
             }
         });
     })

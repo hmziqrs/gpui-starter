@@ -65,8 +65,9 @@ jobs:
   # type-checks AND macro-expands the WHOLE codebase (forms included) in ~8
   # min. The full `cargo test` suite works locally (RUST_MIN_STACK +
   # recursion_limit=8192 in src/lib.rs make the proc-macro expansion succeed
-  # instead of SIGBUS-ing) — it is just not viable in CI. Re-enable a CI test
-  # job only behind sccache or a self-hosted runner with a persistent target/.
+  # instead of SIGBUS-ing). In CI we run only the SCOPED `test` job below
+  # (`cargo test -p gpui-starter --lib`, behind sccache); the workspace-wide
+  # test build stays out of CI for the reasons above.
   # ---------------------------------------------------------------------
 
   clippy:
@@ -147,3 +148,37 @@ jobs:
 
       - name: Run clippy
         run: cargo clippy -- -D warnings
+
+  # ---------------------------------------------------------------------
+  # Scoped lib tests (Linux). The FULL `cargo test` workspace build is multi-
+  # hour (every crate's tests pull gpui's TestAppContext) and not viable in CI,
+  # but `cargo test -p gpui-starter --lib` compiles ONLY this crate's lib test
+  # target — pure unit tests (no gpui TestAppContext, no live D-Bus) — which
+  # sccache + a dedicated rust-cache key keep fast on repeat runs. Non-blocking
+  # (continue-on-error) until proven stable across cold/warm runs.
+  # ---------------------------------------------------------------------
+  test:
+    name: Test (lib, Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        run: ./scripts/install-linux-deps.sh
+
+      - uses: dtolnay/rust-toolchain@nightly
+
+      - uses: mozilla-actions/sccache-action@v0
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          # Dedicated key: the test profile produces different artifacts than
+          # check/clippy — a shared key would poison across jobs (cf. aaa591d).
+          prefix-key: "v2-linux-test"
+
+      - name: Run scoped lib tests
+        env:
+          RUSTC_WRAPPER: sccache
+        run: cargo test -p gpui-starter --lib

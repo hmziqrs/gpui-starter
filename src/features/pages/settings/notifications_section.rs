@@ -85,6 +85,14 @@ pub(super) fn render_notifications_section(
                 ))
             },
         )
+        .when_some(
+            notifications_snapshot.last_backend_error.clone(),
+            |this, error| this.child(status_row("Last backend error", error)),
+        )
+        .when_some(
+            notifications_snapshot.daemon_capabilities.clone(),
+            |this, caps| this.child(status_row("Daemon capabilities", caps)),
+        )
         .child(
             div()
                 .flex()
