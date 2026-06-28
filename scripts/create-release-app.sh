@@ -18,12 +18,20 @@ fi
 # Parse version into integer build number (strip dots, keep leading zeros for sort).
 BUILD_NUMBER="$(echo "$VERSION" | tr -d '.')"
 
-cargo build --manifest-path "$ROOT_DIR/Cargo.toml" --release
+# Universal macOS binary: the "Build release binaries" step already produced
+# both Apple arches; here we merge them with lipo into one fat Mach-O so a
+# single .app runs natively on Apple Silicon (arm64) AND Intel (x86_64).
+ARM_BIN="$ROOT_DIR/target/aarch64-apple-darwin/release/gpui-starter"
+X86_BIN="$ROOT_DIR/target/x86_64-apple-darwin/release/gpui-starter"
+for b in "$ARM_BIN" "$X86_BIN"; do
+  [ -f "$b" ] || { echo "Error: expected build output not found: $b" >&2; exit 1; }
+done
 
 rm -rf "$APP_DIR"
 mkdir -p "$MACOS_DIR"
 
-cp "$TARGET_DIR/gpui-starter" "$MACOS_DIR/$APP_NAME"
+lipo -create "$ARM_BIN" "$X86_BIN" -output "$MACOS_DIR/$APP_NAME"
+echo "Universal binary architectures: $(lipo -archs "$MACOS_DIR/$APP_NAME" 2>&1 || echo unknown)" >&2
 
 cat > "$CONTENTS_DIR/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
