@@ -170,7 +170,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@nightly
 
-      - uses: mozilla-actions/sccache-action@v0
+      - uses: mozilla-actions/sccache-action@v0.0.10
 
       - uses: Swatinem/rust-cache@v2
         with:
