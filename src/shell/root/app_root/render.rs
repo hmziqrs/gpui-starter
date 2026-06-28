@@ -173,16 +173,6 @@ impl Render for AppRoot {
         // Persist frame time for the status-bar readout.
         frame_time::store_frame_time(elapsed_us);
 
-        tracing::debug!(
-            target: "gpui_starter::root::render",
-            route = %self.active_route.title(),
-            page = ?active_page,
-            render_error = self.render_error,
-            tasks_active = crate::tasks::active_count(cx),
-            elapsed_us,
-            "AppRoot render prepared"
-        );
-
         if frame_time::is_slow_frame(elapsed_us) {
             tracing::warn!(
                 target: "gpui_starter::root::render",
