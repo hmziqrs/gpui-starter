@@ -4,7 +4,6 @@ use gpui_component::ActiveTheme as _;
 use crate::{connectivity, notifications, routes::AppRoute, services::updater, session, tasks};
 
 pub fn render(route: &AppRoute, cx: &App) -> impl gpui::IntoElement {
-    let render_started = std::time::Instant::now();
     let tasks_active = tasks::active_count(cx);
     let unread = notifications::inbox::unread_count(cx);
 
@@ -62,16 +61,6 @@ pub fn render(route: &AppRoute, cx: &App) -> impl gpui::IntoElement {
 
     // Dev-only frame-time readout.
     let frame_time_el = render_frame_time(cx);
-
-    tracing::debug!(
-        target: "gpui_starter::status_bar::render",
-        route = %route.title(),
-        tasks_active,
-        unread,
-        connectivity = ?connectivity_state,
-        elapsed_us = render_started.elapsed().as_micros() as u64,
-        "status bar render prepared"
-    );
 
     div()
         .id("status-bar")

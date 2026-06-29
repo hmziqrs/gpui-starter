@@ -1,12 +1,22 @@
 use gpui::{App, Global};
 use serde::{Deserialize, Serialize};
 
-use crate::{errors::AppError, ids::EventId, routes::AppRoute, time::AppTimestamp};
+use crate::{
+    errors::AppError, ids::EventId, ipc::command::ForwardedCommand, routes::AppRoute,
+    time::AppTimestamp,
+};
+
+// Re-export the forwarded-command type so consumers of the event queue can
+// pattern-match on `RemoteCommand(cmd)` without reaching into the ipc module.
+pub use crate::ipc::command::ForwardedCommand as RemoteCommandKind;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum AppEventKind {
     Navigate(AppRoute),
     DeepLinkReceived(String),
+    /// A typed command forwarded from a second instance over IPC. The dispatch
+    /// layer translates this into the appropriate app action.
+    RemoteCommand(ForwardedCommand),
     AppError {
         message: String,
         severity: crate::errors::AppErrorSeverity,

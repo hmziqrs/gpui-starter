@@ -106,6 +106,32 @@ impl AppRoot {
                     AppEventKind::Test { message } => {
                         tracing::info!(target: "gpui_starter::root", message, "test event received");
                     }
+                    AppEventKind::RemoteCommand(cmd) => {
+                        // Forwarded commands arrive from a second instance over
+                        // IPC. Translate each variant into its in-process action.
+                        use crate::platform::ipc::command::ForwardedCommand;
+                        match cmd {
+                            ForwardedCommand::TogglePalette => {
+                                crate::features::command_palette::open_launcher(cx);
+                            }
+                            ForwardedCommand::DeepLink(link) => {
+                                match AppRoute::parse_deep_link(&link) {
+                                    Ok(route) => this.set_route(route, cx),
+                                    Err(err) => events::emit_error(err, cx),
+                                }
+                            }
+                            ForwardedCommand::ShowWindow
+                            | ForwardedCommand::HideWindow
+                            | ForwardedCommand::Quit
+                            | ForwardedCommand::ReloadConfig => {
+                                tracing::debug!(
+                                    target: "gpui_starter::root",
+                                    cmd = %cmd.label(),
+                                    "remote command forwarded (no-op at boilerplate level)"
+                                );
+                            }
+                        }
+                    }
                 }
             }
         })

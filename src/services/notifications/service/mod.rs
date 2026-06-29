@@ -8,13 +8,16 @@ pub use api::{
 };
 pub use backend_service::{NativeNotificationState, NotificationRuntimeSnapshot};
 pub use types::{
-    CATEGORY_ACTIONS, CATEGORY_REPLY, NotificationBackendKind, NotificationCapabilities,
-    NotificationPermissionState, NotificationRequest,
+    APP_DISPLAY_NAME, CATEGORY_ACTIONS, CATEGORY_REPLY, DESKTOP_ENTRY_ID, NotificationBackendKind,
+    NotificationCapabilities, NotificationImportance, NotificationPermissionState,
+    NotificationRequest, WM_CLASS,
 };
 
 // Re-export items from parent modules that our sub-modules need internally.
 // This keeps the super:: references clean.
-pub(super) use crate::services::notifications::backend::{
-    NotificationBackend, NotifyRustBackend, UserNotifyBackend,
-};
+#[cfg(feature = "notifications-portal")]
+pub(super) use crate::services::notifications::backend::PortalBackend;
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+pub(super) use crate::services::notifications::backend::UserNotifyBackend;
+pub(super) use crate::services::notifications::backend::{NotificationBackend, NotifyRustBackend};
 pub(super) use crate::services::notifications::inbox;

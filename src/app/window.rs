@@ -35,6 +35,11 @@ pub fn create_new_window(title: &str, cx: &mut App) {
                 height: px(320.),
             }),
             kind: WindowKind::Normal,
+            // Set the app id so the desktop can group/identify us: it becomes the
+            // Wayland app_id and the X11 WM_CLASS (== "gpui-starter"), which the
+            // shipped .desktop's StartupWMClass matches. Without this, no
+            // WM_CLASS is set and launcher/notification grouping + icon break.
+            app_id: Some("gpui-starter".to_string()),
             #[cfg(target_os = "linux")]
             window_background: gpui::WindowBackgroundAppearance::Transparent,
             #[cfg(target_os = "linux")]

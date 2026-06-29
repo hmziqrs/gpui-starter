@@ -265,6 +265,8 @@ pub fn init(cx: &mut App) {
         KeyBinding::new("cmd-q", Quit, None),
         #[cfg(not(target_os = "macos"))]
         KeyBinding::new("alt-f4", Quit, None),
+        #[cfg(unix)]
+        KeyBinding::new("ctrl-r", Restart, None),
     ]);
 
     cx.on_action(|_: &Quit, cx| {
@@ -309,6 +311,28 @@ pub fn init(cx: &mut App) {
             });
         })
         .detach();
+    });
+
+    cx.on_action(|_: &Restart, cx| {
+        // Set the reload-requested flag (read post-run by main to re-exec),
+        // then reuse the full Quit shutdown path so the single-instance lock,
+        // config flush, telemetry drain, etc. all run before the process
+        // exits. The flag is an AtomicBool that survives the shutdown.
+        #[cfg(unix)]
+        {
+            crate::app::request_reload();
+            crate::lifecycle::set_shutdown_step("restart", cx);
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = cx;
+            tracing::warn!(
+                target: "gpui_starter::reload",
+                "restart requested on a platform without exec-reload support; ignoring"
+            );
+            return;
+        }
+        cx.dispatch_action(&Quit);
     });
 
     cx.on_action(|_: &About, cx| {

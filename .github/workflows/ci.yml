@@ -36,14 +36,10 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@nightly
 
-      - uses: actions/cache@v4
+      - uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-v3-deps-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-v3-deps-
+          prefix-key: "v2-macos"
+
       - name: Cargo check (dev)
         run: cargo check
 
@@ -69,8 +65,9 @@ jobs:
   # type-checks AND macro-expands the WHOLE codebase (forms included) in ~8
   # min. The full `cargo test` suite works locally (RUST_MIN_STACK +
   # recursion_limit=8192 in src/lib.rs make the proc-macro expansion succeed
-  # instead of SIGBUS-ing) — it is just not viable in CI. Re-enable a CI test
-  # job only behind sccache or a self-hosted runner with a persistent target/.
+  # instead of SIGBUS-ing). In CI we run only the SCOPED `test` job below
+  # (`cargo test -p gpui-starter --lib`, behind sccache); the workspace-wide
+  # test build stays out of CI for the reasons above.
   # ---------------------------------------------------------------------
 
   clippy:
@@ -83,14 +80,10 @@ jobs:
         with:
           components: clippy
 
-      - uses: actions/cache@v4
+      - uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-v3-deps-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-v3-deps-
+          prefix-key: "v2-macos"
+
       - name: Run clippy
         run: cargo clippy -- -D warnings
 
@@ -106,3 +99,86 @@ jobs:
 
       - name: Check formatting
         run: cargo fmt --check
+
+  # ---------------------------------------------------------------------
+  # Linux lane: compiles the cfg(target_os = "linux")-gated code paths
+  # (compositor, layer_shell, detached/session_env) that the macOS-primary
+  # lane never sees. Same no-`test` policy, same stack/codegen discipline.
+  # ---------------------------------------------------------------------
+  check-linux:
+    name: Check (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        run: ./scripts/install-linux-deps.sh
+
+      - uses: dtolnay/rust-toolchain@nightly
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          # Keep the Linux target cache fully separate from the macOS lane:
+          # the gpui git workspace dep is compiled with different cfg flags
+          # (x11/wayland) and a shared key would be poisoned across runners.
+          prefix-key: "v2-linux"
+
+      - name: Cargo check (dev)
+        run: cargo check
+
+      - name: Cargo check (release)
+        run: cargo check --release
+
+  clippy-linux:
+    name: Clippy (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        run: ./scripts/install-linux-deps.sh
+
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "v2-linux"
+
+      - name: Run clippy
+        run: cargo clippy -- -D warnings
+
+  # ---------------------------------------------------------------------
+  # Scoped lib tests (Linux). The FULL `cargo test` workspace build is multi-
+  # hour (every crate's tests pull gpui's TestAppContext) and not viable in CI,
+  # but `cargo test -p gpui-starter --lib` compiles ONLY this crate's lib test
+  # target — pure unit tests (no gpui TestAppContext, no live D-Bus) — which
+  # sccache + a dedicated rust-cache key keep fast on repeat runs. Non-blocking
+  # (continue-on-error) until proven stable across cold/warm runs.
+  # ---------------------------------------------------------------------
+  test:
+    name: Test (lib, Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        run: ./scripts/install-linux-deps.sh
+
+      - uses: dtolnay/rust-toolchain@nightly
+
+      - uses: mozilla-actions/sccache-action@v0.0.10
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          # Dedicated key: the test profile produces different artifacts than
+          # check/clippy — a shared key would poison across jobs (cf. aaa591d).
+          prefix-key: "v2-linux-test"
+
+      - name: Run scoped lib tests
+        env:
+          RUSTC_WRAPPER: sccache
+        run: cargo test -p gpui-starter --lib
