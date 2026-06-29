@@ -79,14 +79,6 @@ jobs:
           cargo build --release --target aarch64-apple-darwin
           cargo build --release --target x86_64-apple-darwin
 
-      - name: Create universal .app bundle
-        id: appbundle
-        run: |
-          # create-release-app.sh lipo-merges the two arch binaries into one
-          # fat Mach-O inside the .app bundle.
-          APP_PATH="$(./scripts/create-release-app.sh "${{ steps.version.outputs.value }}")"
-          echo "path=$APP_PATH" >> "$GITHUB_OUTPUT"
-
       # --- Codesigning ---------------------------------------------------
       # Import Developer ID certificate when available; otherwise ad-hoc sign.
 
@@ -121,22 +113,37 @@ jobs:
           # Add to keychain search list so codesign can find it.
           security list-keychains -d user -s "$KEYCHAIN_PATH" "$(security list-keychains -d user | tr -d '"')"
 
-      - name: Codesign with Developer ID
-        if: env.APPLE_DEV_CERT_P12 != ''
+      # --- Stage, sign, and DMG all three arches ---------------------------
+      # Produces a universal DMG (arm64 + x86_64, the default download) PLUS
+      # slim per-arch DMGs for users who want a smaller download. Both arch
+      # binaries are already built; create-release-app.sh assembles each .app
+      # (lipo for universal, copy for the slim single-arch builds).
+
+      - name: Stage, sign, and DMG all arches
         env:
           APPLE_DEV_CERT_P12: ${{ secrets.APPLE_DEV_CERT_P12 }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
-          IDENTITY="${APPLE_SIGNING_IDENTITY:-'Developer ID Application'}"
-          codesign --force --deep --options runtime --timestamp --sign "$IDENTITY" \
-            "${{ steps.appbundle.outputs.path }}"
+          set -euo pipefail
+          VER="${{ steps.version.outputs.value }}"
+          for ARCH in universal aarch64 x86_64; do
+            APP_PATH="$(./scripts/create-release-app.sh "$VER" "$ARCH")"
+            if [ -n "${APPLE_DEV_CERT_P12:-}" ]; then
+              IDENTITY="${APPLE_SIGNING_IDENTITY:-Developer ID Application}"
+              codesign --force --deep --options runtime --timestamp --sign "$IDENTITY" "$APP_PATH"
+            else
+              codesign --force --deep --sign - "$APP_PATH"
+            fi
+            if [ "$ARCH" = "universal" ]; then
+              DMG="target/release/GPUI-Starter-${VER}.dmg"
+            else
+              DMG="target/release/GPUI-Starter-${VER}-${ARCH}.dmg"
+            fi
+            ./scripts/create-dmg.sh "$APP_PATH" "$DMG"
+            echo "Built $ARCH -> $DMG" >&2
+          done
 
-      - name: Ad-hoc codesign
-        if: env.APPLE_DEV_CERT_P12 == ''
-        run: |
-          codesign --force --deep --sign - "${{ steps.appbundle.outputs.path }}"
-
-      # --- Notarization --------------------------------------------------
+      # --- Notarization (all three DMGs, only with cert + Apple ID) --------
 
       - name: Notarize
         if: env.APPLE_DEV_CERT_P12 != '' && env.APPLE_ID != ''
@@ -146,45 +153,25 @@ jobs:
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          DMG_PATH="$(./scripts/create-dmg.sh \
-            "${{ steps.appbundle.outputs.path }}" \
-            "target/release/GPUI-Starter-${{ steps.version.outputs.value }}.dmg")"
+          set -euo pipefail
+          VER="${{ steps.version.outputs.value }}"
+          for DMG in \
+            "target/release/GPUI-Starter-${VER}.dmg" \
+            "target/release/GPUI-Starter-${VER}-aarch64.dmg" \
+            "target/release/GPUI-Starter-${VER}-x86_64.dmg"; do
+            xcrun notarytool submit "$DMG" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_APP_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" \
+              --wait
+            xcrun stapler staple "$DMG"
+          done
 
-          # Submit for notarization.
-          xcrun notarytool submit "$DMG_PATH" \
-            --apple-id "$APPLE_ID" \
-            --password "$APPLE_APP_PASSWORD" \
-            --team-id "$APPLE_TEAM_ID" \
-            --wait
-
-          # Staple the notarization ticket.
-          xcrun stapler staple "$DMG_PATH"
-
-          echo "notarized_dmg=$DMG_PATH" >> "$GITHUB_ENV"
-
-      # --- DMG creation (when not already created during notarization) ---
-
-      - name: Create DMG
-        if: env.notarized_dmg == ''
-        run: |
-          ./scripts/create-dmg.sh \
-            "${{ steps.appbundle.outputs.path }}" \
-            "target/release/GPUI-Starter-${{ steps.version.outputs.value }}.dmg"
-
-      - name: Determine final DMG path
-        id: dmg
-        run: |
-          if [ -n "${notarized_dmg:-}" ]; then
-            echo "path=${notarized_dmg}" >> "$GITHUB_OUTPUT"
-          else
-            echo "path=target/release/GPUI-Starter-${{ steps.version.outputs.value }}.dmg" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Upload DMG artifact
+      - name: Upload DMG artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: GPUI-Starter-${{ steps.version.outputs.value }}.dmg
-          path: ${{ steps.dmg.outputs.path }}
+          name: macos-dmgs
+          path: target/release/GPUI-Starter-${{ steps.version.outputs.value }}*.dmg
           if-no-files-found: error
 
   # -----------------------------------------------------------------------
@@ -337,10 +324,11 @@ jobs:
           VALUE="$(./scripts/normalize-version.sh "$RAW")"
           echo "value=$VALUE" >> "$GITHUB_OUTPUT"
 
-      - name: Download DMG artifact
+      - name: Download DMG artifacts
         uses: actions/download-artifact@v4
         with:
-          name: GPUI-Starter-${{ steps.version.outputs.value }}.dmg
+          # macos-dmgs bundles the universal + slim arm64/x86_64 DMGs.
+          name: macos-dmgs
           path: ./artifacts
 
       - name: Download Linux artifacts
@@ -359,6 +347,8 @@ jobs:
           generate_release_notes: true
           files: |
             ./artifacts/GPUI-Starter-${{ steps.version.outputs.value }}.dmg
+            ./artifacts/GPUI-Starter-${{ steps.version.outputs.value }}-aarch64.dmg
+            ./artifacts/GPUI-Starter-${{ steps.version.outputs.value }}-x86_64.dmg
             ./artifacts/gpui-starter-${{ steps.version.outputs.value }}-x86_64-linux.tar.gz
             ./artifacts/gpui-starter-${{ steps.version.outputs.value }}-aarch64-linux.tar.gz
 
