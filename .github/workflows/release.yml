@@ -79,6 +79,22 @@ jobs:
           cargo build --release --target aarch64-apple-darwin
           cargo build --release --target x86_64-apple-darwin
 
+      - name: Free disk space for DMG staging
+        # Two release arches (~4 GB of target/) plus the runner image leave the
+        # macos-latest disk borderline; hdiutil then fails with "No space left
+        # on device". The final binaries (target/<arch>/release/gpui-starter)
+        # are self-contained, so drop the bulky per-arch deps/build artifacts.
+        # sccache still serves them at ~100% on the next build.
+        run: |
+          rm -rf \
+            target/aarch64-apple-darwin/release/deps \
+            target/aarch64-apple-darwin/release/build \
+            target/aarch64-apple-darwin/release/examples \
+            target/x86_64-apple-darwin/release/deps \
+            target/x86_64-apple-darwin/release/build \
+            target/x86_64-apple-darwin/release/examples
+          df -h /
+
       # --- Codesigning ---------------------------------------------------
       # Import Developer ID certificate when available; otherwise ad-hoc sign.
 
