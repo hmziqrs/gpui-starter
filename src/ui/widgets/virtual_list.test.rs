@@ -1,4 +1,9 @@
-use super::*;
+// Do NOT `use super::*` here — virtual_list.rs does `use gpui::{prelude::*, *}`, whose
+// glob brings gpui's `test` proc-macro into scope and makes bare `#[test]` resolve to
+// `gpui::test`, which emits another `#[test]` and recurses infinitely (overflowing the
+// stack under a high recursion_limit). Import only what we need.
+use super::{bounded_list_height, uniform_item_sizes, variable_item_sizes};
+use gpui::{px, size, Pixels, Size};
 
 // ---------------------------------------------------------------------------
 // uniform_item_sizes

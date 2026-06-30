@@ -65,8 +65,8 @@ pub fn get_session_environment() -> SessionEnvResult<HashMap<String, String>> {
 
 /// Parse `KEY=VALUE` lines into a map.
 ///
-/// Blank lines and lines lacking an `=` are skipped. Leading/trailing
-/// whitespace is trimmed from both key and value.
+/// Blank lines, lines lacking an `=`, and lines with an empty key are skipped.
+/// Leading/trailing whitespace is trimmed from both key and value.
 fn parse_environment(raw: &str) -> HashMap<String, String> {
     let mut env = HashMap::new();
     for line in raw.lines() {
@@ -82,7 +82,11 @@ fn parse_environment(raw: &str) -> HashMap<String, String> {
             );
             continue;
         };
-        env.insert(key.trim().to_string(), value.trim().to_string());
+        let key = key.trim();
+        if key.is_empty() {
+            continue;
+        }
+        env.insert(key.to_string(), value.trim().to_string());
     }
     env
 }

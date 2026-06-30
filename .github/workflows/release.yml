@@ -22,14 +22,14 @@ jobs:
     name: Build macOS
     runs-on: macos-latest
     env:
-      # Same discipline as ci.yml: large proc-macro stack (avoids SIGBUS),
-      # CARGO_BUILD_JOBS=2 (the 14 GB runner swaps with more parallel rustc on
-      # the heavy gpui/gpui_component crates), and many codegen units to keep
-      # peak RSS down on a release build (optimization-heavy) so it doesn't OOM.
+      # Same discipline as ci.yml: CARGO_BUILD_JOBS=2 (the 14 GB runner swaps
+      # with more parallel rustc on the heavy gpui/gpui_component crates) and
+      # many codegen units to keep peak RSS down on a release build
+      # (optimization-heavy) so it doesn't OOM. No RUST_MIN_STACK: the
+      # glob-shadow stack overflow it papered over is fixed (see ci.yml).
       CARGO_BUILD_JOBS: "2"
       CARGO_INCREMENTAL: "0"
       CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "256"
-      RUST_MIN_STACK: "536870912"
       RUST_BACKTRACE: "1"
       # sccache caches compiled artifacts across runs via the zero-config GitHub
       # Actions cache backend (no external S3/Azure). Complements rust-cache
@@ -219,7 +219,6 @@ jobs:
       CARGO_BUILD_JOBS: "2"
       CARGO_INCREMENTAL: "0"
       CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "256"
-      RUST_MIN_STACK: "536870912"
       RUST_BACKTRACE: "1"
       RUSTC_WRAPPER: sccache
       SCCACHE_GHA_ENABLED: "true"

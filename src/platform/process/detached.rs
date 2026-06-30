@@ -210,7 +210,7 @@ mod tests {
         // Ensures the builder API compiles and chains without consuming incorrectly.
         let b = DetachedProcess::new("echo")
             .arg("hello")
-            .args(["world".as_ref()])
+            .args(["world"])
             .with_session_env();
         let _ = b;
     }

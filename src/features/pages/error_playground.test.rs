@@ -1,4 +1,10 @@
-use super::*;
+// Do NOT `use super::*` here. error_playground/mod.rs does `use gpui::{prelude::*, *}`,
+// and gpui re-exports its `test` proc-macro at its crate root — so a glob import
+// brings `gpui::test` into scope and a bare `#[test]` resolves to it. `gpui::test`
+// rewrites the fn into another `#[test] fn …`, which resolves to `gpui::test` again,
+// recursing infinitely (and, under a high recursion_limit, overflowing rustc's stack).
+// Import only what we need so `#[test]` stays the builtin.
+use super::ErrorPlaygroundPage;
 
 // ---------------------------------------------------------------------------
 // ErrorPlaygroundPage::new() default state

@@ -311,7 +311,7 @@ mod tests {
 
     #[test]
     fn deserializes_rgb_object() {
-        let w: Wrap = serde_json::from_str(r#"{"color":{"r":0,"g":0,"b":255}}" "#).unwrap();
+        let w: Wrap = serde_json::from_str(r#"{"color":{"r":0,"g":0,"b":255}}"#).unwrap();
         // pure blue hue in gpui 0..=1 is 2/3.
         assert!((w.color.h - (2.0 / 3.0)).abs() < 1e-3);
     }
