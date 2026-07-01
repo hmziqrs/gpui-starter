@@ -113,7 +113,10 @@ impl NotificationRequest {
     /// Do-Not-Disturb, per-app banner mute, busy, and fullscreen gates — and
     /// forces in-app feedback, so the user always gets a visible response even
     /// when the banner is silently suppressed.
-    pub fn test_notification(title: impl Into<SharedString>, body: impl Into<SharedString>) -> Self {
+    pub fn test_notification(
+        title: impl Into<SharedString>,
+        body: impl Into<SharedString>,
+    ) -> Self {
         let mut request = Self::foreground(title, body);
         request.importance = NotificationImportance::BackgroundWorthy;
         request.force_in_app_feedback = true;

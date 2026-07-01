@@ -277,7 +277,8 @@ pub fn send_from_window(request: NotificationRequest, window: &mut Window, cx: &
                     format!(
                         "Sent to the {} notification daemon. If no banner appeared, \
                          check Do Not Disturb and the per-app setting for \"{}\".",
-                        result.backend_used, crate::notifications::DESKTOP_ENTRY_ID,
+                        result.backend_used,
+                        crate::notifications::DESKTOP_ENTRY_ID,
                     )
                     .into()
                 } else {
@@ -334,9 +335,8 @@ pub fn open_system_settings(cx: &mut App) {
         {
             tracing::warn!(target: LOG, error = %err, "failed to open Linux notification settings");
             mutate_snapshot(cx, |snapshot| {
-                snapshot.last_backend_error = Some(
-                    "could not open notification settings; open them manually".into(),
-                );
+                snapshot.last_backend_error =
+                    Some("could not open notification settings; open them manually".into());
             });
         }
     }
