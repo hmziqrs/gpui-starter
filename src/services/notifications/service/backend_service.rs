@@ -286,10 +286,10 @@ fn select_primary_backend() -> (Option<Arc<dyn NotificationBackend>>, Option<Str
                     backend = %NotificationBackendKind::UserNotify,
                     "primary notification backend selected"
                 );
-                return (
+                (
                     Some(Arc::new(backend) as Arc<dyn NotificationBackend>),
                     None,
-                );
+                )
             }
             Err(err) => {
                 tracing::warn!(
@@ -298,7 +298,7 @@ fn select_primary_backend() -> (Option<Arc<dyn NotificationBackend>>, Option<Str
                     error = %err,
                     "primary notification backend unavailable; falling back"
                 );
-                return (None, Some(err.to_string()));
+                (None, Some(err.to_string()))
             }
         }
     }

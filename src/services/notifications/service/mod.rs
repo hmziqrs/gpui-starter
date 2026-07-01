@@ -9,9 +9,12 @@ pub use api::{
 pub use backend_service::{NativeNotificationState, NotificationRuntimeSnapshot};
 pub use types::{
     APP_DISPLAY_NAME, CATEGORY_ACTIONS, CATEGORY_REPLY, DESKTOP_ENTRY_ID, NotificationBackendKind,
-    NotificationCapabilities, NotificationImportance, NotificationPermissionState,
-    NotificationRequest, WM_CLASS,
+    NotificationCapabilities, NotificationPermissionState, NotificationRequest, WM_CLASS,
 };
+// NotificationImportance is consumed (via this service re-export) only by the
+// Linux-only urgency mapping; gate it so the macOS/Windows lane has no unused import.
+#[cfg(target_os = "linux")]
+pub use types::NotificationImportance;
 
 // Re-export items from parent modules that our sub-modules need internally.
 // This keeps the super:: references clean.
