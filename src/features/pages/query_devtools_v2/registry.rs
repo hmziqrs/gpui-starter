@@ -1,10 +1,11 @@
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 use gpui::{prelude::*, *};
 use gpui_component::{ActiveTheme as _, VirtualListScrollHandle, h_flex, v_flex};
 
 use crate::ui::widgets::{bounded_list_height, render_virtual_list, variable_item_sizes};
-use gpui_query::client::ClientDiagnostic;
+use gpui_query::client::{ClientDiagnostic, QueryDiagnostic};
 use gpui_query::core::QueryStatus;
 
 use super::dashboard::QueryDevToolsV2Page;
@@ -23,6 +24,144 @@ const REGISTRY_DETAIL_H: f32 = 156.0; // 6-field expanded detail (p_3 + gap_1)
 const REGISTRY_ITEM_GAP: f32 = 4.0; // gap_1 between row and detail (expanded)
 const REGISTRY_LIST_GAP: f32 = 2.0; // gap_0p5 between registry items
 const REGISTRY_MAX_LIST_H: f32 = 480.0; // cap before the list itself scrolls
+
+// ---------------------------------------------------------------------------
+// Memoized registry rows (Audit Findings P13 + P17)
+// ---------------------------------------------------------------------------
+//
+// `render_query_registry` used to clone `diagnostic.queries`, `retain()` the
+// filter results, and `sort_by()` on every render frame. Devtools v2 is the
+// canonical registry view, so we cache the filtered+sorted row list keyed by
+// a cheap signature of the diagnostic plus the current sort/filter and only
+// rebuild on a miss.
+//
+// The cache also precomputes the per-row strings (element id, cache_hits,
+// retry_count) so the virtual-list closure can hand them to GPUI with a
+// `SharedString` clone (Arc bump) instead of a `format!()` allocation per
+// visible row per frame.
+
+/// Per-row precomputed data: a `QueryDiagnostic` plus the strings its
+/// row/detail renderers need every frame. Built once per cache miss.
+struct RegistryRow {
+    query: QueryDiagnostic,
+    /// Stable stateful element id (`"v2-query-row-{key}"`).
+    element_id: SharedString,
+    /// Pre-formatted `cache_hits` Display string.
+    cache_hits_str: SharedString,
+    /// Pre-formatted `retry_count` Display string.
+    retry_count_str: SharedString,
+}
+
+/// Memoization cache for the filtered+sorted registry rows.
+#[derive(Default)]
+struct RegistryRowCache {
+    signature: u64,
+    sort: Option<QuerySort>,
+    filter: Option<String>,
+    rows: Rc<Vec<RegistryRow>>,
+}
+
+impl Global for RegistryRowCache {}
+
+/// Cheap signature of the diagnostic's query slice. Equal signatures mean the
+/// `(key, status, cache_hits, retry_count, cache_age)` tuples are unchanged, so
+/// the cached sort/filter result is still valid. `QueryStatus` is fieldless, so
+/// `mem::discriminant` is a stable hash even though the enum doesn't derive
+/// `Hash`.
+fn diagnostic_signature(d: &ClientDiagnostic) -> u64 {
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    d.query_count.hash(&mut h);
+    for q in &d.queries {
+        q.key.hash(&mut h);
+        std::mem::discriminant(&q.status).hash(&mut h);
+        q.cache_hits.hash(&mut h);
+        q.retry_count.hash(&mut h);
+        q.cache_age_ms.hash(&mut h);
+    }
+    h.finish()
+}
+
+/// Return the memoized filtered+sorted row list, rebuilding only when the
+/// diagnostic signature, sort, or filter has changed.
+fn cached_registry_rows(
+    diagnostic: &Option<ClientDiagnostic>,
+    sort_by: QuerySort,
+    status_filter: &Option<String>,
+    cx: &mut Context<QueryDevToolsV2Page>,
+) -> Rc<Vec<RegistryRow>> {
+    let signature = diagnostic.as_ref().map(diagnostic_signature).unwrap_or(0);
+    let cache = cx.default_global::<RegistryRowCache>();
+    let hit = cache.signature == signature
+        && cache.sort == Some(sort_by)
+        && cache.filter.as_deref() == status_filter.as_deref();
+    if hit {
+        return cache.rows.clone();
+    }
+
+    // Miss: recompute the filtered+sorted rows from scratch.
+    let mut queries: Vec<QueryDiagnostic> = diagnostic
+        .as_ref()
+        .map(|d| d.queries.clone())
+        .unwrap_or_default();
+
+    // Apply status filter (Audit Finding 1: log warning on unknown status strings).
+    if let Some(filter) = status_filter {
+        let filter_status = match filter.as_str() {
+            "Idle" => Some(QueryStatus::Idle),
+            "LoadingEmpty" => Some(QueryStatus::LoadingEmpty),
+            "LoadingWithData" => Some(QueryStatus::LoadingWithData),
+            "Success" => Some(QueryStatus::Success),
+            "Failure" => Some(QueryStatus::Failure),
+            "Cancelled" => Some(QueryStatus::Cancelled),
+            _ => {
+                tracing::warn!(
+                    "QueryDevToolsV2: unknown status_filter value {:?}; clearing filter",
+                    filter
+                );
+                None
+            }
+        };
+        if let Some(fs) = filter_status {
+            queries.retain(|q| q.status == fs);
+        }
+    }
+
+    // Apply sort (Audit Finding 2: semantic Ord ordering, not Debug strings).
+    match sort_by {
+        QuerySort::Key => queries.sort_by(|a, b| a.key.cmp(&b.key)),
+        QuerySort::Status => queries.sort_by(|a, b| a.status.cmp(&b.status)),
+        QuerySort::CacheAge => queries.sort_by(|a, b| {
+            b.cache_age_ms
+                .unwrap_or(0)
+                .cmp(&a.cache_age_ms.unwrap_or(0))
+        }),
+        QuerySort::CacheHits => queries.sort_by(|a, b| b.cache_hits.cmp(&a.cache_hits)),
+    }
+
+    // Precompute per-row strings (Audit Finding P17) so the virtual-list
+    // closure does a `SharedString` clone (Arc bump) per visible row instead
+    // of a `format!()` allocation per frame.
+    let rows: Vec<RegistryRow> = queries
+        .into_iter()
+        .map(|q| {
+            let element_id = SharedString::from(format!("v2-query-row-{}", q.key));
+            let cache_hits_str = SharedString::from(q.cache_hits.to_string());
+            let retry_count_str = SharedString::from(q.retry_count.to_string());
+            RegistryRow {
+                query: q,
+                element_id,
+                cache_hits_str,
+                retry_count_str,
+            }
+        })
+        .collect();
+
+    cache.signature = signature;
+    cache.sort = Some(sort_by);
+    cache.filter = status_filter.clone();
+    cache.rows = Rc::new(rows);
+    cache.rows.clone()
+}
 
 // ---------------------------------------------------------------------------
 // Query Registry (sort/filter controls + table)
@@ -68,47 +207,11 @@ pub(super) fn render_query_registry(
             .map(|opt| filter_button(opt, status_filter, cx)),
     );
 
-    // Build sorted/filtered query rows
-    let mut queries: Vec<_> = diagnostic
-        .as_ref()
-        .map(|d| d.queries.clone())
-        .unwrap_or_default();
-
-    // Apply status filter (Audit Finding 1: log warning on unknown status strings).
-    if let Some(filter) = status_filter {
-        let filter_status = match filter.as_str() {
-            "Idle" => Some(QueryStatus::Idle),
-            "LoadingEmpty" => Some(QueryStatus::LoadingEmpty),
-            "LoadingWithData" => Some(QueryStatus::LoadingWithData),
-            "Success" => Some(QueryStatus::Success),
-            "Failure" => Some(QueryStatus::Failure),
-            "Cancelled" => Some(QueryStatus::Cancelled),
-            _ => {
-                tracing::warn!(
-                    "QueryDevToolsV2: unknown status_filter value {:?}; clearing filter",
-                    filter
-                );
-                None
-            }
-        };
-        if let Some(fs) = filter_status {
-            queries.retain(|q| q.status == fs);
-        }
-    }
-
-    // Apply sort
-    match sort_by {
-        QuerySort::Key => queries.sort_by(|a, b| a.key.cmp(&b.key)),
-        // Audit Finding 2: use semantic Ord ordering (declaration order) instead
-        // of fragile Debug string comparison.
-        QuerySort::Status => queries.sort_by(|a, b| a.status.cmp(&b.status)),
-        QuerySort::CacheAge => queries.sort_by(|a, b| {
-            b.cache_age_ms
-                .unwrap_or(0)
-                .cmp(&a.cache_age_ms.unwrap_or(0))
-        }),
-        QuerySort::CacheHits => queries.sort_by(|a, b| b.cache_hits.cmp(&a.cache_hits)),
-    }
+    // Memoized filtered+sorted rows (Audit Finding P13): only re-clone+
+    // retain+sort when the diagnostic signature, sort, or filter changes.
+    // Per-row strings are also precomputed here (Audit Finding P17).
+    let queries: Rc<Vec<RegistryRow>> =
+        cached_registry_rows(diagnostic, sort_by, status_filter, cx);
 
     // Header row
     let header = h_flex().gap_3().px_3().py_2().children(vec![
@@ -148,12 +251,10 @@ pub(super) fn render_query_registry(
     // Virtualize the registry: only the rows in the visible range are laid out
     // and painted, so adding queries no longer forces a full-tree relayout on
     // every scroll frame.
-    let queries = Rc::new(queries);
-
     let item_heights: Vec<Pixels> = queries
         .iter()
-        .map(|q| {
-            let is_expanded = expanded_key.as_deref() == Some(q.key.as_str());
+        .map(|row| {
+            let is_expanded = expanded_key.as_deref() == Some(row.query.key.as_str());
             if is_expanded {
                 px(REGISTRY_ROW_H + REGISTRY_ITEM_GAP + REGISTRY_DETAIL_H)
             } else {
@@ -189,8 +290,8 @@ pub(super) fn render_query_registry(
             move |_this, range, _window, cx| {
                 range
                     .map(|ix| {
-                        let q = &rows[ix];
-                        let is_expanded = expanded.as_deref() == Some(q.key.as_str());
+                        let row = &rows[ix];
+                        let is_expanded = expanded.as_deref() == Some(row.query.key.as_str());
                         // Drop the theme borrow before query_row takes `&mut cx`.
                         let (radius, secondary) = {
                             let theme = cx.theme();
@@ -198,10 +299,10 @@ pub(super) fn render_query_registry(
                         };
                         let mut item = v_flex()
                             .gap_1()
-                            .child(query_row(q, is_expanded, cx).h(px(REGISTRY_ROW_H)));
+                            .child(query_row(row, is_expanded, cx).h(px(REGISTRY_ROW_H)));
                         if is_expanded {
                             item = item.child(
-                                query_expanded_detail(q, radius, secondary)
+                                query_expanded_detail(row, radius, secondary)
                                     .h(px(REGISTRY_DETAIL_H)),
                             );
                         }
@@ -256,10 +357,11 @@ pub(super) fn render_query_registry(
 // ---------------------------------------------------------------------------
 
 fn query_row(
-    q: &gpui_query::client::QueryDiagnostic,
+    row: &RegistryRow,
     is_expanded: bool,
     cx: &mut Context<QueryDevToolsV2Page>,
 ) -> Stateful<Div> {
+    let q = &row.query;
     let theme = cx.theme();
     let muted_foreground = theme.muted_foreground;
     let primary = theme.primary;
@@ -293,8 +395,15 @@ fn query_row(
 
     let cache_age_str = format_cache_age(q.cache_age_ms);
 
+    // Audit Finding P17: use the precomputed element id + integer strings
+    // from the memoized row (SharedString clone == Arc bump), avoiding a
+    // `format!()` allocation per visible row per frame.
+    let element_id = row.element_id.clone();
+    let cache_hits_str = row.cache_hits_str.clone();
+    let retry_count_str = row.retry_count_str.clone();
+
     div()
-        .id(SharedString::from(format!("v2-query-row-{}", q.key)))
+        .id(element_id)
         .cursor_pointer()
         .rounded(radius)
         .px_3()
@@ -341,11 +450,11 @@ fn query_row(
                 div()
                     .text_xs()
                     .text_color(muted_foreground)
-                    .child(format!("{}", q.cache_hits)),
+                    .child(cache_hits_str),
                 div()
                     .text_xs()
                     .text_color(muted_foreground)
-                    .child(format!("{}", q.retry_count)),
+                    .child(retry_count_str),
             ]),
         )
 }
@@ -355,17 +464,20 @@ fn query_row(
 // ---------------------------------------------------------------------------
 
 fn query_expanded_detail(
-    q: &gpui_query::client::QueryDiagnostic,
+    row: &RegistryRow,
     radius: Pixels,
     secondary: Hsla,
 ) -> Div {
-    let fields: Vec<(&str, String)> = vec![
-        ("Key", q.key.clone()),
-        ("Status", format!("{:?}", q.status)),
-        ("Cache Policy", q.cache_policy.clone()),
-        ("Cache Age", format_cache_age(q.cache_age_ms)),
-        ("Cache Hits", format!("{}", q.cache_hits)),
-        ("Retry Count", format!("{}", q.retry_count)),
+    let q = &row.query;
+    // Audit Finding P17: reuse the row's precomputed integer strings instead
+    // of `format!()`-ing them on every render of the expanded detail.
+    let fields: Vec<(&str, SharedString)> = vec![
+        ("Key", SharedString::from(q.key.clone())),
+        ("Status", SharedString::from(format!("{:?}", q.status))),
+        ("Cache Policy", SharedString::from(q.cache_policy.clone())),
+        ("Cache Age", SharedString::from(format_cache_age(q.cache_age_ms))),
+        ("Cache Hits", row.cache_hits_str.clone()),
+        ("Retry Count", row.retry_count_str.clone()),
     ];
 
     // Audit Finding 15: border_1() requires an explicit border_color for
