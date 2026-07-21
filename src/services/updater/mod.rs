@@ -25,6 +25,9 @@ pub fn initialize(cx: &mut gpui::App) {
         },
         check_retry_count: 0,
         download_retry_count: 0,
+        // Cache fields (cached_manifest / cached_asset) default to None via
+        // `..Default::default()` — they are populated lazily by check_for_updates.
+        ..Default::default()
     });
 
     // Register the CheckForUpdates action handler.
