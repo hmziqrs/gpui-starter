@@ -9,6 +9,25 @@ use crate::app::theme::set_theme_mode;
 // Init
 // ---------------------------------------------------------------------------
 
+/// Time and log a named startup step.
+///
+/// Records the step via [`crate::lifecycle::set_startup_step`], runs `$body`,
+/// then emits a tracing log whose name always matches the step. Bundling the
+/// timing with the name removes the hazard of the two drifting apart.
+macro_rules! startup_step {
+    ($cx:expr, $name:expr, $body:block) => {{
+        crate::lifecycle::set_startup_step($name, $cx);
+        let _t = std::time::Instant::now();
+        $body;
+        tracing::info!(
+            target: "gpui_starter::startup",
+            "{} done in {:?}",
+            $name,
+            _t.elapsed()
+        );
+    }};
+}
+
 pub fn init(cx: &mut App) {
     let startup_start = std::time::Instant::now();
 
@@ -25,91 +44,48 @@ pub fn init(cx: &mut App) {
         );
     }
 
-    crate::lifecycle::set_startup_step("component_init", cx);
-
     // Must be called before using any gpui-component features
-    let step_t = std::time::Instant::now();
-    gpui_component::init(cx);
-    tracing::info!(target: "gpui_starter::startup", elapsed_ms = step_t.elapsed().as_millis() as u64, "component_init done");
+    startup_step!(cx, "component_init", {
+        gpui_component::init(cx);
+    });
 
     crate::lifecycle::set_stage(crate::lifecycle::LifecycleStage::Starting, cx);
-    crate::lifecycle::set_startup_step("app_state_init", cx);
-    let step_t = std::time::Instant::now();
-    crate::app_state::initialize(cx);
-    tracing::info!(target: "gpui_starter::startup", elapsed_ms = step_t.elapsed().as_millis() as u64, "app_state_init done");
+    startup_step!(cx, "app_state_init", {
+        crate::app_state::initialize(cx);
+    });
 
     // Set the data directory for the panic hook crash report writer.
     crate::lifecycle::set_app_data_dir(crate::app_state::paths(cx).data_dir.clone());
 
-    crate::lifecycle::set_startup_step("logging_init", cx);
-    let step_t = std::time::Instant::now();
-    crate::logging::initialize(cx);
-    tracing::info!(target: "gpui_starter::startup", elapsed_ms = step_t.elapsed().as_millis() as u64, "logging_init done");
+    startup_step!(cx, "logging_init", {
+        crate::logging::initialize(cx);
+    });
 
-    crate::lifecycle::set_startup_step("capabilities_init", cx);
-    let step_t = std::time::Instant::now();
-    crate::capabilities::initialize(cx);
-    tracing::info!(target: "gpui_starter::startup", elapsed_ms = step_t.elapsed().as_millis() as u64, "capabilities_init done");
-    crate::capabilities::set(
+    startup_step!(cx, "capabilities_init", {
+        crate::capabilities::initialize(cx);
+    });
+
+    const DEFAULT_ENABLED_CAPABILITIES: &[&str] = &[
         "app_state",
-        crate::capabilities::CapabilityStatus::supported_enabled(),
-        cx,
-    );
-    crate::capabilities::set(
         "deep_links",
-        crate::capabilities::CapabilityStatus::supported_enabled(),
-        cx,
-    );
-    crate::capabilities::set(
         "diagnostics",
-        crate::capabilities::CapabilityStatus::supported_enabled(),
-        cx,
-    );
-    crate::capabilities::set(
         "notification_inbox",
-        crate::capabilities::CapabilityStatus::supported_enabled(),
-        cx,
-    );
-    crate::capabilities::set(
         "background_tasks",
-        crate::capabilities::CapabilityStatus::supported_enabled(),
-        cx,
-    );
-    crate::capabilities::set(
         "status_bar",
-        crate::capabilities::CapabilityStatus::supported_enabled(),
-        cx,
-    );
-    crate::capabilities::set(
         "connectivity",
-        crate::capabilities::CapabilityStatus::supported_enabled(),
-        cx,
-    );
-    crate::capabilities::set(
         "session",
-        crate::capabilities::CapabilityStatus::supported_enabled(),
-        cx,
-    );
-    crate::capabilities::set(
         "first_run",
-        crate::capabilities::CapabilityStatus::supported_enabled(),
-        cx,
-    );
-    crate::capabilities::set(
         "launcher",
-        crate::capabilities::CapabilityStatus::supported_enabled(),
-        cx,
-    );
-    crate::capabilities::set(
         "app_menu",
-        crate::capabilities::CapabilityStatus::supported_enabled(),
-        cx,
-    );
-    crate::capabilities::set(
         "command_registry",
-        crate::capabilities::CapabilityStatus::supported_enabled(),
-        cx,
-    );
+    ];
+    for &name in DEFAULT_ENABLED_CAPABILITIES {
+        crate::capabilities::set(
+            name,
+            crate::capabilities::CapabilityStatus::supported_enabled(),
+            cx,
+        );
+    }
 
     // Initialize es-fluent i18n for app and form text
     let system_locale = crate::i18n::detect_system_locale();
@@ -188,60 +164,62 @@ pub fn init(cx: &mut App) {
     crate::launcher::init(cx);
     cx.set_global(crate::events::AppEventQueue::default());
     cx.set_global(crate::launcher::LauncherOpen(false));
-    crate::lifecycle::set_startup_step("runtime_services_init", cx);
-    let step_t = std::time::Instant::now();
-    crate::tasks::initialize(cx);
-    crate::error_surface::initialize(cx);
-    crate::undo_stack::initialize(cx);
-    crate::shortcuts::initialize(cx);
-    cx.set_global(crate::services::tokio_runtime::TokioRuntimeGlobal(
-        crate::services::tokio_runtime::TokioRuntime::new(),
-    ));
-    crate::connectivity::initialize(cx);
-    crate::desktop_actions::initialize(cx);
-    crate::accessibility::initialize(cx);
-    crate::secure_storage::initialize(cx);
-    crate::session::initialize(cx);
-    crate::storage::initialize(cx);
+    startup_step!(cx, "runtime_services_init", {
+        crate::tasks::initialize(cx);
+        crate::error_surface::initialize(cx);
+        crate::undo_stack::initialize(cx);
+        crate::shortcuts::initialize(cx);
+        cx.set_global(crate::services::tokio_runtime::TokioRuntimeGlobal(
+            crate::services::tokio_runtime::TokioRuntime::new(),
+        ));
+        crate::connectivity::initialize(cx);
+        crate::desktop_actions::initialize(cx);
+        crate::accessibility::initialize(cx);
+        crate::secure_storage::initialize(cx);
+        crate::session::initialize(cx);
+        crate::storage::initialize(cx);
 
-    // Run database migrations after storage is initialized
-    crate::lifecycle::set_startup_step("db_migrations", cx);
-    let migrations_t = std::time::Instant::now();
-    if let Some(snapshot) = cx.try_global::<crate::storage::StorageSnapshot>()
-        && snapshot.available
-    {
-        let db_path = std::path::PathBuf::from(snapshot.db_path.clone());
-        match rusqlite::Connection::open(&db_path) {
-            Ok(conn) => match crate::db_migrations::run_migrations(&conn) {
-                Ok(version) => {
-                    tracing::info!(
-                        target: "gpui_starter::startup",
-                        version,
-                        elapsed_ms = migrations_t.elapsed().as_millis() as u64,
-                        "db_migrations complete"
-                    );
-                }
+        // Run database migrations after storage is initialized
+        crate::lifecycle::set_startup_step("db_migrations", cx);
+        let migrations_t = std::time::Instant::now();
+        if let Some(snapshot) = cx.try_global::<crate::storage::StorageSnapshot>()
+            && snapshot.available
+        {
+            let db_path = std::path::PathBuf::from(snapshot.db_path.clone());
+            match rusqlite::Connection::open(&db_path) {
+                Ok(conn) => match crate::db_migrations::run_migrations(&conn) {
+                    Ok(version) => {
+                        tracing::info!(
+                            target: "gpui_starter::startup",
+                            version,
+                            elapsed_ms = migrations_t.elapsed().as_millis() as u64,
+                            "db_migrations complete"
+                        );
+                    }
+                    Err(err) => {
+                        tracing::error!(
+                            target: "gpui_starter::startup",
+                            error = %err,
+                            "db_migrations failed"
+                        );
+                        crate::lifecycle::set_startup_error(
+                            format!("migration failed: {err}"),
+                            cx,
+                        );
+                    }
+                },
                 Err(err) => {
                     tracing::error!(
                         target: "gpui_starter::startup",
                         error = %err,
-                        "db_migrations failed"
+                        "failed to open db for migrations"
                     );
-                    crate::lifecycle::set_startup_error(format!("migration failed: {err}"), cx);
                 }
-            },
-            Err(err) => {
-                tracing::error!(
-                    target: "gpui_starter::startup",
-                    error = %err,
-                    "failed to open db for migrations"
-                );
             }
         }
-    }
 
-    crate::telemetry::initialize(cx);
-    tracing::info!(target: "gpui_starter::startup", elapsed_ms = step_t.elapsed().as_millis() as u64, "runtime_services_init done");
+        crate::telemetry::initialize(cx);
+    });
     crate::crash_report::initialize(cx);
     if previous_crash.is_some() {
         crate::crash_report::upload_pending_reports(cx);
