@@ -4,7 +4,7 @@ use gpui_component::{
     ActiveTheme as _, WindowExt as _,
     button::{Button, ButtonVariants as _},
     checkbox::Checkbox,
-    form::{field, v_form},
+    form::{field, v_form, Field},
     h_flex,
     input::{Input, InputEvent, InputState},
     v_flex,
@@ -252,25 +252,25 @@ impl FormPage {
 
     /// Renders a single form `field()` row, keyed on the enum so the label,
     /// description, required flag, input, and cached error all stay in sync.
-    fn render_field(&self, field: FormField, danger: Hsla) -> impl IntoElement + '_ {
-        let label = match field {
+    fn render_field(&self, field_kind: FormField, danger: Hsla) -> Field {
+        let label = match field_kind {
             FormField::Name => RegistrationFormLabelVariants::Name,
             FormField::Email => RegistrationFormLabelVariants::Email,
             FormField::Password => RegistrationFormLabelVariants::Password,
             FormField::Phone => RegistrationFormLabelVariants::Phone,
             FormField::Website => RegistrationFormLabelVariants::Website,
         };
-        let description = match field {
+        let description = match field_kind {
             FormField::Name => RegistrationFormDescriptionVariants::Name,
             FormField::Email => RegistrationFormDescriptionVariants::Email,
             FormField::Password => RegistrationFormDescriptionVariants::Password,
             FormField::Phone => RegistrationFormDescriptionVariants::Phone,
             FormField::Website => RegistrationFormDescriptionVariants::Website,
         };
-        let required = !matches!(field, FormField::Website);
-        let error = self.error_for_field(field);
+        let required = !matches!(field_kind, FormField::Website);
+        let error = self.error_for_field(field_kind);
         let description_text = crate::i18n::localize_message(&description);
-        let input = self.field_input(field);
+        let input = self.field_input(field_kind);
 
         field()
             .label(crate::i18n::localize_message(&label))

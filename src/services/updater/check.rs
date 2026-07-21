@@ -193,7 +193,7 @@ where
     F: Fn(&mut UpdateSnapshot) -> &mut u32,
     R: FnOnce(&mut App) + Send + 'static,
 {
-    let retry_count = *retry_field(cx.global::<UpdateSnapshot>());
+    let retry_count = *retry_field(cx.global_mut::<UpdateSnapshot>());
     if retry_count >= MAX_UPDATE_RETRIES {
         return false;
     }

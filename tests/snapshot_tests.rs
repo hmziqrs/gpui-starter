@@ -283,6 +283,8 @@ fn test_update_snapshot_serialization() {
         update_channel: "stable".to_string(),
         check_retry_count: 0,
         download_retry_count: 0,
+        cached_manifest: None,
+        cached_asset: None,
     };
 
     insta::assert_yaml_snapshot!("update_snapshot", &snapshot);
