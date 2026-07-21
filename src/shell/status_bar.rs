@@ -117,8 +117,7 @@ fn truncate_error(s: &str, max_len: usize) -> &str {
 /// at runtime from the Settings page.
 #[cfg(debug_assertions)]
 fn render_frame_time(cx: &App) -> Option<gpui::Div> {
-    let config = crate::app_state::config(cx);
-    if !config.show_frame_time {
+    if !crate::app_state::with_config(cx, |c| c.show_frame_time) {
         return None;
     }
 

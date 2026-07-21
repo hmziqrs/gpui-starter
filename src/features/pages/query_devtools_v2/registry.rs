@@ -64,16 +64,18 @@ struct RegistryRowCache {
 impl Global for RegistryRowCache {}
 
 /// Cheap signature of the diagnostic's query slice. Equal signatures mean the
-/// `(key, status, cache_hits, retry_count, cache_age)` tuples are unchanged, so
-/// the cached sort/filter result is still valid. `QueryStatus` is fieldless, so
-/// `mem::discriminant` is a stable hash even though the enum doesn't derive
-/// `Hash`.
+/// `(key, status, cache_policy, cache_hits, retry_count, cache_age)` tuples are
+/// unchanged, so the cached sort/filter result is still valid. `QueryStatus` is
+/// fieldless, so `mem::discriminant` is a stable hash even though the enum
+/// doesn't derive `Hash`. `cache_policy` is included because it is rendered in
+/// both the row and the expanded detail (Audit Finding P13).
 fn diagnostic_signature(d: &ClientDiagnostic) -> u64 {
     let mut h = std::collections::hash_map::DefaultHasher::new();
     d.query_count.hash(&mut h);
     for q in &d.queries {
         q.key.hash(&mut h);
         std::mem::discriminant(&q.status).hash(&mut h);
+        q.cache_policy.hash(&mut h);
         q.cache_hits.hash(&mut h);
         q.retry_count.hash(&mut h);
         q.cache_age_ms.hash(&mut h);

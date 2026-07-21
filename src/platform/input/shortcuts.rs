@@ -18,7 +18,7 @@ static HOTKEY_MANAGER: OnceLock<Mutex<Option<global_hotkey::GlobalHotKeyManager>
 
 #[cfg(target_os = "macos")]
 pub fn initialize(cx: &mut App) {
-    let enabled = crate::app_state::config(cx).global_shortcut_enabled;
+    let enabled = crate::app_state::with_config(cx, |c| c.global_shortcut_enabled);
     let state = ShortcutState {
         enabled,
         registered: false,

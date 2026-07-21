@@ -4,7 +4,6 @@ use gpui_component::{
     button::{Button, ButtonVariants as _},
     label::Label,
     switch::Switch,
-    v_flex,
 };
 
 use crate::notifications::{
@@ -50,12 +49,7 @@ pub(super) fn render_notifications_section(
 
     let notifications_snapshot = notifications_snapshot.clone();
 
-    v_flex()
-        .gap_3()
-        .p_4()
-        .rounded(cx.theme().radius)
-        .border_1()
-        .border_color(cx.theme().border)
+    super::dev_sections::settings_card_base(cx)
         .child(
             div()
                 .flex()

@@ -179,7 +179,7 @@ mod live {
                 // Reset the backoff counter only when a connection was
                 // actually established; a failed `connect_async` keeps the
                 // counter growing.
-                let connected = self.run_session().await.is_ok();
+                let connected = self.run_session(attempt).await.is_ok();
                 if connected {
                     attempt = 0;
                 }
@@ -204,13 +204,17 @@ mod live {
 
         /// Run a single connect → store → flush → read-loop → teardown session.
         ///
+        /// `attempt` is the current (0-based on the first try) reconnect
+        /// attempt counter from [`connect_loop`](Self::connect_loop); it is
+        /// only used for log context on a failed `connect_async`.
+        ///
         /// Returns `Ok(())` if the connection was established (even if it later
         /// dropped and the read loop exited), or `Err` if `connect_async`
         /// itself failed. [`connect_loop`](Self::connect_loop) uses that
         /// distinction to decide whether to reset the reconnect backoff
         /// counter. Extracting the per-session body also makes a single
         /// session unit-testable in isolation.
-        async fn run_session(&mut self) -> Result<(), WebSocketError> {
+        async fn run_session(&mut self, attempt: u8) -> Result<(), WebSocketError> {
             match connect_async(&self.url).await {
                 Ok((ws_stream, _response)) => {
                     tracing::info!(
@@ -278,6 +282,7 @@ mod live {
                 Err(e) => {
                     tracing::warn!(
                         target: "gpui_starter::websocket",
+                        attempt,
                         error = %e,
                         "connection failed"
                     );

@@ -13,7 +13,7 @@ pub use types::{CheckForUpdates, PlatformAsset, UpdateManifest, UpdateSnapshot, 
 // ---------------------------------------------------------------------------
 
 pub fn initialize(cx: &mut gpui::App) {
-    let channel = crate::app_state::config(cx).update_channel.clone();
+    let channel = crate::app_state::update_channel(cx);
     cx.set_global(UpdateSnapshot {
         status: UpdateStatus::Idle,
         current_version: types::current_app_version(),

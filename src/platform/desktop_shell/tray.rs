@@ -103,7 +103,7 @@ pub fn setup(cx: &mut App) {
     let (tx, rx) = flume::unbounded::<()>();
     let tx_hotkey = tx.clone();
 
-    std::thread::Builder::new()
+    if let Err(e) = std::thread::Builder::new()
         .name("gpui-tray-events".into())
         .spawn(move || {
             let tray_rx = TrayIconEvent::receiver();
@@ -122,9 +122,15 @@ pub fn setup(cx: &mut App) {
                 }
             }
         })
-        .ok();
+    {
+        tracing::error!(
+            target: LOG,
+            error = %e,
+            "failed to spawn gpui-tray-events thread; tray clicks will not be delivered"
+        );
+    }
 
-    std::thread::Builder::new()
+    if let Err(e) = std::thread::Builder::new()
         .name("gpui-hotkey-events".into())
         .spawn(move || {
             let hotkey_rx = GlobalHotKeyEvent::receiver();
@@ -136,7 +142,13 @@ pub fn setup(cx: &mut App) {
                 let _ = tx_hotkey.send(());
             }
         })
-        .ok();
+    {
+        tracing::error!(
+            target: LOG,
+            error = %e,
+            "failed to spawn gpui-hotkey-events thread; global hotkey will not be delivered"
+        );
+    }
 
     cx.spawn(async move |cx| {
         loop {

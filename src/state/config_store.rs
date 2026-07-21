@@ -29,7 +29,6 @@ pub const APP_STATE_VERSION: u32 = 1;
 /// This avoids spawning multiple concurrent debounce tasks.
 static SAVE_SCHEDULED: AtomicBool = AtomicBool::new(false);
 
-#[derive(Clone, Debug)]
 pub struct AppState {
     pub paths: AppPaths,
     pub config: AppConfig,
@@ -40,6 +39,11 @@ pub struct AppState {
     /// The serialized bytes of the last successfully persisted config. Used for
     /// dirty-checking: if a new serialization matches, we skip the write entirely.
     last_flushed_bytes: Vec<u8>,
+    /// Handle to the most recently armed debounce flush task. Keeping it bound
+    /// (rather than `detach`-ing) lets [`force_save`] drop it on shutdown,
+    /// cancelling any queued background write so it cannot reorder stale bytes
+    /// beneath the synchronous shutdown flush. Dropping a `Task` cancels it.
+    in_flight_save: Option<gpui::Task<()>>,
 }
 
 impl Global for AppState {}
@@ -159,6 +163,7 @@ pub fn initialize(cx: &mut App) {
         last_save_error: None,
         dirty: false,
         last_flushed_bytes: initial_bytes,
+        in_flight_save: None,
     });
 }
 
@@ -225,47 +230,9 @@ pub fn update_config(cx: &mut App, update: impl FnOnce(&mut AppConfig)) {
         state.dirty = true;
     });
 
-    // Only spawn a new debounce task if one is not already scheduled.
-    if SAVE_SCHEDULED
-        .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
-        .is_ok()
-    {
-        let bg = cx.background_executor().clone();
-        cx.spawn(async move |cx| {
-            bg.timer(std::time::Duration::from_millis(DEBOUNCE_MS))
-                .await;
-
-            // Clear the flag so the next update_config can schedule a fresh timer.
-            SAVE_SCHEDULED.store(false, Ordering::Relaxed);
-
-            // Step 1 (UI thread): serialize + dirty-check. No I/O here.
-            let request = cx.update(|cx| {
-                cx.update_global::<AppState, _>(|state, _cx| {
-                    if !state.dirty {
-                        return None;
-                    }
-                    prepare_flush(state)
-                })
-            });
-
-            let Some((path, bytes)) = request else { return; };
-
-            // Step 2 (background thread): atomic write + fsync. The UI thread
-            // never blocks on disk I/O.
-            let write_bytes = bytes.clone();
-            let result = bg
-                .spawn(async move { save_config(&path, &write_bytes) })
-                .await;
-
-            // Step 3 (UI thread): apply the result to in-memory state.
-            cx.update(|cx| {
-                cx.update_global::<AppState, _>(|state, _cx| {
-                    commit_flush(state, bytes, result);
-                });
-            });
-        })
-        .detach();
-    }
+    // Arm the debounced flush (no-op if one is already scheduled). The task
+    // handle is recorded on state so the shutdown path can cancel it.
+    arm_debounce(cx);
 }
 
 /// Flushes any pending config changes to disk immediately.
@@ -285,13 +252,85 @@ pub fn force_save(cx: &mut App) {
     // stays inline. (The debounced hot path in `update_config` is the one that
     // moves fsync off the UI thread.)
     cx.update_global::<AppState, _>(|state, _cx| {
+        // Cancel any in-flight background save first: clearing the field drops
+        // the task handle, which cancels the debounce task (and any
+        // not-yet-started background write) so its commit step cannot race our
+        // synchronous write below and a queued write cannot reorder stale
+        // bytes beneath ours.
+        state.in_flight_save = None;
+
         if !state.dirty {
             return;
         }
         if let Some((path, bytes)) = prepare_flush(state) {
             let result = save_config(&path, &bytes);
-            commit_flush(state, bytes, result);
+            // commit_flush signals re-arm on a stale write; on the shutdown
+            // path there is nothing to re-arm, so ignore the flag.
+            let _ = commit_flush(state, bytes, result);
         }
+    });
+}
+
+/// Arms the debounced flush timer (if one is not already armed) and records
+/// the resulting task on `AppState::in_flight_save` so [`force_save`] can
+/// cancel it on shutdown.
+///
+/// The `SAVE_SCHEDULED` compare_exchange guarantees at most one debounce timer
+/// is in flight at a time — repeated calls while armed are coalesced into the
+/// existing timer. Safe to call from the UI thread; the heavy I/O runs on the
+/// background executor.
+fn arm_debounce(cx: &mut App) {
+    // Only spawn a new debounce task if one is not already scheduled.
+    if SAVE_SCHEDULED
+        .compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed)
+        .is_err()
+    {
+        return;
+    }
+
+    let bg = cx.background_executor().clone();
+    let task = cx.spawn(async move |cx| {
+        bg.timer(std::time::Duration::from_millis(DEBOUNCE_MS))
+            .await;
+
+        // Clear the flag so the next update_config can schedule a fresh timer.
+        SAVE_SCHEDULED.store(false, Ordering::Relaxed);
+
+        // Step 1 (UI thread): serialize + dirty-check. No I/O here.
+        let request = cx.update(|cx| {
+            cx.update_global::<AppState, _>(|state, _cx| {
+                if !state.dirty {
+                    return None;
+                }
+                prepare_flush(state)
+            })
+        });
+
+        let Some((path, bytes)) = request else { return; };
+
+        // Step 2 (background thread): atomic write + fsync. The UI thread
+        // never blocks on disk I/O.
+        let write_bytes = bytes.clone();
+        let result = bg
+            .spawn(async move { save_config(&path, &write_bytes) })
+            .await;
+
+        // Step 3 (UI thread): apply the result to in-memory state. If the
+        // write landed stale, commit_flush signals re-arm so the current
+        // (correct) bytes are re-flushed on the next debounce.
+        cx.update(|cx| {
+            let needs_rearm =
+                cx.update_global::<AppState, _>(|state, _cx| commit_flush(state, bytes, result));
+            if needs_rearm {
+                arm_debounce(cx);
+            }
+        });
+    });
+
+    // Track on state so the shutdown path can cancel any in-flight write.
+    // Overwriting a still-bound handle cancels the superseded task.
+    cx.update_global::<AppState, _>(|state, _cx| {
+        state.in_flight_save = Some(task);
     });
 }
 
@@ -337,12 +376,22 @@ fn prepare_flush(state: &mut AppState) -> Option<(PathBuf, Vec<u8>)> {
 ///
 /// On success, marks the state clean and records the flushed bytes — but only
 /// if the in-memory config still serializes to the same bytes we just wrote.
-/// That guard handles the (small) race where a `update_config` mutation lands
-/// while the write is in flight on the background thread: instead of falsely
-/// marking the state clean, we leave `dirty = true` so the next debounce
-/// re-flushes the newer bytes. On failure, `last_save_error` is set and the
-/// state stays dirty so the next debounce retries.
-fn commit_flush(state: &mut AppState, written_bytes: Vec<u8>, result: Result<(), AppError>) {
+/// That guard handles the race where a `update_config` mutation lands while the
+/// write is in flight on the background thread, AND the harder case where two
+/// debounce writes overlap and the older one's bytes reorder beneath the newer
+/// one's commit: instead of trusting the stale write, we re-mark `dirty = true`
+/// and return `true` so the caller re-arms the debounce and re-flushes the
+/// current (correct) bytes. Without the re-arm, a concurrent `commit_flush`
+/// could already have cleared `dirty`, leaving the stale on-disk bytes to
+/// survive until restart — silent config loss. On failure, `last_save_error`
+/// is set and the state stays dirty so the next debounce retries.
+///
+/// Returns `true` when the caller should re-arm the debounce (stale write).
+fn commit_flush(
+    state: &mut AppState,
+    written_bytes: Vec<u8>,
+    result: Result<(), AppError>,
+) -> bool {
     match result {
         Ok(()) => {
             state.last_save_error = None;
@@ -355,11 +404,18 @@ fn commit_flush(state: &mut AppState, written_bytes: Vec<u8>, result: Result<(),
                     state_file = %state.paths.state_file.display(),
                     "persisted app state"
                 );
+                false
             } else {
+                // Stale write: a mutation landed during flight, or a competing
+                // concurrent write reordered beneath us. Force a re-flush of
+                // the current bytes — do NOT trust this write, and do NOT let
+                // a prior concurrent clean commit keep `dirty = false`.
+                state.dirty = true;
                 tracing::debug!(
                     target: "gpui_starter::app_state",
                     "config changed during flush; will re-flush on next debounce"
                 );
+                true
             }
         }
         Err(err) => {
@@ -370,6 +426,7 @@ fn commit_flush(state: &mut AppState, written_bytes: Vec<u8>, result: Result<(),
                 "failed to persist app state"
             );
             state.last_save_error = Some(error);
+            false
         }
     }
 }

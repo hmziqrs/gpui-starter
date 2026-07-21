@@ -21,9 +21,9 @@ macro_rules! startup_step {
         $body;
         tracing::info!(
             target: "gpui_starter::startup",
-            "{} done in {:?}",
-            $name,
-            _t.elapsed()
+            elapsed_ms = _t.elapsed().as_millis() as u64,
+            "{} done",
+            $name
         );
     }};
 }
@@ -251,7 +251,8 @@ pub fn init(cx: &mut App) {
         crate::lifecycle::set_stage(crate::lifecycle::LifecycleStage::ShuttingDown, cx);
 
         // Flush any debounced window bounds before shutdown so the final
-        // position is persisted even if the 500 ms timer has not fired yet.
+        // position is persisted even if the config-store debounce (~300 ms)
+        // has not fired yet.
         crate::lifecycle::set_shutdown_step("flush_window_bounds", cx);
         crate::root::flush_window_bounds(cx);
 

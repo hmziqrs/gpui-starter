@@ -263,32 +263,26 @@ impl RemoteSink {
 
     /// Guard for sink methods that require collector connectivity.
     ///
-    /// When the sink is not connected, logs a structured "dropped" event at the
-    /// given `level` (using `ctx` to identify what was dropped) and returns
-    /// [`TelemetryError::NotAvailable`]. Connected callers fall through so the
-    /// sink can proceed with its normal queue/flush path.
-    fn require_connected(&self, level: tracing::Level, ctx: &str) -> Result<(), TelemetryError> {
+    /// When the sink is connected, returns `Ok(())` so the caller proceeds with
+    /// its normal queue/flush path. When it is not connected, invokes the
+    /// supplied `log_dropped` closure (so each caller can emit its own richly
+    /// structured "dropped"/"skipped" line preserving per-call fields such as
+    /// the event name, error text, or user property key/value) and returns
+    /// [`TelemetryError::NotAvailable`].
+    ///
+    /// The structured log emission deliberately lives at each call site rather
+    /// than inside this helper: `tracing` field sets are baked into the macro
+    /// at the call site and cannot be threaded through a single shared
+    /// invocation without dropping the per-call context that is the whole
+    /// point of the log.
+    fn require_connected(
+        &self,
+        log_dropped: impl FnOnce(),
+    ) -> Result<(), TelemetryError> {
         if self.connected {
             return Ok(());
         }
-        match level {
-            tracing::Level::ERROR | tracing::Level::WARN => {
-                tracing::warn!(
-                    target: "gpui_starter::telemetry",
-                    endpoint = %self.endpoint,
-                    ctx = %ctx,
-                    "remote telemetry dropped (not connected)"
-                );
-            }
-            _ => {
-                tracing::debug!(
-                    target: "gpui_starter::telemetry",
-                    endpoint = %self.endpoint,
-                    ctx = %ctx,
-                    "remote telemetry dropped (not connected)"
-                );
-            }
-        }
+        log_dropped();
         Err(TelemetryError::NotAvailable(format!(
             "OTLP exporter not connected to {}",
             self.endpoint
@@ -298,19 +292,41 @@ impl RemoteSink {
 
 impl super::TelemetrySink for RemoteSink {
     fn record_event(&self, name: &str) -> Result<(), TelemetryError> {
-        self.require_connected(tracing::Level::WARN, "event")?;
+        self.require_connected(|| {
+            tracing::warn!(
+                target: "gpui_starter::telemetry",
+                endpoint = %self.endpoint,
+                event = %name,
+                "remote telemetry event dropped (not connected)"
+            );
+        })?;
         tracing::debug!(target: "gpui_starter::telemetry", endpoint = %self.endpoint, event = %name, "remote telemetry event queued");
         Ok(())
     }
 
     fn record_error(&self, error: &str) -> Result<(), TelemetryError> {
-        self.require_connected(tracing::Level::WARN, "error")?;
+        self.require_connected(|| {
+            tracing::warn!(
+                target: "gpui_starter::telemetry",
+                endpoint = %self.endpoint,
+                error = %error,
+                "remote telemetry error dropped (not connected)"
+            );
+        })?;
         tracing::warn!(target: "gpui_starter::telemetry", endpoint = %self.endpoint, error = %error, "remote telemetry error queued");
         Ok(())
     }
 
     fn set_user_properties(&self, key: &str, value: &str) -> Result<(), TelemetryError> {
-        self.require_connected(tracing::Level::DEBUG, "user property")?;
+        self.require_connected(|| {
+            tracing::debug!(
+                target: "gpui_starter::telemetry",
+                endpoint = %self.endpoint,
+                key = %key,
+                value = %value,
+                "remote telemetry user property dropped (not connected)"
+            );
+        })?;
         tracing::debug!(target: "gpui_starter::telemetry", endpoint = %self.endpoint, key = %key, value = %value, "remote telemetry user property queued");
         Ok(())
     }
@@ -322,7 +338,13 @@ impl super::TelemetrySink for RemoteSink {
     /// each flush, unlike `shutdown_tracer_provider()` which is a one-way
     /// destructive operation.
     fn flush(&self) -> Result<(), TelemetryError> {
-        self.require_connected(tracing::Level::DEBUG, "flush")?;
+        self.require_connected(|| {
+            tracing::debug!(
+                target: "gpui_starter::telemetry",
+                endpoint = %self.endpoint,
+                "remote telemetry flush skipped (not connected)"
+            );
+        })?;
         tracing::debug!(target: "gpui_starter::telemetry", endpoint = %self.endpoint, "remote telemetry flush");
         self.force_flush_provider()
     }

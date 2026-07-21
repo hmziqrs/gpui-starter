@@ -32,8 +32,7 @@ pub struct AppPaths {
 
 impl AppPaths {
     pub fn new() -> Result<Self, AppError> {
-        let project_dirs = ProjectDirs::from("com", "gpui-starter", "GPUI Starter")
-            .ok_or(AppError::PathInitialization)?;
+        let project_dirs = project_dirs().ok_or(AppError::PathInitialization)?;
 
         let config_dir = project_dirs.config_dir().to_path_buf();
         let data_dir = project_dirs.data_dir().to_path_buf();

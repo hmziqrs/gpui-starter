@@ -17,9 +17,9 @@ pub(crate) use runtime_sections::{
 };
 pub(crate) use telemetry_sections::{render_telemetry_runtime_section, render_telemetry_section};
 
-/// Shared base layout for every dev-section card: a vertical flex with the
+/// Shared base layout for every settings card: a vertical flex with the
 /// card chrome (padding, radius, border). Callers append `.child(...)` content.
-fn settings_card_base(cx: &Context<SettingsPage>) -> Div {
+pub(crate) fn settings_card_base(cx: &Context<SettingsPage>) -> Div {
     v_flex()
         .gap_3()
         .p_4()

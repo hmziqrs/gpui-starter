@@ -6,8 +6,6 @@ use gpui_query::hook::{
     use_query_select,
 };
 
-use crate::services::tokio_runtime::TokioRuntimeGlobal;
-
 use super::actions::run_http;
 use super::super::{HttpFetchKind, PlaygroundPage, PlaygroundUser, QueryPlaygroundPage};
 
@@ -257,8 +255,8 @@ impl QueryPlaygroundPage {
         }
         // reqwest must run on tokio; clone the shared client + runtime out of the
         // global (releasing the cx borrow) before entering the fetch closure.
-        let (client, runtime) = match cx.try_global::<TokioRuntimeGlobal>() {
-            Some(g) => (g.0.http_client.clone(), g.0.runtime.clone()),
+        let (client, runtime) = match crate::services::tokio_runtime::runtime_and_client(cx) {
+            Some((runtime, client)) => (client, runtime),
             None => return, // fetch_http also guards and logs this
         };
         let (entity, sub) = use_query(
