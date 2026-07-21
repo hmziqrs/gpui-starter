@@ -7,20 +7,21 @@ pub const APP_URL_SCHEME: &str = "gpui-starter";
 
 /// Hosts that are recognized as valid deep link targets.
 ///
-/// Single source of truth for the host whitelist — `validate_deep_link_url`
-/// in `foundation::validation` reuses this list so the two never drift.
-/// `http`, `httplab-testing`, and `query-devtools` were removed along with
-/// their backing features during the gpui-query migration.
+/// Derived entirely from [`Page::host`](crate::sidebar::Page::host) — the
+/// `Page` enum is the single source of truth for the route set, so this list
+/// cannot drift from `to_url` / `parse_deep_link`. `validate_deep_link_url`
+/// in `foundation::validation` reuses this list so deep-link validation and
+/// route parsing also stay in sync.
 pub(crate) const VALID_HOSTS: &[&str] = &[
-    "home",
-    "form",
-    "settings",
-    "notifications",
-    "diagnostics",
-    "error-playground",
-    "query-playground",
-    "query-devtools-v2",
-    "about",
+    Page::Home.host(),
+    Page::Form.host(),
+    Page::Settings.host(),
+    Page::Notifications.host(),
+    Page::Diagnostics.host(),
+    Page::ErrorPlayground.host(),
+    Page::QueryPlayground.host(),
+    Page::QueryDevToolsV2.host(),
+    Page::About.host(),
 ];
 
 /// Characters that are not permitted in path segments.
@@ -86,16 +87,12 @@ impl AppRoute {
 
     pub fn to_url(&self) -> String {
         match self {
-            Self::Page(Page::Home) => "gpui-starter://home".to_string(),
-            Self::Page(Page::Form) => "gpui-starter://form".to_string(),
-            Self::Page(Page::Settings) => "gpui-starter://settings".to_string(),
-            Self::Page(Page::Notifications) => "gpui-starter://notifications".to_string(),
-            Self::Page(Page::Diagnostics) => "gpui-starter://diagnostics".to_string(),
-            Self::Page(Page::ErrorPlayground) => "gpui-starter://error-playground".to_string(),
-            Self::Page(Page::QueryPlayground) => "gpui-starter://query-playground".to_string(),
-            Self::Page(Page::QueryDevToolsV2) => "gpui-starter://query-devtools-v2".to_string(),
-            Self::Page(Page::About) => "gpui-starter://about".to_string(),
-            Self::SettingsNotifications => "gpui-starter://settings/notifications".to_string(),
+            // The host segment comes from `Page::host` — the enum is the
+            // single source of truth for the route set.
+            Self::Page(page) => format!("{}://{}", APP_URL_SCHEME, page.host()),
+            Self::SettingsNotifications => {
+                format!("{}://{}/notifications", APP_URL_SCHEME, Page::Settings.host())
+            }
         }
     }
 
@@ -145,18 +142,19 @@ impl AppRoute {
             // injection through query strings is prevented at the gate.
         }
 
-        // --- 6. Route matching (unchanged logic) ----------------------------
+        // --- 6. Route matching ----------------------------------------------
+        // The host→Page mapping is delegated to `Page::from_host` so the
+        // parser, `to_url`, and `VALID_HOSTS` all share one source of truth.
+        // Only the sub-route `settings/notifications` needs a literal arm;
+        // its host is compared via `Page::Settings.host()` to avoid drift.
         match (host, segments.as_slice()) {
-            ("home", []) => Ok(Self::Page(Page::Home)),
-            ("form", []) => Ok(Self::Page(Page::Form)),
-            ("settings", []) => Ok(Self::Page(Page::Settings)),
-            ("settings", ["notifications"]) => Ok(Self::SettingsNotifications),
-            ("notifications", []) => Ok(Self::Page(Page::Notifications)),
-            ("diagnostics", []) => Ok(Self::Page(Page::Diagnostics)),
-            ("error-playground", []) => Ok(Self::Page(Page::ErrorPlayground)),
-            ("query-playground", []) => Ok(Self::Page(Page::QueryPlayground)),
-            ("query-devtools-v2", []) => Ok(Self::Page(Page::QueryDevToolsV2)),
-            ("about", []) => Ok(Self::Page(Page::About)),
+            (host, []) => match Page::from_host(host) {
+                Some(page) => Ok(Self::Page(page)),
+                None => Err(AppError::invalid_deep_link(input, "unknown route")),
+            },
+            (h, ["notifications"]) if h == Page::Settings.host() => {
+                Ok(Self::SettingsNotifications)
+            }
             _ => Err(AppError::invalid_deep_link(input, "unknown route")),
         }
     }
