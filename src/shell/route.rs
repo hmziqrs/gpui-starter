@@ -6,16 +6,18 @@ use crate::{errors::AppError, sidebar::Page};
 pub const APP_URL_SCHEME: &str = "gpui-starter";
 
 /// Hosts that are recognized as valid deep link targets.
-const VALID_HOSTS: &[&str] = &[
+///
+/// Single source of truth for the host whitelist — `validate_deep_link_url`
+/// in `foundation::validation` reuses this list so the two never drift.
+/// `http`, `httplab-testing`, and `query-devtools` were removed along with
+/// their backing features during the gpui-query migration.
+pub(crate) const VALID_HOSTS: &[&str] = &[
     "home",
     "form",
-    "http",
-    "httplab-testing",
     "settings",
     "notifications",
     "diagnostics",
     "error-playground",
-    "query-devtools",
     "query-playground",
     "query-devtools-v2",
     "about",
@@ -39,21 +41,18 @@ fn validate_path_segment(segment: &str) -> Result<(), AppError> {
 
     // Path-traversal checks.
     if segment == ".." || segment == "." || segment.contains("..") {
-        return Err(AppError::InvalidDeepLink {
-            input: segment.to_string(),
-            reason: "path traversal detected in URL segment".to_string(),
-        });
+        return Err(AppError::invalid_deep_link(
+            segment,
+            "path traversal detected in URL segment",
+        ));
     }
 
     for &forbidden in INVALID_SEGMENT_CHARS {
         if segment.contains(forbidden) {
-            return Err(AppError::InvalidDeepLink {
-                input: segment.to_string(),
-                reason: format!(
-                    "path segment contains forbidden character `{:?}`",
-                    forbidden
-                ),
-            });
+            return Err(AppError::invalid_deep_link(
+                segment,
+                format!("path segment contains forbidden character `{:?}`", forbidden),
+            ));
         }
     }
 
@@ -102,30 +101,29 @@ impl AppRoute {
 
     pub fn parse_deep_link(input: &str) -> Result<Self, AppError> {
         // --- 1. Parse the raw URL -------------------------------------------
-        let url = Url::parse(input).map_err(|err| AppError::InvalidDeepLink {
-            input: input.to_string(),
-            reason: err.to_string(),
+        let url = Url::parse(input).map_err(|err| {
+            AppError::invalid_deep_link(input, err.to_string())
         })?;
 
         // --- 2. Scheme validation -------------------------------------------
         if url.scheme() != APP_URL_SCHEME {
-            return Err(AppError::InvalidDeepLink {
-                input: input.to_string(),
-                reason: format!(
+            return Err(AppError::invalid_deep_link(
+                input,
+                format!(
                     "unsupported scheme `{}`, expected `{}`",
                     url.scheme(),
                     APP_URL_SCHEME
                 ),
-            });
+            ));
         }
 
         // --- 3. Host validation ---------------------------------------------
         let host = url.host_str().unwrap_or_default();
         if !VALID_HOSTS.contains(&host) {
-            return Err(AppError::InvalidDeepLink {
-                input: input.to_string(),
-                reason: format!("unexpected host `{}`", host),
-            });
+            return Err(AppError::invalid_deep_link(
+                input,
+                format!("unexpected host `{}`", host),
+            ));
         }
 
         // --- 4. Path segment validation -------------------------------------
@@ -159,10 +157,7 @@ impl AppRoute {
             ("query-playground", []) => Ok(Self::Page(Page::QueryPlayground)),
             ("query-devtools-v2", []) => Ok(Self::Page(Page::QueryDevToolsV2)),
             ("about", []) => Ok(Self::Page(Page::About)),
-            _ => Err(AppError::InvalidDeepLink {
-                input: input.to_string(),
-                reason: "unknown route".to_string(),
-            }),
+            _ => Err(AppError::invalid_deep_link(input, "unknown route")),
         }
     }
 }

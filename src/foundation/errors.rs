@@ -34,6 +34,17 @@ pub enum AppError {
 }
 
 impl AppError {
+    /// Construct an `InvalidDeepLink` error from any string-like input/reason.
+    pub fn invalid_deep_link(
+        input: impl Into<String>,
+        reason: impl Into<String>,
+    ) -> Self {
+        Self::InvalidDeepLink {
+            input: input.into(),
+            reason: reason.into(),
+        }
+    }
+
     pub fn severity(&self) -> AppErrorSeverity {
         match self {
             Self::InvalidDeepLink { .. } | Self::StateParse { .. } | Self::Ipc { .. } => {

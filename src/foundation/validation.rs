@@ -6,7 +6,7 @@ use thiserror::Error;
 use url::Url;
 
 use crate::errors::AppError;
-use crate::routes::APP_URL_SCHEME;
+use crate::routes::{APP_URL_SCHEME, VALID_HOSTS};
 
 // ---------------------------------------------------------------------------
 // Deep-link URL validation
@@ -15,34 +15,23 @@ use crate::routes::APP_URL_SCHEME;
 /// Validate that a deep-link URL uses the expected scheme (`gpui-starter://`)
 /// and reject unexpected hosts.
 pub fn validate_deep_link_url(url: &str) -> Result<Url, AppError> {
-    let parsed = Url::parse(url).map_err(|err| AppError::InvalidDeepLink {
-        input: url.to_string(),
-        reason: err.to_string(),
+    let parsed = Url::parse(url).map_err(|err| {
+        AppError::invalid_deep_link(url, err.to_string())
     })?;
 
     if parsed.scheme() != APP_URL_SCHEME {
-        return Err(AppError::InvalidDeepLink {
-            input: url.to_string(),
-            reason: format!("unsupported scheme `{}`", parsed.scheme()),
-        });
+        return Err(AppError::invalid_deep_link(
+            url,
+            format!("unsupported scheme `{}`", parsed.scheme()),
+        ));
     }
 
-    let allowed_hosts = [
-        "home",
-        "form",
-        "http",
-        "settings",
-        "notifications",
-        "diagnostics",
-        "about",
-    ];
-
     let host = parsed.host_str().unwrap_or_default();
-    if !allowed_hosts.contains(&host) {
-        return Err(AppError::InvalidDeepLink {
-            input: url.to_string(),
-            reason: format!("unexpected host `{host}`"),
-        });
+    if !VALID_HOSTS.contains(&host) {
+        return Err(AppError::invalid_deep_link(
+            url,
+            format!("unexpected host `{host}`"),
+        ));
     }
 
     Ok(parsed)
