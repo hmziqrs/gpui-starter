@@ -1,9 +1,7 @@
-use std::rc::Rc;
-
 use gpui::{
-    Anchor, AnyElement, App, AppContext as _, Context, Entity, FocusHandle,
-    InteractiveElement as _, IntoElement, MouseButton, ParentElement as _, Render, SharedString,
-    Styled as _, Window, div, px,
+    Anchor, App, AppContext as _, Context, Entity, FocusHandle, InteractiveElement as _,
+    IntoElement, MouseButton, ParentElement as _, Render, SharedString, Styled as _, Window, div,
+    px,
 };
 use gpui_component::{
     ActiveTheme as _, IconName, Sizable as _, Theme, TitleBar,
@@ -15,12 +13,9 @@ use gpui_component::{
 use crate::app::{SelectFont, SelectRadius};
 use crate::app_menu;
 
-type TitleBarChild = Rc<dyn Fn(&mut Window, &mut App) -> AnyElement>;
-
 pub struct AppTitleBar {
     app_menu_bar: Entity<AppMenuBar>,
     settings: Entity<SettingsDropdown>,
-    child: TitleBarChild,
 }
 
 impl AppTitleBar {
@@ -35,23 +30,12 @@ impl AppTitleBar {
         Self {
             app_menu_bar,
             settings,
-            child: Rc::new(|_, _| div().into_any_element()),
         }
-    }
-
-    #[allow(dead_code)]
-    pub fn child<F, E>(mut self, f: F) -> Self
-    where
-        E: IntoElement,
-        F: Fn(&mut Window, &mut App) -> E + 'static,
-    {
-        self.child = Rc::new(move |window, cx| f(window, cx).into_any_element());
-        self
     }
 }
 
 impl Render for AppTitleBar {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         TitleBar::new()
             .child(
                 div()
@@ -70,7 +54,7 @@ impl Render for AppTitleBar {
                     .px_2()
                     .gap_2()
                     .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                    .child((self.child.clone())(window, cx))
+                    .child(div())
                     .child(
                         Label::new("theme:")
                             .secondary(cx.theme().theme_name())

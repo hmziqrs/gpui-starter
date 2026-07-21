@@ -128,7 +128,7 @@ mod live {
                 "flushing pending messages"
             );
 
-            for msg in &messages {
+            for (idx, msg) in messages.iter().enumerate() {
                 if sink
                     .send(Message::Text(msg.clone()))
                     .await
@@ -141,10 +141,13 @@ mod live {
                     })
                     .is_err()
                 {
-                    // Put remaining messages back into the buffer so they can
-                    // be retried on the next connection attempt.
-                    let idx = messages.iter().position(|m| m == msg).unwrap_or(0);
-                    let remaining: Vec<String> = messages.into_iter().skip(idx).collect();
+                    // Re-queue the failed message (at `idx`) and everything
+                    // after it for the next connection attempt. Using the
+                    // explicit enumerate index — instead of re-scanning with
+                    // `position(|m| m == msg)` — also fixes a latent bug where
+                    // a later duplicate string would resolve to an already-sent
+                    // earlier equal string and re-send it.
+                    let remaining: Vec<String> = messages[idx..].to_vec();
                     if !remaining.is_empty() {
                         let mut buf = self.pending.lock().await;
                         buf.splice(0..0, remaining);
@@ -173,80 +176,15 @@ mod live {
                     ConnectionState::Reconnecting { attempt }
                 };
 
-                match connect_async(&self.url).await {
-                    Ok((ws_stream, _response)) => {
-                        tracing::info!(
-                            target: "gpui_starter::websocket",
-                            url = %self.url,
-                            "connected"
-                        );
-                        self.state = ConnectionState::Connected;
-                        attempt = 0;
-
-                        // Split into write and read halves.
-                        let (write, mut read) = ws_stream.split();
-
-                        // Store the write half so `send()` can use it.
-                        {
-                            let mut guard = self.inner.lock().await;
-                            *guard = Some(write);
-                        }
-
-                        // Flush any messages that were queued while we were
-                        // disconnected.
-                        {
-                            let mut guard = self.inner.lock().await;
-                            if let Some(ref mut sink) = *guard {
-                                self.flush_pending(sink).await;
-                            }
-                        }
-
-                        // Read messages until the stream closes or errors.
-                        while let Some(msg) = StreamExt::next(&mut read).await {
-                            match msg {
-                                Ok(Message::Text(text)) => {
-                                    if let Some(ref handler) = self.on_message {
-                                        handler(&text);
-                                    }
-                                }
-                                Ok(Message::Close(frame)) => {
-                                    tracing::info!(
-                                        target: "gpui_starter::websocket",
-                                        frame = ?frame,
-                                        "server closed connection"
-                                    );
-                                    break;
-                                }
-                                Ok(_) => {} // binary, ping, pong — ignored for now
-                                Err(e) => {
-                                    tracing::warn!(
-                                        target: "gpui_starter::websocket",
-                                        error = %e,
-                                        "read error"
-                                    );
-                                    break;
-                                }
-                            }
-                        }
-
-                        // Stream ended — fall through to reconnect.
-                        self.state = ConnectionState::Disconnected;
-                        {
-                            let mut guard = self.inner.lock().await;
-                            *guard = None;
-                        }
-                    }
-                    Err(e) => {
-                        tracing::warn!(
-                            target: "gpui_starter::websocket",
-                            attempt,
-                            error = %e,
-                            "connection failed"
-                        );
-                    }
+                // Reset the backoff counter only when a connection was
+                // actually established; a failed `connect_async` keeps the
+                // counter growing.
+                let connected = self.run_session().await.is_ok();
+                if connected {
+                    attempt = 0;
                 }
-
                 attempt += 1;
+
                 if attempt > self.reconnect.max_retries {
                     tracing::error!(
                         target: "gpui_starter::websocket",
@@ -260,15 +198,105 @@ mod live {
                     )));
                 }
 
-                let delay = self.reconnect.delay_for_attempt(attempt - 1);
-                tracing::info!(
-                    target: "gpui_starter::websocket",
-                    attempt,
-                    delay_ms = delay.as_millis() as u64,
-                    "waiting before reconnect"
-                );
-                tokio::time::sleep(delay).await;
+                self.backoff_sleep(attempt).await;
             }
+        }
+
+        /// Run a single connect → store → flush → read-loop → teardown session.
+        ///
+        /// Returns `Ok(())` if the connection was established (even if it later
+        /// dropped and the read loop exited), or `Err` if `connect_async`
+        /// itself failed. [`connect_loop`](Self::connect_loop) uses that
+        /// distinction to decide whether to reset the reconnect backoff
+        /// counter. Extracting the per-session body also makes a single
+        /// session unit-testable in isolation.
+        async fn run_session(&mut self) -> Result<(), WebSocketError> {
+            match connect_async(&self.url).await {
+                Ok((ws_stream, _response)) => {
+                    tracing::info!(
+                        target: "gpui_starter::websocket",
+                        url = %self.url,
+                        "connected"
+                    );
+                    self.state = ConnectionState::Connected;
+
+                    // Split into write and read halves.
+                    let (write, mut read) = ws_stream.split();
+
+                    // Store the write half so `send()` can use it.
+                    {
+                        let mut guard = self.inner.lock().await;
+                        *guard = Some(write);
+                    }
+
+                    // Flush any messages that were queued while we were
+                    // disconnected.
+                    {
+                        let mut guard = self.inner.lock().await;
+                        if let Some(ref mut sink) = *guard {
+                            self.flush_pending(sink).await;
+                        }
+                    }
+
+                    // Read messages until the stream closes or errors.
+                    while let Some(msg) = StreamExt::next(&mut read).await {
+                        match msg {
+                            Ok(Message::Text(text)) => {
+                                if let Some(ref handler) = self.on_message {
+                                    handler(&text);
+                                }
+                            }
+                            Ok(Message::Close(frame)) => {
+                                tracing::info!(
+                                    target: "gpui_starter::websocket",
+                                    frame = ?frame,
+                                    "server closed connection"
+                                );
+                                break;
+                            }
+                            Ok(_) => {} // binary, ping, pong — ignored for now
+                            Err(e) => {
+                                tracing::warn!(
+                                    target: "gpui_starter::websocket",
+                                    error = %e,
+                                    "read error"
+                                );
+                                break;
+                            }
+                        }
+                    }
+
+                    // Stream ended — tear down the write half before reconnecting.
+                    self.state = ConnectionState::Disconnected;
+                    {
+                        let mut guard = self.inner.lock().await;
+                        *guard = None;
+                    }
+
+                    Ok(())
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        target: "gpui_starter::websocket",
+                        error = %e,
+                        "connection failed"
+                    );
+                    Err(WebSocketError::Connection(e.to_string()))
+                }
+            }
+        }
+
+        /// Sleep for the backoff delay associated with the given (1-based,
+        /// post-increment) reconnect attempt before the next session begins.
+        async fn backoff_sleep(&mut self, attempt: u8) {
+            let delay = self.reconnect.delay_for_attempt(attempt - 1);
+            tracing::info!(
+                target: "gpui_starter::websocket",
+                attempt,
+                delay_ms = delay.as_millis() as u64,
+                "waiting before reconnect"
+            );
+            tokio::time::sleep(delay).await;
         }
 
         /// Send a text message over the active connection.

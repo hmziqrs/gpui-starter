@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use global_hotkey::GlobalHotKeyEvent;
 use gpui::App;
 use tray_icon::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -92,27 +90,61 @@ pub fn setup(cx: &mut App) {
     Box::leak(Box::new(tray));
     tracing::debug!(target: LOG, "Tray icon created");
 
-    cx.spawn(async move |cx| {
-        let bg = cx.background_executor();
-        loop {
-            while let Ok(ev) = TrayIconEvent::receiver().try_recv() {
+    // Tray-icon clicks and the global hotkey arrive on two crossbeam channels
+    // exposed by `tray_icon` / `global_hotkey`. Each `receiver()` supports a
+    // blocking `recv()`, so instead of waking the GPUI executor 20×/s to poll,
+    // a dedicated OS thread parks on each receiver and forwards a unit tick
+    // over a flume channel. A foreground GPUI task drains that channel
+    // reactively (`recv_async`) and opens the launcher on the UI thread.
+    //
+    // `AsyncApp` is `!Send` (it holds an `Rc`-backed app reference), so the
+    // OS threads cannot call `cx.update` directly; the flume channel is what
+    // gets the event back onto the foreground executor.
+    let (tx, rx) = flume::unbounded::<()>();
+    let tx_hotkey = tx.clone();
+
+    std::thread::Builder::new()
+        .name("gpui-tray-events".into())
+        .spawn(move || {
+            let tray_rx = TrayIconEvent::receiver();
+            loop {
+                let Ok(event) = tray_rx.recv() else {
+                    return;
+                };
                 if let TrayIconEvent::Click {
                     button: MouseButton::Left,
                     button_state: MouseButtonState::Up,
                     ..
-                } = ev
+                } = event
                 {
                     tracing::info!(target: LOG, source = "tray_click", "Launcher trigger");
-                    cx.update(crate::launcher::open_launcher);
+                    let _ = tx.send(());
                 }
             }
+        })
+        .ok();
 
-            while GlobalHotKeyEvent::receiver().try_recv().is_ok() {
+    std::thread::Builder::new()
+        .name("gpui-hotkey-events".into())
+        .spawn(move || {
+            let hotkey_rx = GlobalHotKeyEvent::receiver();
+            loop {
+                if hotkey_rx.recv().is_err() {
+                    return;
+                }
                 tracing::info!(target: LOG, source = "hotkey_alt_space", "Launcher trigger");
-                cx.update(crate::launcher::open_launcher);
+                let _ = tx_hotkey.send(());
             }
+        })
+        .ok();
 
-            bg.timer(Duration::from_millis(50)).await;
+    cx.spawn(async move |cx| {
+        loop {
+            // Parked until a tray click or hotkey fires — no periodic wake-ups.
+            if rx.recv_async().await.is_err() {
+                break;
+            }
+            let _ = cx.update(crate::launcher::open_launcher);
         }
     })
     .detach();
