@@ -217,4 +217,4 @@ The main tradeoff is ecosystem. GPUI does not have a package registry full of pr
 
 If you are building a developer tool and the web stack's overhead is becoming a problem, Rust and GPUI are worth a serious look. The [architecture docs](/docs/architecture/) explain how the entity and context systems work in detail. The [getting started guide](/docs/getting-started/) has a working app running in under five minutes.
 
-[gpui-starter](https://github.com/hmziqrs/gpui-boilerplate) gives you a project scaffold with navigation, themes, async state management, and a command palette wired up and ready to extend. You can find the full setup instructions at [getting started](/docs/getting-started/).
+[gpui-starter](https://github.com/freeoxide/gpui-starter) gives you a project scaffold with navigation, themes, async state management, and a command palette wired up and ready to extend. You can find the full setup instructions at [getting started](/docs/getting-started/).

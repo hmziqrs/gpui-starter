@@ -214,4 +214,4 @@ This keeps persistence logic in one place rather than scattered across every ent
 
 State management in Rust desktop apps is less about choosing the right library and more about understanding the three primitives your framework gives you. In GPUI: entities for window-scoped state, globals for app-wide singletons, context for side effects and reactivity. The hard part is discipline: keeping hot state small, normalizing warm state, and offloading cold state to disk.
 
-If you want to see these patterns in a real project, [gpui-starter](https://github.com/hmziqrs/gpui-boilerplate) implements all three tiers with SQLite persistence, theme management as global state, and per-component entities for interactive state. The [getting started guide](/docs/getting-started/) walks through the full setup.
+If you want to see these patterns in a real project, [gpui-starter](https://github.com/freeoxide/gpui-starter) implements all three tiers with SQLite persistence, theme management as global state, and per-component entities for interactive state. The [getting started guide](/docs/getting-started/) walks through the full setup.

@@ -271,6 +271,6 @@ Fluent key generation follows a strict naming convention. If you rename a field,
 
 ## Where to go from here
 
-The complete working form lives in `src/views/form_page.rs` in the [gpui-starter repo](https://github.com/hmziqrs/gpui-boilerplate). You can clone it, run `cargo run`, and see the validation in action immediately. The form page is accessible from the sidebar navigation.
+The complete working form lives in `src/views/form_page.rs` in the [gpui-starter repo](https://github.com/freeoxide/gpui-starter). You can clone it, run `cargo run`, and see the validation in action immediately. The form page is accessible from the sidebar navigation.
 
 For setup instructions and the full project structure, see [the getting started guide](/docs/getting-started/). The [earlier post on form validation with koruma](/blog/form-validation-koruma-rust/) covers the architecture in more depth if you want to understand the macro internals before building your own forms.

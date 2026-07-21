@@ -8,7 +8,7 @@ draft: false
 
 Desktop applications have a different threat model than web apps. Your code runs on someone else's machine. They can inspect binaries, modify local files, and intercept network traffic. Rust gives you memory safety for free, but that only covers one class of bugs. The rest is on you.
 
-I have spent the last year building [gpui-starter](https://github.com/hmziqrs/gpui-boilerplate), a Rust desktop boilerplate using GPUI. Security came up repeatedly: how to store API keys, how to ship updates without getting supply-chain attacked, how to validate form input, and how to audit dependencies. Here is what I learned, with code.
+I have spent the last year building [gpui-starter](https://github.com/freeoxide/gpui-starter), a Rust desktop boilerplate using GPUI. Security came up repeatedly: how to store API keys, how to ship updates without getting supply-chain attacked, how to validate form input, and how to audit dependencies. Here is what I learned, with code.
 
 ## Store credentials in the OS keychain, not in files
 
@@ -276,4 +276,4 @@ Here is what I review before every release of a Rust desktop app:
 
 Security is not a feature you bolt on at the end. It is a set of habits you build into the development cycle. Whenever you add a dependency, store user data, or download something from the network, ask: what would happen if this input were hostile?
 
-gpui-starter implements all of these patterns out of the box. If you are building a Rust desktop app with GPUI, the [getting started guide](/docs/getting-started/) walks through the security configuration. The full source is on [GitHub](https://github.com/hmziqrs/gpui-boilerplate).
+gpui-starter implements all of these patterns out of the box. If you are building a Rust desktop app with GPUI, the [getting started guide](/docs/getting-started/) walks through the security configuration. The full source is on [GitHub](https://github.com/freeoxide/gpui-starter).

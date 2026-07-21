@@ -159,4 +159,4 @@ GPUI is the right foundation for that because retained mode scales better for co
 
 The cost is real. GPUI is harder to learn. The docs are thinner. You will spend more time reading source code than you would with egui. But the result is an application that performs like native software should.
 
-If you want to try building with GPUI, the [getting started guide](/docs/getting-started/) walks through project setup and core concepts. The full boilerplate with navigation, theming, i18n, and persistence is on [GitHub](https://github.com/hmziqrs/gpui-boilerplate). For more background on the framework itself, the [GPUI introduction post](/blog/getting-started-with-gpui/) covers the basics.
+If you want to try building with GPUI, the [getting started guide](/docs/getting-started/) walks through project setup and core concepts. The full boilerplate with navigation, theming, i18n, and persistence is on [GitHub](https://github.com/freeoxide/gpui-starter). For more background on the framework itself, the [GPUI introduction post](/blog/getting-started-with-gpui/) covers the basics.

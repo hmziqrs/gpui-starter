@@ -379,4 +379,4 @@ Each `chunk()` call returns the next batch of bytes as they arrive. You can also
 
 reqwest handles the routine parts of HTTP so you can focus on your app. Set up a client once, reuse it everywhere, handle errors explicitly, and use serde for typed responses. Those four patterns cover most of what a desktop app needs from an HTTP client.
 
-If you are building a desktop app with GPUI and want a starting point that already has the async plumbing, project structure, and common patterns wired up, take a look at [gpui-starter](/docs/getting-started/). It includes request examples, error boundaries, and a full app scaffold so you can skip the boilerplate and start building features. The source is on [GitHub](https://github.com/hmziqrs/gpui-boilerplate).
+If you are building a desktop app with GPUI and want a starting point that already has the async plumbing, project structure, and common patterns wired up, take a look at [gpui-starter](/docs/getting-started/). It includes request examples, error boundaries, and a full app scaffold so you can skip the boilerplate and start building features. The source is on [GitHub](https://github.com/freeoxide/gpui-starter).

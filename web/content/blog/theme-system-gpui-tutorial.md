@@ -205,4 +205,4 @@ For a full list of tokens and their fallback chains, check the [theme token refe
 
 The GPUI theme system combines a JSON-based theme format with generous fallbacks, a registry that loads themes from disk at runtime, and a filesystem watcher that reloads on change. The fallback logic means themes can be small. The registry decouples themes from compile time. The watcher closes the loop for live editing.
 
-If you want to see this system running in a real app with 21 themes, a settings page, and undo/redo for theme switches, check out [gpui-starter on GitHub](https://github.com/hmziqrs/gpui-boilerplate) or follow the [getting started guide](/docs/getting-started/) to set up the project locally.
+If you want to see this system running in a real app with 21 themes, a settings page, and undo/redo for theme switches, check out [gpui-starter on GitHub](https://github.com/freeoxide/gpui-starter) or follow the [getting started guide](/docs/getting-started/) to set up the project locally.

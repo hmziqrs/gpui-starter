@@ -239,4 +239,4 @@ Run `cargo audit` in your CI pipeline. It takes seconds and catches known vulner
 
 Building GUI applications in Rust requires more upfront discipline than in garbage-collected languages, but the payoff is real: predictable performance, no runtime crashes from null pointers, and a deployment story where you ship a single binary with no runtime dependencies.
 
-If you want a head start with these patterns already wired together, [gpui-starter](https://github.com/hmziqrs/gpui-boilerplate) is a production-ready boilerplate that includes multi-page navigation, theme support, i18n, form validation, SQLite persistence, and the architecture patterns described here. The [getting started guide](/docs/getting-started/) walks you through the setup in about ten minutes.
+If you want a head start with these patterns already wired together, [gpui-starter](https://github.com/freeoxide/gpui-starter) is a production-ready boilerplate that includes multi-page navigation, theme support, i18n, form validation, SQLite persistence, and the architecture patterns described here. The [getting started guide](/docs/getting-started/) walks you through the setup in about ten minutes.

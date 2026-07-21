@@ -227,6 +227,6 @@ GPUI provides a test harness that renders views without a GPU, so you can write 
 
 Writing everything from scratch teaches you the fundamentals, but production apps need more than a single file. Navigation, theme support, keyboard shortcuts, and persistence all require wiring that takes time to get right.
 
-[gpui-starter](https://github.com/hmziqrs/gpui-boilerplate) is a production-ready boilerplate that sets all of this up for you. It includes a sidebar with multi-page navigation, 21 themes with hot-reload, i18n with Fluent, form validation, a Cmd+K command palette, macOS tray integration, SQLite persistence, undo/redo, single-instance enforcement, and auto-updates with Ed25519 signing.
+[gpui-starter](https://github.com/freeoxide/gpui-starter) is a production-ready boilerplate that sets all of this up for you. It includes a sidebar with multi-page navigation, 21 themes with hot-reload, i18n with Fluent, form validation, a Cmd+K command palette, macOS tray integration, SQLite persistence, undo/redo, single-instance enforcement, and auto-updates with Ed25519 signing.
 
 You can read the [getting started docs](/docs/getting-started/) to see what is included and how to customize it. Clone the repo, run `cargo run`, and start building on top of a working foundation instead of wiring up window management yourself.

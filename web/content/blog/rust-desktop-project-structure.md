@@ -226,4 +226,4 @@ A good structure lets you answer "where does this belong?" in under 30 seconds. 
 
 ---
 
-If you want to see this structure in a working project, [gpui-starter](/docs/getting-started/) is a boilerplate repository with all of these modules wired together: shell, features, services, state, persistence, platform, and the rest. It runs out of the box with `cargo run` and includes things like [form validation](/docs/forms/), [i18n](/docs/i18n/), and a [command launcher](/docs/command-launcher/) so you can see how each piece fits without building from zero. The full source is on [GitHub](https://github.com/hmziqrs/gpui-boilerplate).
+If you want to see this structure in a working project, [gpui-starter](/docs/getting-started/) is a boilerplate repository with all of these modules wired together: shell, features, services, state, persistence, platform, and the rest. It runs out of the box with `cargo run` and includes things like [form validation](/docs/forms/), [i18n](/docs/i18n/), and a [command launcher](/docs/command-launcher/) so you can see how each piece fits without building from zero. The full source is on [GitHub](https://github.com/freeoxide/gpui-starter).

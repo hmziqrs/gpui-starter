@@ -23,7 +23,7 @@ A few more things worth knowing: GPUI has first-class async support through its 
 The fastest way to start is with the boilerplate project:
 
 ```bash
-git clone https://github.com/hmziqrs/gpui-boilerplate.git
+git clone https://github.com/freeoxide/gpui-starter.git
 cd gpui-app
 cargo run
 ```

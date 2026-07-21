@@ -267,4 +267,4 @@ On the other hand, if your app supports three or more languages, especially lang
 
 You now have a working internationalization setup for a Rust desktop app. You saw how Fluent `.ftl` files handle static strings, variable interpolation, and plural selectors without baking grammar rules into your Rust code. You saw how to embed translations at compile time with `es-fluent`, switch languages at runtime, and detect missing translations before they ship.
 
-The [gpui-starter](https://github.com/hmziqrs/gpui-boilerplate) project ships with this exact i18n setup out of the box, including English and simplified Chinese locales, a settings page for language switching, and compile-time validation. The [getting started guide](/docs/getting-started/) walks through the full setup in about ten minutes.
+The [gpui-starter](https://github.com/freeoxide/gpui-starter) project ships with this exact i18n setup out of the box, including English and simplified Chinese locales, a settings page for language switching, and compile-time validation. The [getting started guide](/docs/getting-started/) walks through the full setup in about ten minutes.

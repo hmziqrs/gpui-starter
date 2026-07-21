@@ -116,4 +116,4 @@ Both frameworks are production-ready. Neither is a toy. The choice comes down to
 
 If Tauri's performance profile appeals to you but you want to skip the webview entirely, [GPUI offers a third path](/blog/building-desktop-apps-rust-gpui/). GPUI renders directly to the GPU using Metal on macOS and Vulkan elsewhere. No DOM, no CSS engine, no JavaScript runtime. You write pure Rust, and the framework handles layout and rendering through a custom GPU pipeline.
 
-For a production-ready starting point, check out [gpui-starter](/docs/getting-started/) on [GitHub](https://github.com/hmziqrs/gpui-boilerplate). It ships with multi-page navigation, 21 themes with hot-reload, i18n support, form validation, a command palette, macOS tray integration, and SQLite persistence.
+For a production-ready starting point, check out [gpui-starter](/docs/getting-started/) on [GitHub](https://github.com/freeoxide/gpui-starter). It ships with multi-page navigation, 21 themes with hot-reload, i18n support, form validation, a command palette, macOS tray integration, and SQLite persistence.

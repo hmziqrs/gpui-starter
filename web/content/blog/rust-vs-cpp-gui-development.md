@@ -127,4 +127,4 @@ If you're starting a new desktop project today and don't need Qt's widget catalo
 
 ---
 
-If you want to see what a production Rust desktop app looks like, [gpui-starter](https://github.com/hmziqrs/gpui-boilerplate) is a boilerplate with multi-page navigation, 21 themes, i18n, form validation, and SQLite persistence. The [getting started guide](/docs/getting-started/) walks through setting it up in under ten minutes.
+If you want to see what a production Rust desktop app looks like, [gpui-starter](https://github.com/freeoxide/gpui-starter) is a boilerplate with multi-page navigation, 21 themes, i18n, form validation, and SQLite persistence. The [getting started guide](/docs/getting-started/) walks through setting it up in under ten minutes.

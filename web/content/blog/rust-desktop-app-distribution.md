@@ -268,6 +268,6 @@ Distributing a Rust desktop app requires platform-specific knowledge that has no
 
 The investment in codesigning and notarization pays off quickly. Users trust signed apps. Auto-updates keep them on the latest version. Ed25519 manifest signing protects against server compromise. For any production desktop application, these are requirements, not optional extras.
 
-gpui-starter handles codesigning, DMG/MSI/AppImage packaging, and Ed25519-signed auto-updates out of the box. The [getting started guide](/docs/docs/getting-started/) walks through the full build and release setup. The source code is on [GitHub](https://github.com/hmziqrs/gpui-boilerplate).
+gpui-starter handles codesigning, DMG/MSI/AppImage packaging, and Ed25519-signed auto-updates out of the box. The [getting started guide](/docs/docs/getting-started/) walks through the full build and release setup. The source code is on [GitHub](https://github.com/freeoxide/gpui-starter).
 
 For more on the broader Rust desktop ecosystem, including how GPUI compares to other frameworks, see the [framework comparison post](/blog/electron-vs-tauri-vs-gpui/).

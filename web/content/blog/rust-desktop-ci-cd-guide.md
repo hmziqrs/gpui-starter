@@ -230,4 +230,4 @@ The full pipeline for a Rust desktop app on GitHub Actions looks like this: CI r
 
 The initial setup takes a day or two, mostly spent on Apple developer account configuration and certificate wrangling. After that, the pipeline runs itself. Push a tag, get a release. Merge a docs PR, get a deployed site.
 
-If you want to see this pipeline in action with a real GPUI desktop application, [gpui-starter](https://github.com/hmziqrs/gpui-boilerplate) ships with all of these workflows configured out of the box: CI, release with signing and notarization, manifest generation, and docs deployment. The [getting started guide](/docs/getting-started/) walks through the setup including repository secrets and Apple developer configuration.
+If you want to see this pipeline in action with a real GPUI desktop application, [gpui-starter](https://github.com/freeoxide/gpui-starter) ships with all of these workflows configured out of the box: CI, release with signing and notarization, manifest generation, and docs deployment. The [getting started guide](/docs/getting-started/) walks through the setup including repository secrets and Apple developer configuration.

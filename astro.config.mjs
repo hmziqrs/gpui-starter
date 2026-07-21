@@ -56,11 +56,11 @@ export default defineConfig({
         {
           icon: "github",
           label: "GitHub",
-          href: "https://github.com/hmziqrs/gpui-boilerplate",
+          href: "https://github.com/freeoxide/gpui-starter",
         },
       ],
       editLink: {
-        baseUrl: "https://github.com/hmziqrs/gpui-boilerplate/edit/master/",
+        baseUrl: "https://github.com/freeoxide/gpui-starter/edit/master/",
       },
       sidebar: [
         {

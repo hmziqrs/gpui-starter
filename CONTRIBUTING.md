@@ -18,7 +18,7 @@ rustup toolchain install nightly
 **Clone and build:**
 
 ```sh
-git clone https://github.com/hmziqrs/gpui-app.git
+git clone https://github.com/freeoxide/gpui-starter.git
 cd gpui-app
 cargo build
 ```

@@ -264,6 +264,6 @@ The [testing guide](/docs/testing/) covers how to write integration tests for GP
 
 ## Getting started
 
-If you want to build something similar, [gpui-starter](/docs/getting-started/) provides the boilerplate: project structure, SQLite setup, theme system, sidebar navigation, and build configuration. It handles the parts every GPUI app needs so you can focus on your domain logic. The source is on [GitHub](https://github.com/hmziqrs/gpui-boilerplate).
+If you want to build something similar, [gpui-starter](/docs/getting-started/) provides the boilerplate: project structure, SQLite setup, theme system, sidebar navigation, and build configuration. It handles the parts every GPUI app needs so you can focus on your domain logic. The source is on [GitHub](https://github.com/freeoxide/gpui-starter).
 
 The note-taking app I described here is not a full product. It is a starting point. But the architecture scales. SQLite handles millions of rows without breaking a sweat. FTS5 handles the search. GPUI handles the rendering. The pieces fit together because each one does one job well.

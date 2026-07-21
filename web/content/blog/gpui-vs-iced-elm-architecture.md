@@ -189,4 +189,4 @@ Both frameworks are usable in production. Both have rough edges. The choice come
 
 ## Getting started
 
-If you want to try GPUI without starting from zero, [gpui-starter](https://github.com/hmziqrs/gpui-boilerplate) is a production-ready boilerplate with multi-page navigation, theming, i18n, form validation, and more. Check the [getting started guide](/docs/getting-started/) to have a working app in under ten minutes.
+If you want to try GPUI without starting from zero, [gpui-starter](https://github.com/freeoxide/gpui-starter) is a production-ready boilerplate with multi-page navigation, theming, i18n, form validation, and more. Check the [getting started guide](/docs/getting-started/) to have a working app in under ten minutes.

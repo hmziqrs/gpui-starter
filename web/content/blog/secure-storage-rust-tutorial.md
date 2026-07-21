@@ -299,4 +299,4 @@ The important detail: if the keyring write fails, put the value back. Losing a u
 
 Config files with API keys are a credential dump on disk. Backups copy them. Crash reporters attach them. CI logs expose them. The OS credential store exists specifically to prevent this. It encrypts at rest, scopes access, and handles key derivation without your app knowing the details.
 
-For a working implementation of everything covered here, check out [gpui-starter's secure storage module](https://github.com/hmziqrs/gpui-boilerplate) on GitHub. It wraps the `keyring` crate with availability probing, typed errors, and the reference-in-database pattern from earlier. The [getting started guide](/docs/getting-started/) walks through setting up the full project.
+For a working implementation of everything covered here, check out [gpui-starter's secure storage module](https://github.com/freeoxide/gpui-starter) on GitHub. It wraps the `keyring` crate with availability probing, typed errors, and the reference-in-database pattern from earlier. The [getting started guide](/docs/getting-started/) walks through setting up the full project.

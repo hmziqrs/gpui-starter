@@ -221,4 +221,4 @@ If you are building a CLI tool that runs in CI, the keyring is probably not avai
 
 For the common case of a desktop app that needs to remember an API key or OAuth refresh token between launches, `keyring` is the best option in the Rust ecosystem. It is maintained by the open-source cooperative, has been around since 2017, and handles the platform differences so you do not have to.
 
-If you want to see this integrated into a full desktop application, check out [gpui-starter](https://github.com/hmziqrs/gpui-boilerplate) which uses keyring for secure credential storage alongside SQLite persistence, i18n, and a theme system. The [getting started guide](/docs/getting-started/) walks through the full setup.
+If you want to see this integrated into a full desktop application, check out [gpui-starter](https://github.com/freeoxide/gpui-starter) which uses keyring for secure credential storage alongside SQLite persistence, i18n, and a theme system. The [getting started guide](/docs/getting-started/) walks through the full setup.

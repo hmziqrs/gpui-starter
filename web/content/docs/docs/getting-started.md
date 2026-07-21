@@ -12,7 +12,7 @@ description: Clone, build, and run gpui-starter in under two minutes. Covers pre
 ## Quick start
 
 ```bash
-git clone https://github.com/hmziqrs/gpui-boilerplate.git gpui-app
+git clone https://github.com/freeoxide/gpui-starter.git gpui-app
 cd gpui-app
 cargo run
 ```

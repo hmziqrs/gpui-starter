@@ -351,4 +351,4 @@ The permission state cache goes stale. If the user changes notification settings
 
 The fallback chain pattern, wrapping platform APIs in a trait and degrading gracefully, applies beyond notifications. File dialogs and deep links benefit from the same approach. The [architecture guide](/docs/architecture/) covers how gpui-starter structures these service abstractions across the codebase. The [notifications documentation](/docs/notifications/) has the full API reference for the notification service and inbox.
 
-gpui-starter ships this notification system out of the box. If you're building a Rust desktop app with GPUI and want native notifications with automatic fallback, grab the [getting started guide](/docs/getting-started/) or check the source on [GitHub](https://github.com/hmziqrs/gpui-boilerplate).
+gpui-starter ships this notification system out of the box. If you're building a Rust desktop app with GPUI and want native notifications with automatic fallback, grab the [getting started guide](/docs/getting-started/) or check the source on [GitHub](https://github.com/freeoxide/gpui-starter).

@@ -100,7 +100,7 @@ The rewrite was not all improvements.
 
 **The component ecosystem does not exist.** In Electron, I could pull date pickers, rich text editors, charting libraries, and drag-and-drop utilities from npm. In GPUI, I built most of these from scratch. A date picker took a day. A form validation system took two days. A sidebar with keyboard navigation took another day. None of these are complicated in isolation, but they add up.
 
-I ended up building reusable versions of these components, which is how [gpui-form](/blog/form-validation-rust-tutorial/) and the sidebar component in [gpui-starter](https://github.com/hmziqrs/gpui-boilerplate) came to exist.
+I ended up building reusable versions of these components, which is how [gpui-form](/blog/form-validation-rust-tutorial/) and the sidebar component in [gpui-starter](https://github.com/freeoxide/gpui-starter) came to exist.
 
 **Compile times are real.** The Electron app had hot reload. Change a CSS value, see it instantly. Change a React component, see it in under a second. GPUI compiles Rust. Incremental builds on my M2 MacBook take 3 to 6 seconds. Full builds after a dependency change take 30 to 60 seconds. You learn to batch your changes and think more carefully before saving, which is not always a bad thing, but it does slow down the experimentation loop.
 
@@ -162,4 +162,4 @@ If I were starting this migration again, I would:
 
 ## Getting started
 
-If you are considering a similar migration, the [gpui-starter](https://github.com/hmziqrs/gpui-boilerplate) project includes a working GPUI app with sidebar navigation, form validation, SQLite persistence, theming, i18n, auto-updates, and the other pieces you would otherwise build from scratch. The [getting started guide](/docs/getting-started/) walks through setup and project structure. It will not make the mental model shift easier, but it will save you from reinventing the infrastructure pieces.
+If you are considering a similar migration, the [gpui-starter](https://github.com/freeoxide/gpui-starter) project includes a working GPUI app with sidebar navigation, form validation, SQLite persistence, theming, i18n, auto-updates, and the other pieces you would otherwise build from scratch. The [getting started guide](/docs/getting-started/) walks through setup and project structure. It will not make the mental model shift easier, but it will save you from reinventing the infrastructure pieces.

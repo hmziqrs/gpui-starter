@@ -151,6 +151,6 @@ The main bottleneck is usually text shaping, not GPU rendering. GPUI mitigates t
 
 ## Building on GPUI
 
-If you want to try building something with this pipeline, [gpui-starter](/docs/getting-started/) is a production-ready boilerplate that sets up Metal rendering, window management, theming, and persistence out of the box. You can find the full source and examples on [GitHub](https://github.com/hmziqrs/gpui-boilerplate).
+If you want to try building something with this pipeline, [gpui-starter](/docs/getting-started/) is a production-ready boilerplate that sets up Metal rendering, window management, theming, and persistence out of the box. You can find the full source and examples on [GitHub](https://github.com/freeoxide/gpui-starter).
 
 For more background on how GPUI's component model works, see the [getting started guide](/blog/getting-started-with-gpui/). If you are curious about how the theme system feeds colors into the rendering pipeline, the [theme system deep dive](/blog/theme-system-deep-dive/) covers that connection.

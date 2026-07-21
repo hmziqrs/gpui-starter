@@ -149,4 +149,4 @@ Use neither if you need web deployment. Iced has a web backend (I compared the t
 
 I chose GPUI for gpui-starter because I was building a developer tool that needs to be fast on macOS. The Rust-native approach fit how I work. But I've used Slint for embedded projects, and for that domain it's clearly the better option. These frameworks aren't really competing with each other. They're solving different problems for different audiences, and Rust is better off having both.
 
-If you want to try GPUI for yourself, check out the [getting started guide](/docs/getting-started/) or browse the [source on GitHub](https://github.com/hmziqrs/gpui-boilerplate). The boilerplate includes multi-page navigation, theme hot-reload, i18n, form validation, and everything else you'd need to skip the setup and start building.
+If you want to try GPUI for yourself, check out the [getting started guide](/docs/getting-started/) or browse the [source on GitHub](https://github.com/freeoxide/gpui-starter). The boilerplate includes multi-page navigation, theme hot-reload, i18n, form validation, and everything else you'd need to skip the setup and start building.

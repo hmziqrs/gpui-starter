@@ -10,7 +10,7 @@ hero:
       link: /docs/getting-started/
       icon: right-arrow
     - text: GitHub
-      link: https://github.com/hmziqrs/gpui-boilerplate
+      link: https://github.com/freeoxide/gpui-starter
       icon: github
       variant: secondary
 ---
@@ -24,7 +24,7 @@ You get a working app in `cargo run`, not a "hello world" label.
 ## Quick start
 
 ```bash
-git clone https://github.com/hmziqrs/gpui-boilerplate.git gpui-app
+git clone https://github.com/freeoxide/gpui-starter.git gpui-app
 cd gpui-app
 cargo run
 ```

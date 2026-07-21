@@ -316,4 +316,4 @@ The version here uses substring matching. For a real app, you'd want fuzzy match
 
 One thing I'd caution against: don't make the palette do too much. It's an action launcher, not a file picker or a REPL. Keep it focused on dispatching commands. If you need file search, build a separate picker with its own data source.
 
-The full working implementation lives in the [gpui-starter](https://github.com/hmziqrs/gpui-boilerplate) repo. Grab it from [the getting started guide](/docs/getting-started/), run `cargo run`, and press Cmd+K to try it. The source is in `src/features/command_palette.rs` and `src/services/commands.rs`.
+The full working implementation lives in the [gpui-starter](https://github.com/freeoxide/gpui-starter) repo. Grab it from [the getting started guide](/docs/getting-started/), run `cargo run`, and press Cmd+K to try it. The source is in `src/features/command_palette.rs` and `src/services/commands.rs`.

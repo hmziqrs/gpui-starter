@@ -27,7 +27,7 @@ Other distros need the same libraries under different package names. On Fedora: 
 ## Clone and build
 
 ```bash
-git clone https://github.com/hmziqrs/gpui-boilerplate.git gpui-app
+git clone https://github.com/freeoxide/gpui-starter.git gpui-app
 cd gpui-app
 cargo run
 ```

@@ -227,4 +227,4 @@ Second, I would have decoupled the WebSocket message handler from the entity upd
 
 ## Getting started
 
-If you want to build something like this, the [getting started guide](/docs/docs/getting-started/) walks through setting up a GPUI project from scratch. The [gpui-starter repo](https://github.com/hmziqrs/gpui-boilerplate) includes a working WebSocket scaffold with reconnection, SQLite persistence with migrations and WAL mode, and the entity patterns for real-time updates described in this post. Clone it, run `cargo run`, and start building.
+If you want to build something like this, the [getting started guide](/docs/docs/getting-started/) walks through setting up a GPUI project from scratch. The [gpui-starter repo](https://github.com/freeoxide/gpui-starter) includes a working WebSocket scaffold with reconnection, SQLite persistence with migrations and WAL mode, and the entity patterns for real-time updates described in this post. Clone it, run `cargo run`, and start building.

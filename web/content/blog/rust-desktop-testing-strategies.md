@@ -207,4 +207,4 @@ Not everything needs a test. Skip:
 
 Focus test effort on code that encodes decisions: business rules, data transformations, state transitions, error handling. If a bug in this code would confuse a user or lose data, write a test.
 
-For a working example of all these strategies in a real desktop app, [gpui-starter](https://github.com/hmziqrs/gpui-boilerplate) includes unit tests, integration tests, fake services, and snapshot tests across its modules. The [getting started guide](/docs/getting-started/) walks through the project structure and test setup.
+For a working example of all these strategies in a real desktop app, [gpui-starter](https://github.com/freeoxide/gpui-starter) includes unit tests, integration tests, fake services, and snapshot tests across its modules. The [getting started guide](/docs/getting-started/) walks through the project structure and test setup.

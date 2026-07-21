@@ -26,11 +26,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hmziqrs/gpui-boilerplate.git"
+    "url": "git+https://github.com/freeoxide/gpui-starter.git"
   },
   "homepage": "https://gpui-starter.hmziq.xyz",
   "bugs": {
-    "url": "https://github.com/hmziqrs/gpui-boilerplate/issues"
+    "url": "https://github.com/freeoxide/gpui-starter/issues"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",

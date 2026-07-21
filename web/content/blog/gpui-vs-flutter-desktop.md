@@ -156,4 +156,4 @@ The GPUI version uses a builder pattern for layout. The Flutter version uses a d
 
 I pick GPUI when performance and control are the priority. I pick Flutter when speed of development and platform coverage matter more. Neither is objectively better. They solve different problems for different teams.
 
-If you want to try GPUI without starting from zero, [gpui-starter](/docs/getting-started/) is a production-ready boilerplate with multi-page navigation, 21 themes, i18n, form validation, SQLite persistence, and auto-updating. It handles the tedious setup so you can focus on building your app. The source is on [GitHub](https://github.com/hmziqrs/gpui-boilerplate).
+If you want to try GPUI without starting from zero, [gpui-starter](/docs/getting-started/) is a production-ready boilerplate with multi-page navigation, 21 themes, i18n, form validation, SQLite persistence, and auto-updating. It handles the tedious setup so you can focus on building your app. The source is on [GitHub](https://github.com/freeoxide/gpui-starter).

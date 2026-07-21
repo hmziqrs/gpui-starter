@@ -253,4 +253,4 @@ cx.spawn(async move |this, cx| {
 
 ## Getting started
 
-These patterns are drawn from real code in [gpui-starter](https://github.com/hmziqrs/gpui-boilerplate), a boilerplate for Rust desktop apps built on GPUI. It includes working examples of all the async patterns described here: task spawning with cancellation, graceful shutdown with cooperative drain, background HTTP requests with backpressure, and debounced config saves. The [getting started guide](/docs/getting-started/) walks through setting up your first project.
+These patterns are drawn from real code in [gpui-starter](https://github.com/freeoxide/gpui-starter), a boilerplate for Rust desktop apps built on GPUI. It includes working examples of all the async patterns described here: task spawning with cancellation, graceful shutdown with cooperative drain, background HTTP requests with backpressure, and debounced config saves. The [getting started guide](/docs/getting-started/) walks through setting up your first project.

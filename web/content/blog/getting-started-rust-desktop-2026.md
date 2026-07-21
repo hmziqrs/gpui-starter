@@ -217,4 +217,4 @@ Rust's learning curve is real, especially around the borrow checker and lifetime
 
 The good news: once these concepts click, development moves fast. The compiler catches most mistakes before the app even runs. Refactoring is safe because the type system prevents you from breaking things silently. And the resulting binary is small, fast, and has no runtime dependencies.
 
-If you want to skip the setup and start building immediately, [gpui-starter](/docs/getting-started/) gives you a working project with sidebar navigation, theme switching, i18n, form validation, SQLite persistence, and a command palette out of the box. The source is on [GitHub](https://github.com/hmziqrs/gpui-boilerplate) if you want to see how everything fits together before building your own.
+If you want to skip the setup and start building immediately, [gpui-starter](/docs/getting-started/) gives you a working project with sidebar navigation, theme switching, i18n, form validation, SQLite persistence, and a command palette out of the box. The source is on [GitHub](https://github.com/freeoxide/gpui-starter) if you want to see how everything fits together before building your own.

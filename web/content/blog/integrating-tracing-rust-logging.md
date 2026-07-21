@@ -202,4 +202,4 @@ In tracing macros, `%` calls `Display` and `?` calls `Debug`. If you write `erro
 
 ---
 
-The setup described here matches what [gpui-starter](/docs/getting-started/) ships with out of the box: dual output to stdout and rolling daily files, per-crate filtering, crash-aware panic hooks, and clean shutdown flushing. You can see the full implementation in the [logging service on GitHub](https://github.com/hmziqrs/gpui-boilerplate) and the [desktop app patterns in the docs](/docs/getting-started/).
+The setup described here matches what [gpui-starter](/docs/getting-started/) ships with out of the box: dual output to stdout and rolling daily files, per-crate filtering, crash-aware panic hooks, and clean shutdown flushing. You can see the full implementation in the [logging service on GitHub](https://github.com/freeoxide/gpui-starter) and the [desktop app patterns in the docs](/docs/getting-started/).

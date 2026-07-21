@@ -261,4 +261,4 @@ The full pipeline in a Rust desktop app looks like this:
 6. Upload pending reports to your server, marking each as uploaded on success
 7. Show the user a "previous session crashed" notification with a link to details
 
-This is the approach used in [gpui-starter](https://github.com/hmziqrs/gpui-boilerplate), which includes the complete crash reporting pipeline described here plus an error boundary that catches render panics and shows a recovery UI instead of killing the window. Check out the [getting started guide](/docs/getting-started/) if you want to see the full implementation.
+This is the approach used in [gpui-starter](https://github.com/freeoxide/gpui-starter), which includes the complete crash reporting pipeline described here plus an error boundary that catches render panics and shows a recovery UI instead of killing the window. Check out the [getting started guide](/docs/getting-started/) if you want to see the full implementation.

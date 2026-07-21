@@ -9,7 +9,7 @@ gpui-starter is a boilerplate project for building desktop apps with [GPUI](http
 ## Installation
 
 ```bash
-git clone https://github.com/hmziqrs/gpui-boilerplate.git gpui-app
+git clone https://github.com/freeoxide/gpui-starter.git gpui-app
 cd gpui-app
 cargo run
 ```
@@ -239,5 +239,5 @@ Docs at https://gpui-starter.hmziq.xyz/docs/
 - Docs: https://gpui-starter.hmziq.xyz/docs/
 - Blog: https://gpui-starter.hmziq.xyz/blog/
 - FAQ: https://gpui-starter.hmziq.xyz/faq/
-- GitHub: https://github.com/hmziqrs/gpui-boilerplate
-- Issues: https://github.com/hmziqrs/gpui-boilerplate/issues
+- GitHub: https://github.com/freeoxide/gpui-starter
+- Issues: https://github.com/freeoxide/gpui-starter/issues

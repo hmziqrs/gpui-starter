@@ -264,4 +264,4 @@ For a deeper look at how this fits into a real app architecture, check out the [
 
 ## Getting started with gpui-starter
 
-If you want to see this pattern in a working application, [gpui-starter](https://github.com/hmziqrs/gpui-boilerplate) ships with file watching built into the desktop actions service. The setup handles watcher registration, cleanup, and error reporting without extra configuration. Read the [getting started guide](/docs/getting-started/) to have a working app running in under five minutes.
+If you want to see this pattern in a working application, [gpui-starter](https://github.com/freeoxide/gpui-starter) ships with file watching built into the desktop actions service. The setup handles watcher registration, cleanup, and error reporting without extra configuration. Read the [getting started guide](/docs/getting-started/) to have a working app running in under five minutes.

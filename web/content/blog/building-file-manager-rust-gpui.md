@@ -247,4 +247,4 @@ Third, I would add cancellation tokens to directory scans. Right now, collapsing
 
 Building a file manager taught me a lot about where GPUI excels and where it needs more library support. The rendering performance is excellent. The async story is solid. What is missing is off-the-shelf components for things like virtualized lists and drag-and-drop.
 
-If you want to experiment with GPUI yourself, [gpui-starter](/docs/getting-started/) gives you a working project with sidebar navigation, theme hot-reload, and i18n out of the box. The source is on [GitHub](https://github.com/hmziqrs/gpui-boilerplate). Clone it, run `cargo run`, and start building.
+If you want to experiment with GPUI yourself, [gpui-starter](/docs/getting-started/) gives you a working project with sidebar navigation, theme hot-reload, and i18n out of the box. The source is on [GitHub](https://github.com/freeoxide/gpui-starter). Clone it, run `cargo run`, and start building.

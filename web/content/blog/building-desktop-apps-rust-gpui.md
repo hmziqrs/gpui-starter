@@ -137,4 +137,4 @@ If you want to try it, [gpui-starter](/docs/getting-started/) gives you a workin
 
 The starter includes multi-page navigation, 21 themes with hot-reload, i18n, form validation, a command palette, macOS tray integration, SQLite persistence, undo/redo, single-instance enforcement, notifications, auto-update with Ed25519 signing, and crash reporting. Enough to see how a real GPUI app hangs together without writing everything from scratch.
 
-Check out the [setup guide](/docs/getting-started/) to get running, or read the [architecture overview](/docs/architecture/) if you want to understand the structure first. Questions? Open an issue on [GitHub](https://github.com/hmziqrs/gpui-boilerplate).
+Check out the [setup guide](/docs/getting-started/) to get running, or read the [architecture overview](/docs/architecture/) if you want to understand the structure first. Questions? Open an issue on [GitHub](https://github.com/freeoxide/gpui-starter).

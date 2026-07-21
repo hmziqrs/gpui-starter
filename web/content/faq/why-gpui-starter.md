@@ -41,7 +41,7 @@ If your app is a single-window utility with no navigation or settings, you proba
 ## Get started
 
 ```bash
-git clone https://github.com/hmziqrs/gpui-boilerplate.git my-app
+git clone https://github.com/freeoxide/gpui-starter.git my-app
 cd my-app
 cargo run
 ```

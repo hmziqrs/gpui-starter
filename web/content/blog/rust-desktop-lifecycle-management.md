@@ -8,7 +8,7 @@ draft: false
 
 A desktop application starts, runs, and stops. How you manage each transition determines whether your app feels professional or flaky. Skip a shutdown step and you lose user data. Skip a crash check and you silently corrupt state on the next launch. The lifecycle is not boilerplate you paste in and forget. Every other feature depends on it.
 
-How to structure startup, runtime state tracking, graceful shutdown, and crash recovery in a Rust desktop app. The patterns come from building [gpui-starter](https://github.com/hmziqrs/gpui-boilerplate), a boilerplate for GPUI desktop applications.
+How to structure startup, runtime state tracking, graceful shutdown, and crash recovery in a Rust desktop app. The patterns come from building [gpui-starter](https://github.com/freeoxide/gpui-starter), a boilerplate for GPUI desktop applications.
 
 ## Modeling lifecycle as a state machine
 
@@ -257,4 +257,4 @@ Do not remove the crash marker until the very end of shutdown. If you remove it 
 
 Application lifecycle management is not glamorous work. It is plumbing. But it is the kind of plumbing that prevents the class of bugs that only show up in production on someone else's machine. A well-defined state machine, ordered initialization with timing, crash detection and recovery, and a timed shutdown pipeline cover most of what you need.
 
-If you are building a GPUI desktop app, [gpui-starter](https://github.com/hmziqrs/gpui-boilerplate) ships with all of these patterns wired in: lifecycle state tracking, crash markers, panic hooks with error boundaries, and ordered shutdown. The [getting started guide](/docs/docs/getting-started/) walks through the project structure. For more on how state flows through a GPUI app, see [state management in GPUI](/blog/state-management-gpui-entities/) and [scaling a GPUI prototype to production](/blog/scaling-gpui-prototype-to-production/).
+If you are building a GPUI desktop app, [gpui-starter](https://github.com/freeoxide/gpui-starter) ships with all of these patterns wired in: lifecycle state tracking, crash markers, panic hooks with error boundaries, and ordered shutdown. The [getting started guide](/docs/docs/getting-started/) walks through the project structure. For more on how state flows through a GPUI app, see [state management in GPUI](/blog/state-management-gpui-entities/) and [scaling a GPUI prototype to production](/blog/scaling-gpui-prototype-to-production/).

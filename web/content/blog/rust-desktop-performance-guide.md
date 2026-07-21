@@ -260,6 +260,6 @@ Premature optimization wastes time. Optimizing the wrong thing wastes even more 
 
 Render batching, lazy loading, memory budgets, allocation avoidance, async offloading, and input debouncing apply to any Rust GUI stack. The code examples use GPUI because that is what I work with, but the principles transfer to Tauri, Slint, Iced, or anything else.
 
-If you want to see these patterns applied in a real project, [gpui-starter](https://github.com/hmziqrs/gpui-boilerplate) includes lazy-loaded navigation, bounded caches for theme data, debounced search in the command palette, and a frame time debugger you can toggle during development. The [getting started guide](/docs/getting-started/) walks through the setup. The [architecture docs](/docs/architecture/) explain where each optimization lives and why.
+If you want to see these patterns applied in a real project, [gpui-starter](https://github.com/freeoxide/gpui-starter) includes lazy-loaded navigation, bounded caches for theme data, debounced search in the command palette, and a frame time debugger you can toggle during development. The [getting started guide](/docs/getting-started/) walks through the setup. The [architecture docs](/docs/architecture/) explain where each optimization lives and why.
 
 Performance work is iterative. Ship something that works, measure it, find the slow part, fix it, measure again. Rust gives you the ceiling. Your job is to write code that actually reaches it.

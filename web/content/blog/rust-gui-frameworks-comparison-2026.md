@@ -219,4 +219,4 @@ There is no single right answer. I picked GPUI for my own project because I want
 
 ## The practical starting point
 
-If you want to see what a real GPUI application looks like, with multi-page navigation, theming, i18n, form validation, auto-updates, and the rest of the boilerplate you need for a production app, check out [gpui-starter on GitHub](https://github.com/hmziqrs/gpui-boilerplate) and the [getting started guide](/docs/getting-started/). It handles the setup work so you can focus on building your actual application.
+If you want to see what a real GPUI application looks like, with multi-page navigation, theming, i18n, form validation, auto-updates, and the rest of the boilerplate you need for a production app, check out [gpui-starter on GitHub](https://github.com/freeoxide/gpui-starter) and the [getting started guide](/docs/getting-started/). It handles the setup work so you can focus on building your actual application.

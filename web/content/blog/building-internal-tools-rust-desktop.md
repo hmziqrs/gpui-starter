@@ -208,4 +208,4 @@ For teams already writing Rust, or teams frustrated by the maintenance overhead 
 
 ## Getting started with gpui-starter
 
-[gpui-starter](https://github.com/hmziqrs/gpui-boilerplate) is a boilerplate I built to skip the infrastructure work when starting a GPUI project. It ships with multi-page navigation, 21 themes, i18n, form validation, a command palette, macOS tray integration, OS keyring credential storage, SQLite persistence, auto-updating with Ed25519 signature verification, and crash reporting. Clone it and have a working desktop app with all of that wired up in minutes. Setup instructions at [getting started](/docs/getting-started/).
+[gpui-starter](https://github.com/freeoxide/gpui-starter) is a boilerplate I built to skip the infrastructure work when starting a GPUI project. It ships with multi-page navigation, 21 themes, i18n, form validation, a command palette, macOS tray integration, OS keyring credential storage, SQLite persistence, auto-updating with Ed25519 signature verification, and crash reporting. Clone it and have a working desktop app with all of that wired up in minutes. Setup instructions at [getting started](/docs/getting-started/).

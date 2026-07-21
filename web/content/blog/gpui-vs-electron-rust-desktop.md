@@ -108,4 +108,4 @@ Some projects split the difference. Tauri uses a Rust backend with a web fronten
 
 If you want to try GPUI without scaffolding everything from scratch, [gpui-starter](/docs/getting-started/) is a boilerplate project with multi-page navigation, 21 built-in themes, i18n, form validation, a command launcher, macOS tray integration, and SQLite persistence. It handles the common setup work so you can focus on building your actual application.
 
-The full source is on [GitHub](https://github.com/hmziqrs/gpui-boilerplate). Clone it, run `cargo run`, and you have a working GPUI desktop app in seconds.
+The full source is on [GitHub](https://github.com/freeoxide/gpui-starter). Clone it, run `cargo run`, and you have a working GPUI desktop app in seconds.

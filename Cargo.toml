@@ -90,7 +90,7 @@ version = "0.2.1"
 edition = "2024"
 publish = false
 description = "A full-featured desktop application boilerplate built with GPUI (Zed's UI toolkit)"
-repository = "https://github.com/hmziqrs/gpui-starter"
+repository = "https://github.com/freeoxide/gpui-starter"
 
 [features]
 # Enable OTLP export over HTTP/Protobuf for the telemetry module.

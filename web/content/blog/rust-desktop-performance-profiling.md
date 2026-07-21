@@ -268,6 +268,6 @@ Repeat until p99 stays under 16.67ms during normal use.
 
 ## Profiling in practice with gpui-starter
 
-The [gpui-starter](https://github.com/hmziqrs/gpui-boilerplate) project includes a built-in frame time debugger that renders timing data directly in the window. It tracks render time, layout time, and draw time separately so you can tell whether a slow frame is caused by your code or by the rendering pipeline. You can find the setup instructions in the [getting started guide](/docs/getting-started/).
+The [gpui-starter](https://github.com/freeoxide/gpui-starter) project includes a built-in frame time debugger that renders timing data directly in the window. It tracks render time, layout time, and draw time separately so you can tell whether a slow frame is caused by your code or by the rendering pipeline. You can find the setup instructions in the [getting started guide](/docs/getting-started/).
 
 Good performance comes from measuring, finding the slowest part, and fixing it. Rust gives you the tools to make things fast once you know where to look. The profiling tools I covered here, frame timing, flamegraphs, allocation tracking, and GPU profiling, are the same ones I use every day. Start with the frame overlay and follow the jank.

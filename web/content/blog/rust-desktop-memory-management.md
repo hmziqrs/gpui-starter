@@ -203,4 +203,4 @@ Memory management in Rust desktop apps comes down to making lifetimes obvious an
 
 Entity systems like GPUI's tie state to application context so cleanup happens automatically. Buffer pools cut allocator churn on hot paths. Memory budgets stop subsystems from quietly growing without limit. And knowing the common leak patterns helps you avoid the traps that make desktop apps feel heavy after a few hours.
 
-If you are building a desktop application with Rust and GPUI, check out [gpui-starter](/docs/getting-started/) for a production-ready boilerplate with these patterns built in. The project is [open source on GitHub](https://github.com/hmziqrs/gpui-boilerplate) and includes entity management, [persistence with SQLite](/blog/building-data-analysis-tool-rust/), and more.
+If you are building a desktop application with Rust and GPUI, check out [gpui-starter](/docs/getting-started/) for a production-ready boilerplate with these patterns built in. The project is [open source on GitHub](https://github.com/freeoxide/gpui-starter) and includes entity management, [persistence with SQLite](/blog/building-data-analysis-tool-rust/), and more.

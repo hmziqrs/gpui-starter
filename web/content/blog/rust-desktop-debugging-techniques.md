@@ -228,4 +228,4 @@ The tools that do not help as much as people think: debug builds sent to users (
 
 ## Debugging in gpui-starter
 
-If you want to see these techniques wired up in a working application, [gpui-starter](https://github.com/hmziqrs/gpui-boilerplate) includes structured logging, panic hooks with crash report files, frame-time profiling, and a diagnostics export system out of the box. The [getting started guide](/docs/getting-started/) walks through the setup so you can adapt the patterns to your own project.
+If you want to see these techniques wired up in a working application, [gpui-starter](https://github.com/freeoxide/gpui-starter) includes structured logging, panic hooks with crash report files, frame-time profiling, and a diagnostics export system out of the box. The [getting started guide](/docs/getting-started/) walks through the setup so you can adapt the patterns to your own project.

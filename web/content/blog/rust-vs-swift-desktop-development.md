@@ -133,6 +133,6 @@ Both are good languages. The decision is not about which is better in the abstra
 
 ## What I ended up building
 
-I chose Rust and [built gpui-starter](https://github.com/hmziqrs/gpui-boilerplate), a production-ready boilerplate for desktop apps using GPUI. It includes SQLite persistence, 21 themes with hot-reload, i18n support, form validation, a command palette, macOS tray integration, secure credential storage, undo/redo, auto-updating with Ed25519 signing, and accessibility support via AccessKit. If you are considering Rust for a desktop app and want a working starting point instead of starting from zero, check out the [getting started guide](/docs/getting-started/) and the repository.
+I chose Rust and [built gpui-starter](https://github.com/freeoxide/gpui-starter), a production-ready boilerplate for desktop apps using GPUI. It includes SQLite persistence, 21 themes with hot-reload, i18n support, form validation, a command palette, macOS tray integration, secure credential storage, undo/redo, auto-updating with Ed25519 signing, and accessibility support via AccessKit. If you are considering Rust for a desktop app and want a working starting point instead of starting from zero, check out the [getting started guide](/docs/getting-started/) and the repository.
 
 The Rust desktop ecosystem is younger than Apple's, and it shows. But it is growing fast, and for cross-platform desktop apps, I would make the same choice again.

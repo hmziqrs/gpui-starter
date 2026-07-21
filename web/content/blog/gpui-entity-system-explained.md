@@ -298,4 +298,4 @@ Think of entities as cells in a spreadsheet. Each cell holds a value. When a cel
 
 The constraint: all updates happen on the main thread, one at a time. There are no race conditions because there is no concurrency on the write path. You trade parallelism for simplicity, and for a desktop UI framework, that is the right trade.
 
-If you want to see these patterns in a real app with navigation, themes, i18n, and async data loading, check out [gpui-starter on GitHub](https://github.com/hmziqrs/gpui-boilerplate) or read the [getting started docs](/docs/getting-started/). The entity patterns described here are the same ones used throughout the codebase.
+If you want to see these patterns in a real app with navigation, themes, i18n, and async data loading, check out [gpui-starter on GitHub](https://github.com/freeoxide/gpui-starter) or read the [getting started docs](/docs/getting-started/). The entity patterns described here are the same ones used throughout the codebase.

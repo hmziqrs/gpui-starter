@@ -143,4 +143,4 @@ For more on building with Rust desktop frameworks, the [getting started guide](/
 
 ## a note on gpui-starter
 
-I built [gpui-starter](https://github.com/hmziqrs/gpui-boilerplate) to make the GPUI onboarding less painful. It is a production-ready boilerplate with multi-page navigation, theming, i18n, form validation, a command launcher, macOS tray integration, SQLite persistence, auto-updating, and crash reporting. If you want to try GPUI without spending a month on infrastructure, [start here](/docs/getting-started/) and see if it fits your project.
+I built [gpui-starter](https://github.com/freeoxide/gpui-starter) to make the GPUI onboarding less painful. It is a production-ready boilerplate with multi-page navigation, theming, i18n, form validation, a command launcher, macOS tray integration, SQLite persistence, auto-updating, and crash reporting. If you want to try GPUI without spending a month on infrastructure, [start here](/docs/getting-started/) and see if it fits your project.

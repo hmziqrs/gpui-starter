@@ -294,4 +294,4 @@ The pattern I use in production is straightforward:
 
 This handles first launch, upgrades, corrupted files, and cross-platform paths. It is boring code, which is the point. Configuration should be the least interesting part of your app.
 
-If you want to see these patterns in a working codebase, check out [gpui-starter](https://github.com/hmziqrs/gpui-boilerplate). It is a production-ready GPUI boilerplate with TOML-based configuration, theme hot-reload, and platform-aware paths. The [getting started guide](/docs/getting-started/) walks through the full setup including config initialization.
+If you want to see these patterns in a working codebase, check out [gpui-starter](https://github.com/freeoxide/gpui-starter). It is a production-ready GPUI boilerplate with TOML-based configuration, theme hot-reload, and platform-aware paths. The [getting started guide](/docs/getting-started/) walks through the full setup including config initialization.

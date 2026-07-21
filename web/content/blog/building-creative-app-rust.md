@@ -258,4 +258,4 @@ For creative tools, GPUI gives you GPU-direct rendering, Rust's memory safety, a
 
 ## Getting started
 
-If you want to experiment with GPUI for creative applications, [gpui-starter](/docs/getting-started/) provides a working boilerplate with multi-page navigation, theming, a command palette, and the usual setup work already done. The source is on [GitHub](https://github.com/hmziqrs/gpui-boilerplate) and the docs cover everything from your first component to shipping a signed macOS build.
+If you want to experiment with GPUI for creative applications, [gpui-starter](/docs/getting-started/) provides a working boilerplate with multi-page navigation, theming, a command palette, and the usual setup work already done. The source is on [GitHub](https://github.com/freeoxide/gpui-starter) and the docs cover everything from your first component to shipping a signed macOS build.

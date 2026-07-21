@@ -279,6 +279,6 @@ On the other hand, once the tool works, it stays fast. There are no GC pauses, n
 
 The architecture I described here is columnar data storage, GPU-accelerated rendering, background computation with foreground UI updates, and virtualized grids. These patterns work together because Rust gives you control over memory and concurrency, and GPUI gives you control over rendering.
 
-If you want to explore this stack, check out [gpui-starter](/docs/getting-started/), a boilerplate project that sets up GPUI with SQLite persistence, i18n, theming, and auto-updates out of the box. It handles the infrastructure so you can focus on building the actual analysis features. The [source is on GitHub](https://github.com/hmziqrs/gpui-boilerplate).
+If you want to explore this stack, check out [gpui-starter](/docs/getting-started/), a boilerplate project that sets up GPUI with SQLite persistence, i18n, theming, and auto-updates out of the box. It handles the infrastructure so you can focus on building the actual analysis features. The [source is on GitHub](https://github.com/freeoxide/gpui-starter).
 
 For more on GPUI fundamentals, see the [getting started guide](/blog/getting-started-with-gpui/) and the [desktop app architecture post](/blog/building-desktop-apps-rust-gpui/).

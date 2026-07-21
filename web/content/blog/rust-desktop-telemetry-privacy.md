@@ -243,4 +243,4 @@ This structure is not specific to GPUI. The trait-sink pattern, the consent gate
 
 If you want to see the full implementation in context, the [getting started guide](/docs/getting-started/) walks through the gpui-starter project structure. The telemetry module lives in `src/services/telemetry.rs`, and the test module in `src/services/telemetry.test.rs` shows how to write fakes that verify behavior without touching the network.
 
-The source code is on [GitHub](https://github.com/hmziqrs/gpui-boilerplate) under the same license as the rest of the project.
+The source code is on [GitHub](https://github.com/freeoxide/gpui-starter) under the same license as the rest of the project.
