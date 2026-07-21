@@ -6,12 +6,7 @@ pub fn render_event_emitter_section(
     event_log: &[String],
     cx: &mut Context<super::super::SettingsPage>,
 ) -> impl IntoElement {
-    v_flex()
-        .gap_3()
-        .p_4()
-        .rounded(cx.theme().radius)
-        .border_1()
-        .border_color(cx.theme().border)
+    super::settings_card_base(cx)
         .child(Label::new("Event Emitter"))
         .child(
             div()

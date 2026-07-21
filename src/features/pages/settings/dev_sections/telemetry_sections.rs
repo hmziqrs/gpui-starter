@@ -1,16 +1,11 @@
 use gpui::{prelude::*, *};
-use gpui_component::{ActiveTheme as _, button::Button, label::Label, v_flex};
+use gpui_component::{ActiveTheme as _, button::Button, label::Label};
 
 use crate::telemetry::{self, TelemetryMode};
 
 /// Renders the "Telemetry" mode selection card.
 pub fn render_telemetry_section(cx: &mut Context<super::super::SettingsPage>) -> impl IntoElement {
-    v_flex()
-        .gap_3()
-        .p_4()
-        .rounded(cx.theme().radius)
-        .border_1()
-        .border_color(cx.theme().border)
+    super::settings_card_base(cx)
         .child(Label::new("Telemetry"))
         .child(
             div()
@@ -59,12 +54,7 @@ pub fn render_telemetry_section(cx: &mut Context<super::super::SettingsPage>) ->
 pub fn render_telemetry_runtime_section(
     cx: &mut Context<super::super::SettingsPage>,
 ) -> impl IntoElement {
-    v_flex()
-        .gap_3()
-        .p_4()
-        .rounded(cx.theme().radius)
-        .border_1()
-        .border_color(cx.theme().border)
+    super::settings_card_base(cx)
         .child(Label::new("Telemetry Runtime"))
         .child(
             div()
