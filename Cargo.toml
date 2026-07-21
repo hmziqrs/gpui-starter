@@ -242,5 +242,5 @@ gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "1d217ee3
 gpui_macros = { git = "https://github.com/zed-industries/zed", rev = "1d217ee39d381ac101b7cf49d3d22451ac1093fe" }
 # Toggle local gpui-query checkout: `just gpui-query-local` / `just gpui-query-cratesio`
 # >>> gpui-query-local >>>
-gpui-query = { path = "/Users/hmziq/fo/gpui-query/crates/gpui-query" }
+# gpui-query = { path = "/Users/hmziq/fo/gpui-query/crates/gpui-query" }
 # <<< gpui-query-local <<<
