@@ -34,15 +34,6 @@ pub struct AppRoot {
     pub(crate) render_error: bool,
     /// Cached error-boundary entity so we don't re-create it every frame.
     pub(crate) error_page: Option<Entity<RenderErrorPage>>,
-
-    /// Debounced window-bounds persistence.
-    ///
-    /// On macOS, `observe_window_bounds` fires ~60 times/sec during a drag. Each
-    /// `update_config` call clones the full `AppConfig`, normalises it, pretty-prints
-    /// JSON, and performs an atomic file write. Debouncing collapses that burst into
-    /// a single write once the user stops moving/resizing the window.
-    pub(crate) pending_bounds: Option<crate::app_state::PersistedWindowBounds>,
-    pub(crate) _pending_bounds_flush: Option<Task<()>>,
 }
 
 impl AppRoot {
@@ -130,48 +121,27 @@ impl AppRoot {
             cx.notify();
         })
         .detach();
-        cx.observe_global::<crate::notifications::NativeNotificationState>(|_, cx| {
-            cx.notify();
-        })
-        .detach();
-        cx.observe_global::<crate::notifications::inbox::NotificationInboxState>(|_, cx| {
-            cx.notify();
-        })
-        .detach();
-        cx.observe_global::<crate::connectivity::ConnectivitySnapshot>(|_, cx| {
-            cx.notify();
-        })
-        .detach();
-        cx.observe_global::<crate::session::SessionSnapshot>(|_, cx| {
-            cx.notify();
-        })
-        .detach();
-        // Debounce window-bounds persistence to avoid hammering disk at ~60 Hz
-        // during a drag/resize. We stash the latest bounds and flush them once
-        // the user stops moving the window for 500 ms.
-        cx.observe_window_bounds(window, |this, window, cx| {
+        // The remaining globals only need a `cx.notify()` on change; the
+        // `notify_on` helper collapses that duplicated closure.
+        notify_on::<crate::notifications::NativeNotificationState>(cx).detach();
+        notify_on::<crate::notifications::inbox::NotificationInboxState>(cx).detach();
+        notify_on::<crate::connectivity::ConnectivitySnapshot>(cx).detach();
+        notify_on::<crate::session::SessionSnapshot>(cx).detach();
+        // Persist window bounds on move/resize. `app_state::update_config` (the
+        // config_store) already debounces (~300 ms) and coalesces bursts into a
+        // single write, so we hand it the latest bounds directly instead of
+        // stacking a second debounce here.
+        cx.observe_window_bounds(window, |_, window, cx| {
             let bounds = window.window_bounds().get_bounds();
-            this.pending_bounds = Some(crate::app_state::PersistedWindowBounds {
+            let persisted = crate::app_state::PersistedWindowBounds {
                 x: bounds.origin.x.into(),
                 y: bounds.origin.y.into(),
                 width: bounds.size.width.into(),
                 height: bounds.size.height.into(),
+            };
+            crate::app_state::update_config(cx, |config| {
+                config.window_bounds = Some(persisted);
             });
-
-            // Cancel any previously scheduled flush and schedule a new one.
-            this._pending_bounds_flush = Some(cx.spawn(async move |this, cx| {
-                cx.background_executor()
-                    .timer(std::time::Duration::from_millis(500))
-                    .await;
-
-                let _ = this.update(cx, |this, cx| {
-                    if let Some(bounds) = this.pending_bounds.take() {
-                        crate::app_state::update_config(cx, |config| {
-                            config.window_bounds = Some(bounds);
-                        });
-                    }
-                });
-            }));
         })
         .detach();
 
@@ -213,22 +183,7 @@ impl AppRoot {
             about_page,
             render_error: false,
             error_page: None,
-            pending_bounds: None,
-            _pending_bounds_flush: None,
         }
-    }
-
-    /// Flush any debounced window bounds to disk immediately.
-    ///
-    /// Called during shutdown to ensure the final window position is persisted
-    /// even if the debounce timer has not yet fired.
-    pub fn flush_pending_bounds(&mut self, cx: &mut Context<Self>) {
-        if let Some(bounds) = self.pending_bounds.take() {
-            crate::app_state::update_config(cx, |config| {
-                config.window_bounds = Some(bounds);
-            });
-        }
-        self._pending_bounds_flush = None;
     }
 
     /// Return the page view to render, considering the error boundary.
@@ -290,4 +245,16 @@ impl AppRoot {
         });
         cx.notify();
     }
+}
+
+/// Install an `observe_global::<T>` that re-renders `AppRoot` whenever `T`
+/// changes.
+///
+/// Several globals only need `cx.notify()` on change; this collapses that
+/// one-liner so each call site is a single line. Returns the [`Subscription`]
+/// (caller detaches it).
+fn notify_on<T: Global>(cx: &mut Context<AppRoot>) -> Subscription {
+    cx.observe_global::<T>(|_, cx| {
+        cx.notify();
+    })
 }
