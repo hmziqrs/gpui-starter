@@ -1,3 +1,4 @@
+use super::types::{DEFAULT_MANIFEST_URL, current_app_version, pending_swap_path, platform_key};
 use super::*;
 
 // ---------------------------------------------------------------------------

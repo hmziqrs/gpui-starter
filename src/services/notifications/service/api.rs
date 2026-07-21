@@ -49,6 +49,7 @@ pub fn initialize(cx: &mut App) {
         cx,
     );
     refresh_permission_state(cx);
+    refresh_daemon_state(cx);
 }
 
 pub fn snapshot(cx: &App) -> NotificationRuntimeSnapshot {
@@ -113,6 +114,82 @@ pub fn refresh_permission_state(cx: &mut App) {
     .detach();
 }
 
+/// Probe the FreeDesktop notification daemon once at startup and annotate the
+/// snapshot so Settings can show "no daemon" immediately — instead of only
+/// revealing it after the first failed send.
+///
+/// `notify_rust::get_server_information` / `get_capabilities` are synchronous
+/// wrappers over `zbus::block_on` (async-io) that PARK the calling thread, so
+/// they run on the tokio runtime's blocking pool — never on the gpui main/UI
+/// thread. The send path is unaffected: NotifyRust stays the active backend and
+/// still returns a real D-Bus `Err` on no-daemon (firing the in-app fallback).
+pub fn refresh_daemon_state(cx: &mut App) {
+    // Linux-only: notify-rust's get_server_information / get_capabilities (and
+    // the whole FreeDesktop D-Bus daemon concept) are not compiled on macOS,
+    // which uses UNUserNotificationCenter. On other platforms this is a no-op.
+    #[cfg(target_os = "linux")]
+    {
+        let Some(runtime) = crate::services::tokio_runtime::handle(cx) else {
+            tracing::debug!(target: LOG, "no tokio runtime available; skipping daemon probe");
+            return;
+        };
+        tracing::debug!(target: LOG, "scheduling async notification-daemon probe");
+        cx.spawn(async move |cx| {
+            let probe = runtime
+                .spawn_blocking(|| {
+                    // Both calls hit org.freedesktop.Notifications over D-Bus.
+                    let info = notify_rust::get_server_information();
+                    let caps = notify_rust::get_capabilities();
+                    (info, caps)
+                })
+                .await;
+            let (info, caps) = match probe {
+                Ok((info, caps)) => (info.ok(), caps.ok()),
+                Err(err) => {
+                    tracing::warn!(target: LOG, error = %err, "daemon probe task failed");
+                    (None, None)
+                }
+            };
+            let daemon_present = info.is_some();
+            let caps_display = caps.as_ref().map(|c| c.join(", ")).map(SharedString::from);
+            tracing::info!(
+                target: LOG,
+                daemon_present,
+                server = ?info.as_ref().map(|i| i.name.clone()),
+                capabilities = ?caps,
+                "notification-daemon probe completed"
+            );
+            cx.update(move |cx| {
+                mutate_snapshot(cx, |snapshot| {
+                    snapshot.daemon_capabilities = caps_display;
+                    if daemon_present {
+                        snapshot.degraded_reason = None;
+                        snapshot.last_backend_error = None;
+                    } else {
+                        snapshot.degraded_reason = Some(
+                            "No notification daemon owns org.freedesktop.Notifications — \
+                             install notify-osd / dunst / mako"
+                                .into(),
+                        );
+                        snapshot.last_backend_error = Some(
+                            "org.freedesktop.Notifications is not reachable on the session bus"
+                                .into(),
+                        );
+                    }
+                });
+            });
+        })
+        .detach();
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    {
+        // No D-Bus notification daemon on macOS/Windows — nothing to probe.
+        let _ = cx;
+        tracing::debug!(target: LOG, "notification-daemon probe is Linux-only; skipped");
+    }
+}
+
 pub fn request_permission_from_window(window: &mut Window, cx: &mut App) {
     let window_handle = window.window_handle();
     let service = cx.global::<NativeNotificationState>().service.clone();
@@ -152,6 +229,8 @@ pub fn send_from_window(request: NotificationRequest, window: &mut Window, cx: &
     let fallback_message = request.body.clone();
     let inbox_title = request.title.to_string();
     let inbox_body = request.body.to_string();
+    // Capture before `request` is moved into service.send().
+    let force_in_app_feedback = request.force_in_app_feedback;
     tracing::debug!(
         target: LOG,
         permission = ?state.snapshot.permission,
@@ -169,8 +248,13 @@ pub fn send_from_window(request: NotificationRequest, window: &mut Window, cx: &
             error_summary = ?result.error_summary,
             "notification send completed"
         );
-        let should_show_in_app = !result.delivered_natively
-            && result.importance == NotificationImportance::ForegroundOnly;
+        // A successful native send is NOT proof a banner was shown — DND /
+        // per-app mute / busy / fullscreen all suppress while the daemon still
+        // returns Ok — so explicit test affordances force in-app feedback
+        // regardless of `delivered_natively`.
+        let should_show_in_app = force_in_app_feedback
+            || (!result.delivered_natively
+                && result.importance == NotificationImportance::ForegroundOnly);
         cx.update(move |cx| {
             apply_send_result(&result, cx);
             inbox::record_attempt(
@@ -186,7 +270,28 @@ pub fn send_from_window(request: NotificationRequest, window: &mut Window, cx: &
                 cx,
             );
             if should_show_in_app {
-                push_in_app_feedback(window_handle, fallback_message, cx);
+                let feedback: SharedString = if force_in_app_feedback && result.delivered_natively {
+                    // The daemon accepted the call but display is not
+                    // guaranteed — point the user at the two common
+                    // silent-suppression causes instead of feigning success.
+                    format!(
+                        "Sent to the {} notification daemon. If no banner appeared, \
+                         check Do Not Disturb and the per-app setting for \"{}\".",
+                        result.backend_used,
+                        crate::notifications::DESKTOP_ENTRY_ID,
+                    )
+                    .into()
+                } else {
+                    // Native delivery failed for a known reason (e.g. "no
+                    // daemon owns org.freedesktop.Notifications") — surface
+                    // that instead of silently re-showing the body.
+                    result
+                        .error_summary
+                        .as_ref()
+                        .map(|err| format!("Native notification unavailable: {err}").into())
+                        .unwrap_or(fallback_message)
+                };
+                push_in_app_feedback(window_handle, feedback, cx);
             }
         });
     })
@@ -209,7 +314,34 @@ pub fn open_system_settings(cx: &mut App) {
         }
     }
 
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "linux")]
+    {
+        // GNOME/Ubuntu: gnome-control-center is standard. Fall back to xdg-open
+        // on the settings URI for other desktops. Best-effort — a missing
+        // binary just logs a warning (the test-feedback message already gives
+        // the user the manual path).
+        tracing::info!(target: LOG, "opening Linux notification settings");
+        if std::process::Command::new("gnome-control-center")
+            .arg("notifications")
+            .spawn()
+            .is_ok()
+        {
+            return;
+        }
+        tracing::debug!(target: LOG, "gnome-control-center unavailable; trying xdg-open");
+        if let Err(err) = std::process::Command::new("xdg-open")
+            .arg("settings://notifications")
+            .spawn()
+        {
+            tracing::warn!(target: LOG, error = %err, "failed to open Linux notification settings");
+            mutate_snapshot(cx, |snapshot| {
+                snapshot.last_backend_error =
+                    Some("could not open notification settings; open them manually".into());
+            });
+        }
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     {
         tracing::warn!(target: LOG, "system notification settings unsupported on this platform");
         mutate_snapshot(cx, |snapshot| {

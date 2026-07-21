@@ -162,7 +162,7 @@ fn db_path(cx: &App) -> PathBuf {
     crate::app_state::paths(cx).data_dir.join("app.db")
 }
 
-fn init_db(path: &PathBuf) -> rusqlite::Result<i64> {
+pub(crate) fn init_db(path: &PathBuf) -> rusqlite::Result<i64> {
     let conn = rusqlite::Connection::open(path)?;
     conn.execute_batch(
         r#"

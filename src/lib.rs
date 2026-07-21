@@ -1,11 +1,8 @@
-// 8192 (was 512): the test target expands several thousand macro levels
-// (the gpui proc-macros recurse through syn). On CI this is paired with
-// RUST_MIN_STACK=512 MiB (see .github/workflows/ci.yml) so the deeper
-// expansion does not overflow the proc-macro thread stack — which on the
-// macOS runner surfaces as SIGBUS (signal 10) and was the real cause of the
-// long-standing "Test" job failure (not heap OOM, as the limit build jobs
-// suggested).
-#![recursion_limit = "8192"]
+// No recursion_limit override. The previous `8192` was not a real need — it let a
+// `#[test]` → `gpui::test` glob-shadow recursion run deep enough to overflow rustc's
+// stack (SIGSEGV), which RUST_MIN_STACK=512MiB then papered over. That shadow is fixed
+// at the test-module call sites, so the default limit (128) is sufficient and no
+// RUST_MIN_STACK is required. See the comments in *.test.rs for the mechanism.
 #![allow(
     clippy::map_unwrap_or,
     clippy::let_unit_value,

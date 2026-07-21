@@ -26,6 +26,42 @@ bash scripts/macos-dev-app.sh
 open "$(bash scripts/macos-dev-app.sh)"
 ```
 
+### Linux Development
+
+On Debian/Ubuntu, install the build dependencies before building. (GPUI does
+**not** use WebKit or libzstd — those are leftover from a Tauri template. The
+real GPUI stack is Wayland/X11 + Vulkan + FreeType/fontconfig.)
+
+```sh
+sudo apt update
+# Verified on Ubuntu 24.04
+sudo apt install -y \
+  gcc g++ clang pkg-config \
+  libfontconfig-dev libfreetype-dev \
+  libwayland-dev wayland-protocols \
+  libxkbcommon-x11-dev libx11-xcb-dev \
+  libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+  libssl-dev \
+  libvulkan-dev libvulkan1
+```
+
+> `libvulkan-dev` is the **build** header; the actual Vulkan loader
+> (`libvulkan1`) is a **runtime** requirement — a release binary built here will
+> fail to start on a machine without a Vulkan loader installed. The bundled
+> `flake.nix` and `scripts/install-linux-deps.sh` cover both.
+
+#### Nix
+
+A `flake.nix` is provided for reproducible Linux builds. Enter a fully set-up
+dev shell (Vulkan/Wayland/XCB on `LD_LIBRARY_PATH`) with:
+
+```sh
+nix develop      # then `cargo run`
+nix build .#default   # produces a release binary in result/bin/gpui-starter
+```
+
+`nix flake lock` must be run once to pin nixpkgs (the lockfile is not shipped).
+
 ## Features
 
 ### Core

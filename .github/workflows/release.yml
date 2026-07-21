@@ -22,15 +22,20 @@ jobs:
     name: Build macOS
     runs-on: macos-latest
     env:
-      # Same discipline as ci.yml: large proc-macro stack (avoids SIGBUS),
-      # CARGO_BUILD_JOBS=2 (the 14 GB runner swaps with more parallel rustc on
-      # the heavy gpui/gpui_component crates), and many codegen units to keep
-      # peak RSS down on a release build (optimization-heavy) so it doesn't OOM.
+      # Same discipline as ci.yml: CARGO_BUILD_JOBS=2 (the 14 GB runner swaps
+      # with more parallel rustc on the heavy gpui/gpui_component crates) and
+      # many codegen units to keep peak RSS down on a release build
+      # (optimization-heavy) so it doesn't OOM. No RUST_MIN_STACK: the
+      # glob-shadow stack overflow it papered over is fixed (see ci.yml).
       CARGO_BUILD_JOBS: "2"
       CARGO_INCREMENTAL: "0"
       CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "256"
-      RUST_MIN_STACK: "536870912"
       RUST_BACKTRACE: "1"
+      # sccache caches compiled artifacts across runs via the zero-config GitHub
+      # Actions cache backend (no external S3/Azure). Complements rust-cache
+      # (registry + target/) for the cold release codegen that recurs per release.
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: "true"
       # Bake the auto-update manifest URL into the binary at compile time
       # (option_env! in src/services/updater/types.rs). MUST match where the
       # publish-release job posts manifest.json (the gh-pages branch → GitHub
@@ -41,22 +46,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@nightly
+      - name: Disable Spotlight indexing
+        # Spotlight (mds) racing file changes makes `hdiutil create` fail with
+        # "Resource busy", and indexing the ~40 GB of build output wastes time.
+        run: sudo mdutil -a -i off || true
 
-      - uses: actions/cache@v4
+      - uses: dtolnay/rust-toolchain@nightly
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-release-deps-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-release-deps-
-      - uses: actions/cache@v4
+          # Universal macOS binary: build Apple Silicon + Intel, then merge
+          # with lipo in create-release-app.sh so one .app runs on both.
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - uses: mozilla-actions/sccache-action@v0.0.10
+
+      - uses: Swatinem/rust-cache@v2
         with:
-          path: target
-          key: ${{ runner.os }}-cargo-release-target-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-release-target-
+          prefix-key: "v2-macos-release"
+          shared-key: "release"
 
       - name: Determine version
         id: version
@@ -66,25 +72,33 @@ jobs:
           else
             RAW="${GITHUB_REF_NAME}"
           fi
-          # Strip ONE leading 'v' so a dispatch typo ("v0.2.0") and the tag form
-          # ("v0.2.0") both normalize to "0.2.0" — otherwise we would push a
-          # "vv0.2.0" tag and a manifest whose version fails semver parsing
-          # client-side. Then validate it really is X.Y.Z.
-          VALUE="${RAW#v}"
-          if ! printf '%s' "$VALUE" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "Error: invalid version '$VALUE' (expected X.Y.Z)" >&2
-            exit 1
-          fi
+          # Shared normalizer: strips one leading 'v', validates X.Y.Z. Used by
+          # every job so a dispatch typo ("v0.2.0") and the tag form both
+          # collapse to "0.2.0" — otherwise we push a "vv0.2.0" tag and a
+          # manifest whose version fails semver parsing client-side.
+          VALUE="$(./scripts/normalize-version.sh "$RAW")"
           echo "value=$VALUE" >> "$GITHUB_OUTPUT"
 
-      - name: Build release binary
-        run: cargo build --release
-
-      - name: Create .app bundle
-        id: appbundle
+      - name: Build universal release binaries (arm64 + x86_64)
         run: |
-          APP_PATH="$(./scripts/create-release-app.sh "${{ steps.version.outputs.value }}")"
-          echo "path=$APP_PATH" >> "$GITHUB_OUTPUT"
+          cargo build --release --target aarch64-apple-darwin
+          cargo build --release --target x86_64-apple-darwin
+
+      - name: Free disk space for DMG staging
+        # Two release arches (~4 GB of target/) plus the runner image leave the
+        # macos-latest disk borderline; hdiutil then fails with "No space left
+        # on device". The final binaries (target/<arch>/release/gpui-starter)
+        # are self-contained, so drop the bulky per-arch deps/build artifacts.
+        # sccache still serves them at ~100% on the next build.
+        run: |
+          rm -rf \
+            target/aarch64-apple-darwin/release/deps \
+            target/aarch64-apple-darwin/release/build \
+            target/aarch64-apple-darwin/release/examples \
+            target/x86_64-apple-darwin/release/deps \
+            target/x86_64-apple-darwin/release/build \
+            target/x86_64-apple-darwin/release/examples
+          df -h /
 
       # --- Codesigning ---------------------------------------------------
       # Import Developer ID certificate when available; otherwise ad-hoc sign.
@@ -120,22 +134,37 @@ jobs:
           # Add to keychain search list so codesign can find it.
           security list-keychains -d user -s "$KEYCHAIN_PATH" "$(security list-keychains -d user | tr -d '"')"
 
-      - name: Codesign with Developer ID
-        if: env.APPLE_DEV_CERT_P12 != ''
+      # --- Stage, sign, and DMG all three arches ---------------------------
+      # Produces a universal DMG (arm64 + x86_64, the default download) PLUS
+      # slim per-arch DMGs for users who want a smaller download. Both arch
+      # binaries are already built; create-release-app.sh assembles each .app
+      # (lipo for universal, copy for the slim single-arch builds).
+
+      - name: Stage, sign, and DMG all arches
         env:
           APPLE_DEV_CERT_P12: ${{ secrets.APPLE_DEV_CERT_P12 }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
-          IDENTITY="${APPLE_SIGNING_IDENTITY:-'Developer ID Application'}"
-          codesign --force --deep --options runtime --timestamp --sign "$IDENTITY" \
-            "${{ steps.appbundle.outputs.path }}"
+          set -euo pipefail
+          VER="${{ steps.version.outputs.value }}"
+          for ARCH in universal aarch64 x86_64; do
+            APP_PATH="$(./scripts/create-release-app.sh "$VER" "$ARCH")"
+            if [ -n "${APPLE_DEV_CERT_P12:-}" ]; then
+              IDENTITY="${APPLE_SIGNING_IDENTITY:-Developer ID Application}"
+              codesign --force --deep --options runtime --timestamp --sign "$IDENTITY" "$APP_PATH"
+            else
+              codesign --force --deep --sign - "$APP_PATH"
+            fi
+            if [ "$ARCH" = "universal" ]; then
+              DMG="target/release/GPUI-Starter-${VER}.dmg"
+            else
+              DMG="target/release/GPUI-Starter-${VER}-${ARCH}.dmg"
+            fi
+            ./scripts/create-dmg.sh "$APP_PATH" "$DMG"
+            echo "Built $ARCH -> $DMG" >&2
+          done
 
-      - name: Ad-hoc codesign
-        if: env.APPLE_DEV_CERT_P12 == ''
-        run: |
-          codesign --force --deep --sign - "${{ steps.appbundle.outputs.path }}"
-
-      # --- Notarization --------------------------------------------------
+      # --- Notarization (all three DMGs, only with cert + Apple ID) --------
 
       - name: Notarize
         if: env.APPLE_DEV_CERT_P12 != '' && env.APPLE_ID != ''
@@ -145,45 +174,149 @@ jobs:
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          DMG_PATH="$(./scripts/create-dmg.sh \
-            "${{ steps.appbundle.outputs.path }}" \
-            "target/release/GPUI-Starter-${{ steps.version.outputs.value }}.dmg")"
+          set -euo pipefail
+          VER="${{ steps.version.outputs.value }}"
+          for DMG in \
+            "target/release/GPUI-Starter-${VER}.dmg" \
+            "target/release/GPUI-Starter-${VER}-aarch64.dmg" \
+            "target/release/GPUI-Starter-${VER}-x86_64.dmg"; do
+            xcrun notarytool submit "$DMG" \
+              --apple-id "$APPLE_ID" \
+              --password "$APPLE_APP_PASSWORD" \
+              --team-id "$APPLE_TEAM_ID" \
+              --wait
+            xcrun stapler staple "$DMG"
+          done
 
-          # Submit for notarization.
-          xcrun notarytool submit "$DMG_PATH" \
-            --apple-id "$APPLE_ID" \
-            --password "$APPLE_APP_PASSWORD" \
-            --team-id "$APPLE_TEAM_ID" \
-            --wait
-
-          # Staple the notarization ticket.
-          xcrun stapler staple "$DMG_PATH"
-
-          echo "notarized_dmg=$DMG_PATH" >> "$GITHUB_ENV"
-
-      # --- DMG creation (when not already created during notarization) ---
-
-      - name: Create DMG
-        if: env.notarized_dmg == ''
-        run: |
-          ./scripts/create-dmg.sh \
-            "${{ steps.appbundle.outputs.path }}" \
-            "target/release/GPUI-Starter-${{ steps.version.outputs.value }}.dmg"
-
-      - name: Determine final DMG path
-        id: dmg
-        run: |
-          if [ -n "${notarized_dmg:-}" ]; then
-            echo "path=${notarized_dmg}" >> "$GITHUB_OUTPUT"
-          else
-            echo "path=target/release/GPUI-Starter-${{ steps.version.outputs.value }}.dmg" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Upload DMG artifact
+      - name: Upload DMG artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: GPUI-Starter-${{ steps.version.outputs.value }}.dmg
-          path: ${{ steps.dmg.outputs.path }}
+          name: macos-dmgs
+          path: target/release/GPUI-Starter-${{ steps.version.outputs.value }}*.dmg
+          if-no-files-found: error
+
+  # -----------------------------------------------------------------------
+  # Build the Linux release tarball (x86_64 on GHA, aarch64 on a native ARM
+  # runner). patchelf adds an $ORIGIN/lib rpath and the build bundles the
+  # needed .so files next to the binary — WITHOUT rpath+bundling a linux
+  # tarball fails to start on any machine lacking the exact system libs.
+  # -----------------------------------------------------------------------
+  build-linux:
+    name: Build Linux (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+    runs-on: ${{ matrix.runner }}
+    env:
+      # Same discipline as build-macos / ci.yml.
+      CARGO_BUILD_JOBS: "2"
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "256"
+      RUST_BACKTRACE: "1"
+      RUSTC_WRAPPER: sccache
+      SCCACHE_GHA_ENABLED: "true"
+      GPUI_UPDATE_MANIFEST_URL: "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/manifest.json"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux build dependencies
+        run: ./scripts/install-linux-deps.sh
+
+      - uses: dtolnay/rust-toolchain@nightly
+
+      - uses: mozilla-actions/sccache-action@v0.0.10
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: "v2-linux-release"
+          shared-key: "release-${{ matrix.arch }}"
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            RAW="${{ inputs.version }}"
+          else
+            RAW="${GITHUB_REF_NAME}"
+          fi
+          VALUE="$(./scripts/normalize-version.sh "$RAW")"
+          echo "value=$VALUE" >> "$GITHUB_OUTPUT"
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Relink rpath and bundle shared libraries
+        run: |
+          set -euo pipefail
+          STAGE="stage/gpui-starter"
+          mkdir -p "$STAGE/lib"
+          cp "target/release/gpui-starter" "$STAGE/gpui-starter"
+
+          # Add an $ORIGIN/lib runpath so the binary finds the bundled libs
+          # without requiring them system-wide on the user's machine. patchelf
+          # is required: a linux tarball without an rpath is broken.
+          patchelf --set-rpath '$ORIGIN/lib' "$STAGE/gpui-starter" \
+            || { echo "Error: patchelf not available or failed (rpath step is mandatory)" >&2; exit 1; }
+
+          # Bundle the non-system shared libs the binary actually needs.
+          # libGL/libvulkan/wayland/xcb live here so the binary is portable;
+          # glibc / ld-linux are left to the system (bundling those breaks).
+          for lib in $(ldd "$STAGE/gpui-starter" | awk '/=> \// {print $3}'); do
+            base="$(basename "$lib")"
+            case "$base" in
+              libc.so*|libm.so*|libdl.so*|librt.so*|libpthread.so*|ld-linux*|libgcc_s.so*|libutil.so*|libresolv.so*)
+                # System-provided; never bundle (breaks across glibc versions).
+                continue
+                ;;
+            esac
+            [ -f "$STAGE/lib/$base" ] || cp -L "$lib" "$STAGE/lib/"
+          done
+
+          # Ship LICENSE + README for the tarball + PKGBUILD packaging step.
+          cp LICENSE "$STAGE/" 2>/dev/null || true
+          cp README.md "$STAGE/" 2>/dev/null || true
+
+          # Desktop entry + icon + install helper so the desktop environment can
+          # launch the app, show its icon, and group notifications correctly. The
+          # .desktop ships INERT inside the tarball — install-linux.sh installs
+          # them to the user's XDG dirs (run it once after extracting).
+          cp resources/com.gpui-starter.app.desktop "$STAGE/" 2>/dev/null || true
+          cp resources/gpui-starter.png "$STAGE/" 2>/dev/null || true
+          cp scripts/install-linux.sh "$STAGE/" 2>/dev/null || true
+          chmod +x "$STAGE/install-linux.sh" 2>/dev/null || true
+
+      - name: Generate PKGBUILD
+        run: |
+          mkdir -p stage
+          TARBALL="gpui-starter-${{ steps.version.outputs.value }}-${{ matrix.arch }}-linux.tar.gz"
+          ./scripts/gen-pkgbuild.sh "${{ steps.version.outputs.value }}" "$TARBALL" > stage/PKGBUILD
+
+      - name: Create Linux tarball
+        id: tarball
+        run: |
+          cd stage
+          TARBALL="gpui-starter-${{ steps.version.outputs.value }}-${{ matrix.arch }}-linux.tar.gz"
+          # `gpui-starter` is the self-contained dir (binary + lib/ + LICENSE +
+          # README) built by the Relink step; `lib`/`LICENSE`/`README.md` live
+          # INSIDE it, not as peers in stage/, so they must not be listed here
+          # (GNU tar exits 2 "Cannot stat" on the missing names -> step fails).
+          tar -czf "$TARBALL" gpui-starter PKGBUILD
+          echo "path=$TARBALL" >> "$GITHUB_OUTPUT"
+          echo "name=$TARBALL" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpui-starter-${{ steps.version.outputs.value }}-${{ matrix.arch }}-linux
+          path: stage/${{ steps.tarball.outputs.path }}
           if-no-files-found: error
 
   # -----------------------------------------------------------------------
@@ -191,7 +324,7 @@ jobs:
   # -----------------------------------------------------------------------
   publish-release:
     name: Publish Release
-    needs: build-macos
+    needs: [build-macos, build-linux]
     runs-on: ubuntu-latest
 
     steps:
@@ -205,19 +338,25 @@ jobs:
           else
             RAW="${GITHUB_REF_NAME}"
           fi
-          # Strip ONE leading 'v' (see the build-macos Determine version step
-          # for rationale) and validate X.Y.Z.
-          VALUE="${RAW#v}"
-          if ! printf '%s' "$VALUE" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "Error: invalid version '$VALUE' (expected X.Y.Z)" >&2
-            exit 1
-          fi
+          # Shared normalizer (see scripts/normalize-version.sh). Identical to
+          # the build-macos / build-linux steps so every job agrees on the
+          # version without duplicating the strip+validate logic.
+          VALUE="$(./scripts/normalize-version.sh "$RAW")"
           echo "value=$VALUE" >> "$GITHUB_OUTPUT"
 
-      - name: Download DMG artifact
+      - name: Download DMG artifacts
         uses: actions/download-artifact@v4
         with:
-          name: GPUI-Starter-${{ steps.version.outputs.value }}.dmg
+          # macos-dmgs bundles the universal + slim arm64/x86_64 DMGs.
+          name: macos-dmgs
+          path: ./artifacts
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          # merge-multiple so both arches land flat in ./artifacts.
+          pattern: gpui-starter-${{ steps.version.outputs.value }}-*-linux
+          merge-multiple: true
           path: ./artifacts
 
       - name: Create GitHub Release
@@ -228,6 +367,10 @@ jobs:
           generate_release_notes: true
           files: |
             ./artifacts/GPUI-Starter-${{ steps.version.outputs.value }}.dmg
+            ./artifacts/GPUI-Starter-${{ steps.version.outputs.value }}-aarch64.dmg
+            ./artifacts/GPUI-Starter-${{ steps.version.outputs.value }}-x86_64.dmg
+            ./artifacts/gpui-starter-${{ steps.version.outputs.value }}-x86_64-linux.tar.gz
+            ./artifacts/gpui-starter-${{ steps.version.outputs.value }}-aarch64-linux.tar.gz
 
       - name: Generate and publish update manifest
         env:

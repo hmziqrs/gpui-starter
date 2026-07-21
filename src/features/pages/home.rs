@@ -23,21 +23,9 @@ impl Default for HomePage {
 
 impl Render for HomePage {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let render_started = std::time::Instant::now();
         let first_run_pending = crate::first_run::is_pending(cx);
         let locale = crate::app::current_locale(cx);
         let notifications_enabled = crate::notifications::snapshot(cx).enabled_by_user;
-        let active_tasks = crate::tasks::active_count(cx);
-
-        tracing::debug!(
-            target: "gpui_starter::features::pages::home::render",
-            first_run_pending,
-            locale = %locale,
-            notifications_enabled,
-            active_tasks,
-            elapsed_us = render_started.elapsed().as_micros() as u64,
-            "HomePage render prepared"
-        );
 
         v_flex()
             .min_h_full()

@@ -131,6 +131,12 @@ impl IpcEndpoint {
     }
 }
 
+pub mod command;
+pub mod rpc;
+
+pub use command::{ForwardedCommand, ForwardedRequest, ForwardedResponse};
+pub use rpc::{PendingRequests, decode_request, decode_response, encode_line};
+
 #[cfg(test)]
 #[path = "mod.test.rs"]
 mod mod_test;

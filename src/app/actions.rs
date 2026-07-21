@@ -18,7 +18,14 @@ pub enum Languages {}
 
 actions!(
     app,
-    [About, Quit, ToggleSearch, OpenDiagnostics, TriggerTestPanic]
+    [
+        About,
+        Quit,
+        ToggleSearch,
+        OpenDiagnostics,
+        TriggerTestPanic,
+        Restart
+    ]
 );
 
 #[derive(Action, Clone, PartialEq, Eq, serde::Deserialize)]

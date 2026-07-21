@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=GPUI Starter
+Comment=A starter application built on the GPUI framework (Zed's UI toolkit)
+Exec=gpui-starter %U
+Icon=gpui-starter
+# Must equal the X11 WM_CLASS the binary sets (gpui app_id) so the desktop can
+# group the window with this entry + resolve the icon for notifications.
+StartupWMClass=gpui-starter
+Categories=Development;
+Terminal=false
+MimeType=x-scheme-handler/gpui-starter;

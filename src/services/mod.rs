@@ -12,6 +12,7 @@ pub mod notifications;
 pub mod secure_storage;
 pub mod session;
 pub mod storage;
+pub mod streaming;
 pub mod tasks;
 pub mod telemetry;
 pub mod tokio_runtime;

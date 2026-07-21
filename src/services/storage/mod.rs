@@ -1,6 +1,8 @@
 mod backend;
 mod runtime;
 
+#[cfg(test)]
+pub(crate) use backend::SqliteStorage;
 pub use runtime::*;
 
 use gpui::Global;

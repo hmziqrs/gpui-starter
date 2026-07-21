@@ -2863,6 +2863,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "fuzzy-matcher"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54614a3312934d066701a80f20f15fa3b56d67ac7722b39eea5b4c9dd1d66c94"
+dependencies = [
+ "thread_local",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3239,7 +3248,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "bon",
  "gpui-form-component",
@@ -3250,7 +3259,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-codegen"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "darling",
  "derive_more",
@@ -3263,7 +3272,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-component"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "chrono",
  "es-fluent",
@@ -3281,7 +3290,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-component-derive"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "darling",
  "proc-macro-crate",
@@ -3293,11 +3302,11 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-core"
-version = "0.5.1"
+version = "0.5.2"
 
 [[package]]
 name = "gpui-form-derive"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "darling",
  "es-fluent",
@@ -3313,7 +3322,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-schema"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "heck 0.5.0",
  "inventory",
@@ -3333,11 +3342,12 @@ dependencies = [
 
 [[package]]
 name = "gpui-starter"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "accesskit 0.21.1",
  "anyhow",
  "arboard",
+ "ashpd 0.13.11",
  "async-trait",
  "atomic-write-file",
  "base64",
@@ -3349,7 +3359,9 @@ dependencies = [
  "es-fluent-build",
  "es-fluent-lang",
  "es-fluent-manager-embedded",
+ "flume",
  "futures-util",
+ "fuzzy-matcher",
  "global-hotkey",
  "gpui",
  "gpui-component",
@@ -3362,6 +3374,7 @@ dependencies = [
  "keyring",
  "koruma",
  "koruma-collection",
+ "libc",
  "network-interface",
  "notify 8.2.0",
  "notify-rust",
@@ -3378,6 +3391,7 @@ dependencies = [
  "reqwest",
  "rfd",
  "rusqlite",
+ "rust-embed",
  "rust-i18n 3.1.5",
  "semver",
  "serde",
@@ -3401,6 +3415,8 @@ dependencies = [
  "url",
  "user-notify",
  "uuid",
+ "wayland-client",
+ "wayland-protocols-wlr",
 ]
 
 [[package]]
