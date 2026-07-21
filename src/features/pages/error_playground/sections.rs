@@ -10,6 +10,22 @@ use super::super::render_error::TriggerRenderError;
 use super::ErrorPlaygroundPage;
 use super::helpers::{action_row, result_inline, test_card};
 
+/// Parameter bundle for the unified HTTP/timeout error block renderer.
+///
+/// Every field is `Copy`, so a single value can be captured into the click
+/// closure and reused across invocations without cloning.
+#[derive(Clone, Copy)]
+struct ErrorBlockCtx {
+    title: &'static str,
+    description: &'static str,
+    button_key: &'static str,
+    button_label: &'static str,
+    initial_msg: &'static str,
+    url: &'static str,
+    timeout: std::time::Duration,
+    error_prefix: &'static str,
+}
+
 impl ErrorPlaygroundPage {
     pub(super) fn render_boundary_trigger(
         &self,
@@ -75,66 +91,21 @@ impl ErrorPlaygroundPage {
 
     pub(super) fn render_http_error(&mut self, cx: &mut Context<Self>) -> Div {
         let result_text = self.http_result.clone();
-        let card = test_card(
-            "HTTP Error",
-            "Sends an HTTP request to an invalid URL (127.0.0.1:1). Should NOT trigger \
-             the error boundary — the error is shown inline.",
-            false,
+        Self::render_error_block(
+            ErrorBlockCtx {
+                title: "HTTP Error",
+                description: "Sends an HTTP request to an invalid URL (127.0.0.1:1). Should NOT \
+                    trigger the error boundary — the error is shown inline.",
+                button_key: "ep-http-error",
+                button_label: "Send HTTP Request",
+                initial_msg: "Requesting...",
+                url: "http://127.0.0.1:1/fail",
+                timeout: std::time::Duration::from_secs(5),
+                error_prefix: "HTTP error",
+            },
+            |this, v| this.http_result = v,
+            result_text,
             cx,
-        );
-
-        card.child(
-            v_flex().gap_2().px_4().pb_3().child(
-                action_row(cx)
-                    .child(
-                        Button::new("ep-http-error")
-                            .primary()
-                            .label("Send HTTP Request")
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.http_result = Some("Requesting...".to_string());
-                                cx.notify();
-
-                                let rt = cx
-                                    .global::<crate::services::tokio_runtime::TokioRuntimeGlobal>()
-                                    .0
-                                    .runtime
-                                    .clone();
-                                let client = cx
-                                    .global::<crate::services::tokio_runtime::TokioRuntimeGlobal>()
-                                    .0
-                                    .http_client
-                                    .clone();
-
-                                cx.spawn(async move |this, cx| {
-                                    let result = rt
-                                        .spawn(async move {
-                                            client
-                                                .get("http://127.0.0.1:1/fail")
-                                                .timeout(std::time::Duration::from_secs(5))
-                                                .send()
-                                                .await
-                                        })
-                                        .await;
-
-                                    let msg = match result {
-                                        Ok(Ok(resp)) => {
-                                            format!("Unexpected success: status {}", resp.status())
-                                        }
-                                        Ok(Err(e)) => format!("HTTP error: {e}"),
-                                        Err(e) => format!("Task panicked: {e}"),
-                                    };
-
-                                    this.update(cx, |this, cx| {
-                                        this.http_result = Some(msg);
-                                        cx.notify();
-                                    })
-                                    .ok();
-                                })
-                                .detach();
-                            })),
-                    )
-                    .when_some(result_text, |el, text| el.child(result_inline(&text, cx))),
-            ),
         )
     }
 
@@ -176,42 +147,64 @@ impl ErrorPlaygroundPage {
 
     pub(super) fn render_async_timeout(&mut self, cx: &mut Context<Self>) -> Div {
         let result_text = self.async_result.clone();
-        let card = test_card(
-            "Async Timeout",
-            "Sends an HTTP request with a very short timeout (1ms) to a slow endpoint. \
-             Should NOT trigger the error boundary — the timeout error is shown inline.",
-            false,
+        Self::render_error_block(
+            ErrorBlockCtx {
+                title: "Async Timeout",
+                description: "Sends an HTTP request with a very short timeout (1ms) to a slow \
+                    endpoint. Should NOT trigger the error boundary — the timeout error is \
+                    shown inline.",
+                button_key: "ep-async-timeout",
+                button_label: "Send Timeout Request",
+                initial_msg: "Requesting (1ms timeout)...",
+                url: "http://httpbin.org/delay/5",
+                timeout: std::time::Duration::from_millis(1),
+                error_prefix: "Timeout error",
+            },
+            |this, v| this.async_result = v,
+            result_text,
             cx,
-        );
+        )
+    }
+
+    /// Unified renderer behind `render_http_error` and `render_async_timeout`.
+    ///
+    /// The two cards are structurally identical; they differ only in URL,
+    /// timeout, copy, and which result field receives updates. The `set_result`
+    /// callback isolates that last difference so the shared spawn/match logic
+    /// lives in exactly one place. The `TokioRuntimeGlobal` is read once per
+    /// click and both handles are pulled from that single borrow.
+    fn render_error_block(
+        ctx: ErrorBlockCtx,
+        set_result: impl Fn(&mut Self, Option<String>) + Copy + Send + 'static,
+        result_text: Option<String>,
+        cx: &mut Context<Self>,
+    ) -> Div {
+        let card = test_card(ctx.title, ctx.description, false, cx);
 
         card.child(
             v_flex().gap_2().px_4().pb_3().child(
                 action_row(cx)
                     .child(
-                        Button::new("ep-async-timeout")
+                        Button::new(ctx.button_key)
                             .primary()
-                            .label("Send Timeout Request")
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.async_result = Some("Requesting (1ms timeout)...".to_string());
+                            .label(ctx.button_label)
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                set_result(this, Some(ctx.initial_msg.to_string()));
                                 cx.notify();
 
-                                let rt = cx
-                                    .global::<crate::services::tokio_runtime::TokioRuntimeGlobal>()
-                                    .0
-                                    .runtime
-                                    .clone();
-                                let client = cx
-                                    .global::<crate::services::tokio_runtime::TokioRuntimeGlobal>()
-                                    .0
-                                    .http_client
-                                    .clone();
+                                // Single borrow of the tokio runtime global for both handles
+                                // (previously this read the global twice per click).
+                                let tokio_rt = cx
+                                    .global::<crate::services::tokio_runtime::TokioRuntimeGlobal>();
+                                let rt = tokio_rt.0.runtime.clone();
+                                let client = tokio_rt.0.http_client.clone();
 
                                 cx.spawn(async move |this, cx| {
                                     let result = rt
                                         .spawn(async move {
                                             client
-                                                .get("http://httpbin.org/delay/5")
-                                                .timeout(std::time::Duration::from_millis(1))
+                                                .get(ctx.url)
+                                                .timeout(ctx.timeout)
                                                 .send()
                                                 .await
                                         })
@@ -221,12 +214,12 @@ impl ErrorPlaygroundPage {
                                         Ok(Ok(resp)) => {
                                             format!("Unexpected success: status {}", resp.status())
                                         }
-                                        Ok(Err(e)) => format!("Timeout error: {e}"),
+                                        Ok(Err(e)) => format!("{}: {e}", ctx.error_prefix),
                                         Err(e) => format!("Task panicked: {e}"),
                                     };
 
                                     this.update(cx, |this, cx| {
-                                        this.async_result = Some(msg);
+                                        set_result(this, Some(msg));
                                         cx.notify();
                                     })
                                     .ok();
