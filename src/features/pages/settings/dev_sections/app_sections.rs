@@ -1,5 +1,5 @@
 use gpui::{prelude::*, *};
-use gpui_component::{ActiveTheme as _, button::Button, label::Label, switch::Switch, v_flex};
+use gpui_component::{button::Button, label::Label, switch::Switch};
 
 /// Renders the "Shortcuts" settings card.
 pub fn render_shortcuts_section(
@@ -7,12 +7,7 @@ pub fn render_shortcuts_section(
     cx: &mut Context<super::super::SettingsPage>,
 ) -> impl IntoElement {
     let app_config = app_config.clone();
-    v_flex()
-        .gap_3()
-        .p_4()
-        .rounded(cx.theme().radius)
-        .border_1()
-        .border_color(cx.theme().border)
+    super::settings_card_base(cx)
         .child(Label::new("Shortcuts"))
         .child(
             div()
@@ -35,12 +30,7 @@ pub fn render_shortcuts_section(
 
 /// Renders the "Storage" settings card.
 pub fn render_storage_section(cx: &mut Context<super::super::SettingsPage>) -> impl IntoElement {
-    v_flex()
-        .gap_3()
-        .p_4()
-        .rounded(cx.theme().radius)
-        .border_1()
-        .border_color(cx.theme().border)
+    super::settings_card_base(cx)
         .child(Label::new("Storage"))
         .child(
             div()
@@ -72,12 +62,7 @@ pub fn render_developer_section(
     cx: &mut Context<super::super::SettingsPage>,
 ) -> impl IntoElement {
     let app_config = app_config.clone();
-    v_flex()
-        .gap_3()
-        .p_4()
-        .rounded(cx.theme().radius)
-        .border_1()
-        .border_color(cx.theme().border)
+    super::settings_card_base(cx)
         .child(Label::new("Developer"))
         .child(
             div()
