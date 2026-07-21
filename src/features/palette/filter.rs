@@ -115,11 +115,16 @@ impl ItemFilter {
                 .collect();
         }
 
+        // Lowercase the query once for the whole filter pass. Previously this
+        // ran inside score_text, re-lowercasing the query per item (and per
+        // name+description fallback) on every keystroke.
+        let query_lower = query.to_lowercase();
+
         let mut scored: Vec<FilteredItem> = items
             .iter()
             .enumerate()
             .filter_map(|(idx, item)| {
-                let score = self.score_entry(item, query)?;
+                let score = self.score_entry(item, query, &query_lower)?;
                 Some(FilteredItem { index: idx, score })
             })
             .collect();
@@ -131,15 +136,26 @@ impl ItemFilter {
 
     /// Score a single entry, preferring name matches and falling back to the
     /// description with a penalty.
-    fn score_entry<E: PaletteEntry>(&self, item: &E, query: &str) -> Option<i64> {
+    ///
+    /// `query_lower` is the once-per-pass lowercased query (see
+    /// [`Self::filter_with_scores`]); name/description are lowercased here once
+    /// per item so [`Self::score_text`] no longer re-lowercases them per call.
+    fn score_entry<E: PaletteEntry>(
+        &self,
+        item: &E,
+        query: &str,
+        query_lower: &str,
+    ) -> Option<i64> {
         let name = item.name();
+        let name_lower = name.to_lowercase();
 
-        if let Some(score) = self.score_text(name, query, false) {
+        if let Some(score) = self.score_text(name, &name_lower, query, query_lower, false) {
             return Some(self.apply_kind_multiplier(score, item));
         }
 
         if let Some(desc) = item.description() {
-            if let Some(score) = self.score_text(desc, query, true) {
+            let desc_lower = desc.to_lowercase();
+            if let Some(score) = self.score_text(desc, &desc_lower, query, query_lower, true) {
                 return Some(self.apply_kind_multiplier(score, item));
             }
         }
@@ -150,11 +166,19 @@ impl ItemFilter {
     /// Core text scoring with query-normalisation, bonus application, and the
     /// description penalty.
     ///
+    /// `text_lower` and `query_lower` are pre-lowercased by the caller
+    /// ([`Self::score_entry`] / [`Self::filter_with_scores`]) so this routine
+    /// no longer calls `.to_lowercase()` per item per keystroke.
+    ///
     /// Returns `None` when the matcher reports no hit for any normalisation.
-    fn score_text(&self, text: &str, query: &str, is_description: bool) -> Option<i64> {
-        let query_lower = query.to_lowercase();
-        let text_lower = text.to_lowercase();
-
+    fn score_text(
+        &self,
+        text: &str,
+        text_lower: &str,
+        query: &str,
+        query_lower: &str,
+        is_description: bool,
+    ) -> Option<i64> {
         // Try the original query first.
         let matched = self.matcher.fuzzy_indices(text, query).or_else(|| {
             // Normalise whitespace: "foo bar" -> "foobar" and "foo-bar", which
@@ -177,9 +201,9 @@ impl ItemFilter {
         if !is_description {
             if text_lower == query_lower {
                 score += self.config.exact_match_bonus;
-            } else if text_lower.starts_with(&query_lower) {
+            } else if text_lower.starts_with(query_lower) {
                 score += self.config.prefix_match_bonus;
-            } else if Self::matches_word_start(text, &query_lower) {
+            } else if Self::matches_word_start(text_lower, query_lower) {
                 score += self.config.word_prefix_bonus;
             }
         }
@@ -222,10 +246,13 @@ impl ItemFilter {
         (ratio * self.config.contiguity_bonus as f64) as i64
     }
 
-    /// True when `query_lower` prefixes any whitespace-delimited word in `text`.
-    fn matches_word_start(text: &str, query_lower: &str) -> bool {
-        text.split_whitespace()
-            .any(|word| word.to_lowercase().starts_with(query_lower))
+    /// True when `query_lower` prefixes any whitespace-delimited word in
+    /// `text_lower`. Both arguments must already be lowercased by the caller
+    /// so this routine avoids a per-word `.to_lowercase()` allocation.
+    fn matches_word_start(text_lower: &str, query_lower: &str) -> bool {
+        text_lower
+            .split_whitespace()
+            .any(|word| word.starts_with(query_lower))
     }
 }
 
