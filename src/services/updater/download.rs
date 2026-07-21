@@ -340,7 +340,7 @@ fn handle_download_failure(error: String, cx: &mut App) {
         cx,
         super::check::download_retry_field,
         "download",
-        |cx| download_update(cx),
+        download_update,
     );
     if scheduled {
         // Revert status back to Available so we can re-attempt.

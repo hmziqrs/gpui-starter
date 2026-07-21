@@ -227,7 +227,7 @@ where
 
 /// Handle a failed check with retry/backoff logic.
 fn handle_check_failure(error: String, cx: &mut App) {
-    let scheduled = schedule_retry(cx, check_retry_field, "check", |cx| check_for_updates(cx));
+    let scheduled = schedule_retry(cx, check_retry_field, "check", check_for_updates);
     super::set_status(UpdateStatus::Error(error.clone()), cx);
     if !scheduled {
         tracing::error!(
