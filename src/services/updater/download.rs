@@ -24,16 +24,8 @@ pub fn download_update(cx: &mut App) {
 
     super::set_status(UpdateStatus::Downloading { progress: 0 }, cx);
 
-    let rt = cx
-        .global::<crate::services::tokio_runtime::TokioRuntimeGlobal>()
-        .0
-        .runtime
-        .clone();
-    let client = cx
-        .global::<crate::services::tokio_runtime::TokioRuntimeGlobal>()
-        .0
-        .http_client
-        .clone();
+    let (rt, client) = crate::services::tokio_runtime::runtime_and_client(cx)
+        .expect("tokio runtime global must be installed before downloading updates");
     // P8: Reuse the asset cached by the most recent `check_for_updates` run
     // so we can skip a second manifest fetch.
     let cached_asset = current.cached_asset.clone();

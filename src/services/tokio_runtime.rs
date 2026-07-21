@@ -66,6 +66,18 @@ pub fn handle(cx: &App) -> Option<Arc<tokio::runtime::Runtime>> {
         .map(|g| g.0.runtime.clone())
 }
 
+/// Borrow the shared tokio runtime handle **and** HTTP client together, if a
+/// [`TokioRuntimeGlobal`] has been installed. Returns `None` when the runtime
+/// is absent (callers should degrade gracefully — e.g. log + return an early
+/// result). Prefer this over back-to-back
+/// `.global::<TokioRuntimeGlobal>().0.runtime.clone()` +
+/// `.0.http_client.clone()` at call sites that need both halves of the duo;
+/// it halves the global lookups and keeps the pair in sync.
+pub fn runtime_and_client(cx: &App) -> Option<(Arc<tokio::runtime::Runtime>, reqwest::Client)> {
+    cx.try_global::<TokioRuntimeGlobal>()
+        .map(|g| (g.0.runtime.clone(), g.0.http_client.clone()))
+}
+
 /// Spawn `future` on the shared tokio runtime, returning the `JoinHandle`.
 ///
 /// Returns `None` when no runtime is installed (graceful degrade). Prefer this

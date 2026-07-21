@@ -36,16 +36,8 @@ pub fn check_for_updates(cx: &mut App) {
 
     super::set_status(UpdateStatus::Checking, cx);
 
-    let rt = cx
-        .global::<crate::services::tokio_runtime::TokioRuntimeGlobal>()
-        .0
-        .runtime
-        .clone();
-    let client = cx
-        .global::<crate::services::tokio_runtime::TokioRuntimeGlobal>()
-        .0
-        .http_client
-        .clone();
+    let (rt, client) = crate::services::tokio_runtime::runtime_and_client(cx)
+        .expect("tokio runtime global must be installed before checking for updates");
     let current_version = current.current_version.clone();
 
     // P8: If we already hold a manifest cached from a recent check, reuse it

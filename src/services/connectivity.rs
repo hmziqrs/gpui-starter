@@ -43,16 +43,8 @@ pub fn snapshot(cx: &App) -> ConnectivitySnapshot {
 
 pub fn check_now(cx: &mut App) {
     let probe_url = snapshot(cx).probe_url;
-    let rt = cx
-        .global::<crate::services::tokio_runtime::TokioRuntimeGlobal>()
-        .0
-        .runtime
-        .clone();
-    let client = cx
-        .global::<crate::services::tokio_runtime::TokioRuntimeGlobal>()
-        .0
-        .http_client
-        .clone();
+    let (rt, client) = crate::services::tokio_runtime::runtime_and_client(cx)
+        .expect("tokio runtime global must be installed before connectivity probe");
 
     cx.spawn(async move |cx| {
         // Run the HTTP connectivity probe on the tokio runtime.
