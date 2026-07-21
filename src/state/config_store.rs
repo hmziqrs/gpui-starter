@@ -2,7 +2,7 @@
 
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::{io::Write, path::Path};
+use std::{io::Write, path::{Path, PathBuf}};
 
 use atomic_write_file::AtomicWriteFile;
 use gpui::{App, BorrowAppContext, Global};
@@ -168,6 +168,34 @@ pub fn config(cx: &App) -> AppConfig {
         .unwrap_or_default()
 }
 
+/// Borrow the active [`AppConfig`] without cloning the whole struct.
+///
+/// Returns `None` only if [`initialize`] has not yet run. Prefer this — or
+/// [`with_config`] — over [`config`] in render paths that only need to read a
+/// field or two (e.g. the per-frame status-bar readout), so the full `AppConfig`
+/// (now carrying `notification_inbox`, two permission `HashSet`s, …) is not
+/// deep-cloned every frame.
+pub fn config_handle(cx: &App) -> Option<&AppConfig> {
+    cx.try_global::<AppState>().map(|s| &s.config)
+}
+
+/// Run a closure with borrowed access to the active [`AppConfig`].
+///
+/// Falls back to [`AppConfig::default`] when the global is not yet installed,
+/// so callers never need to handle the absent case themselves.
+pub fn with_config<R>(cx: &App, f: impl FnOnce(&AppConfig) -> R) -> R {
+    match cx.try_global::<AppState>() {
+        Some(state) => f(&state.config),
+        None => f(&AppConfig::default()),
+    }
+}
+
+/// Convenience field getter: returns just the configured update channel,
+/// cloning the cheap `String` rather than the whole `AppConfig`.
+pub fn update_channel(cx: &App) -> String {
+    with_config(cx, |c| c.update_channel.clone())
+}
+
 pub fn paths(cx: &App) -> AppPaths {
     cx.try_global::<AppState>()
         .map(|s| s.paths.clone())
@@ -210,12 +238,29 @@ pub fn update_config(cx: &mut App, update: impl FnOnce(&mut AppConfig)) {
             // Clear the flag so the next update_config can schedule a fresh timer.
             SAVE_SCHEDULED.store(false, Ordering::Relaxed);
 
-            cx.update(|cx| {
+            // Step 1 (UI thread): serialize + dirty-check. No I/O here.
+            let request = cx.update(|cx| {
                 cx.update_global::<AppState, _>(|state, _cx| {
                     if !state.dirty {
-                        return;
+                        return None;
                     }
-                    flush_to_disk(state);
+                    prepare_flush(state)
+                })
+            });
+
+            let Some((path, bytes)) = request else { return; };
+
+            // Step 2 (background thread): atomic write + fsync. The UI thread
+            // never blocks on disk I/O.
+            let write_bytes = bytes.clone();
+            let result = bg
+                .spawn(async move { save_config(&path, &write_bytes) })
+                .await;
+
+            // Step 3 (UI thread): apply the result to in-memory state.
+            cx.update(|cx| {
+                cx.update_global::<AppState, _>(|state, _cx| {
+                    commit_flush(state, bytes, result);
                 });
             });
         })
@@ -235,21 +280,31 @@ pub fn force_save(cx: &mut App) {
     // Clear any pending debounce timer.
     SAVE_SCHEDULED.store(false, Ordering::Relaxed);
 
+    // Shutdown path: write synchronously. We cannot yield from here and risk
+    // the process exiting before the write lands, so the atomic write + fsync
+    // stays inline. (The debounced hot path in `update_config` is the one that
+    // moves fsync off the UI thread.)
     cx.update_global::<AppState, _>(|state, _cx| {
         if !state.dirty {
             return;
         }
-        flush_to_disk(state);
+        if let Some((path, bytes)) = prepare_flush(state) {
+            let result = save_config(&path, &bytes);
+            commit_flush(state, bytes, result);
+        }
     });
 }
 
-/// Performs the actual serialization and file write.
+/// Serializes the config and runs the dirty-check.
 ///
 /// Uses compact JSON (`serde_json::to_vec`) instead of pretty-printed JSON to
-/// reduce I/O volume (~30% fewer bytes). Includes a dirty-check: if the
-/// serialized output is byte-identical to the last successful write, the
-/// filesystem operation is skipped entirely.
-fn flush_to_disk(state: &mut AppState) {
+/// reduce I/O volume (~30% fewer bytes). Returns `Some((path, bytes))` when a
+/// write is actually needed, or `None` if the config is clean / byte-identical
+/// to the last successful flush. Serialization failures are recorded on
+/// `state.last_save_error` and yield `None`.
+///
+/// This runs on the UI thread — it does no I/O, only serialization.
+fn prepare_flush(state: &mut AppState) -> Option<(PathBuf, Vec<u8>)> {
     let new_bytes = match serde_json::to_vec(&state.config) {
         Ok(bytes) => bytes,
         Err(err) => {
@@ -260,7 +315,7 @@ fn flush_to_disk(state: &mut AppState) {
                 "failed to serialize app state"
             );
             state.last_save_error = Some(error);
-            return;
+            return None;
         }
     };
 
@@ -272,19 +327,40 @@ fn flush_to_disk(state: &mut AppState) {
             target: "gpui_starter::app_state",
             "config unchanged after normalization; skipping write"
         );
-        return;
+        return None;
     }
 
-    match save_config(&state.paths.state_file, &new_bytes) {
+    Some((state.paths.state_file.clone(), new_bytes))
+}
+
+/// Applies the outcome of a [`save_config`] call to the in-memory state.
+///
+/// On success, marks the state clean and records the flushed bytes — but only
+/// if the in-memory config still serializes to the same bytes we just wrote.
+/// That guard handles the (small) race where a `update_config` mutation lands
+/// while the write is in flight on the background thread: instead of falsely
+/// marking the state clean, we leave `dirty = true` so the next debounce
+/// re-flushes the newer bytes. On failure, `last_save_error` is set and the
+/// state stays dirty so the next debounce retries.
+fn commit_flush(state: &mut AppState, written_bytes: Vec<u8>, result: Result<(), AppError>) {
+    match result {
         Ok(()) => {
-            state.dirty = false;
-            state.last_flushed_bytes = new_bytes;
             state.last_save_error = None;
-            tracing::debug!(
-                target: "gpui_starter::app_state",
-                state_file = %state.paths.state_file.display(),
-                "persisted app state"
-            );
+            let current = serde_json::to_vec(&state.config).unwrap_or_default();
+            if current == written_bytes {
+                state.dirty = false;
+                state.last_flushed_bytes = written_bytes;
+                tracing::debug!(
+                    target: "gpui_starter::app_state",
+                    state_file = %state.paths.state_file.display(),
+                    "persisted app state"
+                );
+            } else {
+                tracing::debug!(
+                    target: "gpui_starter::app_state",
+                    "config changed during flush; will re-flush on next debounce"
+                );
+            }
         }
         Err(err) => {
             let error = err.to_string();

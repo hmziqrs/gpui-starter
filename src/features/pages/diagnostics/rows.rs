@@ -10,7 +10,10 @@ use crate::{
 use super::row;
 
 pub fn build_diagnostic_rows(cx: &App) -> Vec<Div> {
-    let state = cx.try_global::<app_state::AppState>().cloned();
+    // Borrow AppState instead of cloning the whole struct (it now carries
+    // notification_inbox + two permission HashSets + AppConfig). It is only
+    // read below, so a shared borrow is sufficient and lives for the function.
+    let state = cx.try_global::<app_state::AppState>();
     let lifecycle = cx
         .try_global::<LifecycleState>()
         .cloned()
@@ -264,7 +267,7 @@ pub fn build_diagnostic_rows(cx: &App) -> Vec<Div> {
         ),
         row(
             "Error Surface Count",
-            &error_surface::snapshot(cx).len().to_string(),
+            &error_surface::record_count(cx).to_string(),
         ),
         row(
             "Latest Error",
@@ -295,7 +298,7 @@ pub fn build_diagnostic_rows(cx: &App) -> Vec<Div> {
         ),
     ];
 
-    if let Some(app_state) = &state {
+    if let Some(app_state) = state {
         let fallback_log_dir = app_state.paths.log_dir.display().to_string();
         let display_log_dir = if logging.log_dir.is_empty() {
             fallback_log_dir.as_str()

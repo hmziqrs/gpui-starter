@@ -95,15 +95,24 @@ pub fn report(
             state.records.truncate(200);
         }
 
-        // Persist to SQLite as secondary store (best-effort, non-blocking).
-        if let Some(runtime) = cx.try_global::<crate::storage::StorageRuntime>()
-            && let Err(err) = persist_error(&*runtime.backend, &record_clone)
-        {
-            tracing::warn!(
-                target: "gpui_starter::error_surface",
-                error = %err,
-                "failed to persist error to sqlite"
-            );
+        // Persist to SQLite as a secondary store. The synchronous INSERT is
+        // dispatched to the background executor so the UI thread never blocks
+        // on database I/O (mirrors the storage runtime pattern in
+        // `services/storage/runtime.rs`). Only the in-memory mutation above
+        // must happen synchronously.
+        if let Some(runtime) = cx.try_global::<crate::storage::StorageRuntime>() {
+            let backend = runtime.backend.clone();
+            cx.background_executor()
+                .spawn(async move {
+                    if let Err(err) = persist_error(&*backend, &record_clone) {
+                        tracing::warn!(
+                            target: "gpui_starter::error_surface",
+                            error = %err,
+                            "failed to persist error to sqlite"
+                        );
+                    }
+                })
+                .detach();
         }
     });
 
@@ -112,6 +121,13 @@ pub fn report(
 
 pub fn snapshot(cx: &App) -> Vec<ErrorRecord> {
     cx.global::<ErrorSurfaceState>().records.clone()
+}
+
+/// Returns the number of error records without cloning the records Vec.
+pub fn record_count(cx: &App) -> usize {
+    cx.try_global::<ErrorSurfaceState>()
+        .map(|state| state.records.len())
+        .unwrap_or_default()
 }
 
 pub fn latest(cx: &App) -> Option<ErrorRecord> {
