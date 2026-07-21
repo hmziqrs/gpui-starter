@@ -330,13 +330,14 @@ enum DemoTaskNotificationKind {
     Cancelled,
 }
 
-fn push_demo_task_notification(
-    window_handle: AnyWindowHandle,
-    id: TaskId,
-    kind: DemoTaskNotificationKind,
-    cx: &mut App,
-) {
-    let note = match kind {
+/// Build the notification payload for a demo task state change.
+///
+/// Shared by [`push_demo_task_notification`] (deferred dispatch via a window
+/// handle) and [`push_demo_task_notification_now`] (immediate dispatch on the
+/// current window). Both apply the same `id1` toast identity so re-pushing a
+/// kind replaces the prior toast instead of stacking a duplicate.
+fn build_demo_task_notification(id: TaskId, kind: DemoTaskNotificationKind) -> Notification {
+    match kind {
         DemoTaskNotificationKind::Loading => Notification::new()
             .title("Demo task started")
             .autohide(false)
@@ -357,7 +358,16 @@ fn push_demo_task_notification(
                 .autohide(false)
         }
     }
-    .id1::<DemoTaskToast>(id.to_string());
+    .id1::<DemoTaskToast>(id.to_string())
+}
+
+fn push_demo_task_notification(
+    window_handle: AnyWindowHandle,
+    id: TaskId,
+    kind: DemoTaskNotificationKind,
+    cx: &mut App,
+) {
+    let note = build_demo_task_notification(id, kind);
 
     if let Err(err) = cx.update_window(window_handle, |_, window, cx| {
         window.push_notification(note, cx);
@@ -377,28 +387,6 @@ fn push_demo_task_notification_now(
     kind: DemoTaskNotificationKind,
     cx: &mut App,
 ) {
-    let note = match kind {
-        DemoTaskNotificationKind::Loading => Notification::new()
-            .title("Demo task started")
-            .autohide(false)
-            .content(|_, _, _| {
-                h_flex()
-                    .gap_2()
-                    .items_center()
-                    .child(Spinner::new().small())
-                    .child("Running demo task...")
-                    .into_any_element()
-            }),
-        DemoTaskNotificationKind::Success => {
-            Notification::success("Demo task finished successfully.").title("Demo task completed")
-        }
-        DemoTaskNotificationKind::Cancelled => {
-            Notification::warning("Demo task was cancelled during shutdown.")
-                .title("Demo task cancelled")
-                .autohide(false)
-        }
-    }
-    .id1::<DemoTaskToast>(id.to_string());
-
+    let note = build_demo_task_notification(id, kind);
     window.push_notification(note, cx);
 }
