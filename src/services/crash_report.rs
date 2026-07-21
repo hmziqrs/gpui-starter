@@ -279,38 +279,25 @@ pub fn upload_pending_reports(cx: &mut App) {
             }
         }
 
-        // Update snapshot with latest pending count.
+        // Update snapshot with the latest pending count and timestamp.
+        // A single `load_pending_crash_reports(1)` query yields both values;
+        // previously two identical queries ran here back-to-back.
         let backend = backend.clone();
-        let backend_for_spawn = backend.clone();
         let _ = cx.update(|cx| {
             let pending = cx
                 .background_executor()
                 .spawn(async move { backend.load_pending_crash_reports(1) });
-            // We can't block here; schedule a background update.
-            let backend2 = backend_for_spawn.clone();
             cx.spawn(async move |cx| {
-                let count = match pending.await {
-                    Ok(r) => r.len(),
-                    Err(_) => 0,
+                let (count, timestamp) = match pending.await {
+                    Ok(r) => (r.len(), r.first().map(|r| r.timestamp.clone())),
+                    Err(_) => (0, None),
                 };
                 let _ = cx.update(|cx| {
                     cx.update_global::<CrashReportSnapshot, _>(|snap, _cx| {
                         snap.pending_count = count;
+                        snap.last_crash_timestamp = timestamp;
                     });
                 });
-                // Also try to get the latest timestamp
-                let backend3 = backend2.clone();
-                let latest = cx
-                    .background_executor()
-                    .spawn(async move { backend3.load_pending_crash_reports(1) })
-                    .await;
-                if let Ok(r) = latest {
-                    let _ = cx.update(|cx| {
-                        cx.update_global::<CrashReportSnapshot, _>(|snap, _cx| {
-                            snap.last_crash_timestamp = r.first().map(|r| r.timestamp.clone());
-                        });
-                    });
-                }
             })
             .detach();
         });
