@@ -8,7 +8,6 @@ use std::{
     },
 };
 
-use directories::ProjectDirs;
 use gpui::{App, Global};
 use interprocess::local_socket::{
     GenericFilePath, GenericNamespaced, ListenerOptions, Stream, prelude::*,
@@ -354,7 +353,7 @@ fn drain_forwarded_links(path: &PathBuf) -> Vec<String> {
 }
 
 fn queue_file_path() -> PathBuf {
-    if let Some(project_dirs) = ProjectDirs::from("com", "gpui-starter", "GPUI Starter") {
+    if let Some(project_dirs) = crate::platform::filesystem::paths::project_dirs() {
         let dir = project_dirs.cache_dir().join("runtime");
         return dir.join("forwarded-deep-links.queue");
     }

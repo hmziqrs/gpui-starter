@@ -2,7 +2,6 @@
 
 use std::{io, path::PathBuf};
 
-use directories::ProjectDirs;
 use interprocess::local_socket::{
     GenericFilePath, GenericNamespaced, ListenerOptions,
     prelude::*,
@@ -104,7 +103,7 @@ impl IpcEndpoint {
 
     /// Build a socket path in the application cache/runtime directory.
     fn resolve_socket_path(name: &str) -> PathBuf {
-        if let Some(project_dirs) = ProjectDirs::from("com", "gpui-starter", "GPUI Starter") {
+        if let Some(project_dirs) = crate::platform::filesystem::paths::project_dirs() {
             project_dirs
                 .cache_dir()
                 .join("runtime")

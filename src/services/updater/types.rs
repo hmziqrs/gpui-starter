@@ -115,7 +115,7 @@ pub(crate) fn platform_key() -> String {
 }
 
 pub(crate) fn pending_swap_path() -> PathBuf {
-    directories::ProjectDirs::from("", "", "gpui-starter")
+    crate::platform::filesystem::paths::project_dirs()
         .map(|pd| {
             let dir = pd.data_dir().join("updates");
             let _ = std::fs::create_dir_all(&dir);

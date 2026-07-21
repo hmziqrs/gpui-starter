@@ -6,6 +6,20 @@ use directories::ProjectDirs;
 
 use crate::errors::AppError;
 
+/// Resolve the canonical [`ProjectDirs`] for this application.
+///
+/// All call sites that need the OS-standard config/data/cache layout must go
+/// through here so the qualifying triple (`"com"`, `"gpui-starter"`,
+/// `"GPUI Starter"`) lives in exactly one place.
+///
+/// This is a plain free fn with no GPUI `App`/global dependency so it is safe
+/// to call pre-`App` (e.g. from `single_instance` preflight). Prefer this over
+/// [`AppPaths::new`], which eagerly `create_dir_all`s several directories and
+/// is built lazily off a GPUI global.
+pub fn project_dirs() -> Option<ProjectDirs> {
+    ProjectDirs::from("com", "gpui-starter", "GPUI Starter")
+}
+
 #[derive(Clone, Debug)]
 pub struct AppPaths {
     pub config_dir: PathBuf,
