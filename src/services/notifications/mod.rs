@@ -9,4 +9,9 @@ pub use service::{
     send_from_window, set_native_notifications_enabled, snapshot,
 };
 
-pub(crate) use service::{NotificationBackendKind, NotificationCapabilities, NotificationImportance};
+pub(crate) use service::{NotificationBackendKind, NotificationCapabilities};
+// NotificationImportance is only consumed via `crate::notifications::` inside
+// Linux-gated notify-rust code (urgency mapping) — re-exporting it
+// unconditionally leaves the import unused on macOS/Windows.
+#[cfg(target_os = "linux")]
+pub(crate) use service::NotificationImportance;

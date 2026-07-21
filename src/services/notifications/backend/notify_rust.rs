@@ -2,9 +2,13 @@ use async_trait::async_trait;
 
 use super::NotificationBackend;
 use crate::notifications::{
-    APP_DISPLAY_NAME, DESKTOP_ENTRY_ID, NotificationBackendKind, NotificationCapabilities,
+    APP_DISPLAY_NAME, NotificationBackendKind, NotificationCapabilities,
     NotificationPermissionState, NotificationRequest,
 };
+// DESKTOP_ENTRY_ID feeds Hint::DesktopEntry, which is Linux/D-Bus-only (see
+// `send` below) — importing it unconditionally makes it unused on macOS/Windows.
+#[cfg(target_os = "linux")]
+use crate::notifications::DESKTOP_ENTRY_ID;
 
 const LOG: &str = "gpui_starter::notifications::notify_rust";
 

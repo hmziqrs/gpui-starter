@@ -1,4 +1,5 @@
 use super::*;
+use std::sync::{Arc, Mutex};
 
 struct FakeSink {
     events: Arc<Mutex<Vec<String>>>,

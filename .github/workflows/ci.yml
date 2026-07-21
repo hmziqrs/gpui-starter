@@ -6,16 +6,13 @@ on:
   pull_request:
     branches: [master]
 
-# CI env for the Zed gpui + gpui-component + gpui-form graph. There is NO `test`
-# job here (see the note under `jobs:`): full `cargo test` codegen on this graph
-# takes multi-HOUR and busts GitHub's 6 h limit. These knobs serve the fast
-# `check`/`clippy`/`fmt` jobs AND stay correct if someone runs `cargo test` locally:
-#   - RUST_MIN_STACK=512 MiB  + recursion_limit=8192 (src/lib.rs): gpui_macros
-#     recurse through syn past the default stack/limit while expanding; without
-#     these the expansion SIGBUS-es (signal 10, a proc-macro THREAD STACK overflow
-#     — not heap OOM).
-#   - CARGO_BUILD_JOBS=2, *_CODEGEN_UNITS=256, *_DEBUG=none, CARGO_INCREMENTAL=0:
-#     peak-RSS hygiene on the 14 GB runner and keep target/ lean.
+# CI env for the Zed gpui + gpui-component + gpui-form graph. These knobs are
+# peak-RSS / target/-hygiene for the 14 GB runner (not correctness needs):
+#   - CARGO_BUILD_JOBS=2, *_CODEGEN_UNITS=256, *_DEBUG=none, CARGO_INCREMENTAL=0.
+# NOTE: the previous RUST_MIN_STACK=512 MiB + recursion_limit=8192 were a band-aid
+# over a `#[test]` → `gpui::test` glob-shadow that recursed infinitely and
+# overflowed rustc's stack (SIGBUS/SIGSEGV). That shadow is fixed at the
+# test-module call sites (see src/lib.rs), so neither knob is needed or set.
 env:
   CARGO_TERM_COLOR: always
   CARGO_BUILD_JOBS: "2"
@@ -24,7 +21,6 @@ env:
   CARGO_PROFILE_DEV_DEBUG: none
   CARGO_PROFILE_TEST_CODEGEN_UNITS: "256"
   CARGO_PROFILE_TEST_DEBUG: none
-  RUST_MIN_STACK: "536870912"
   RUST_BACKTRACE: "1"
 
 jobs:
@@ -53,21 +49,18 @@ jobs:
         run: cargo check --release
 
   # ---------------------------------------------------------------------
-  # NOTE: there is intentionally NO `test` job here. `cargo test` on this
-  # workspace does FULL codegen of the entire Zed gpui + gpui-component +
-  # gpui-form graph (~13 GB of target/), which on the macOS runner is a
-  # multi-HOUR build that exceeds GitHub's 6 h job limit (we watched it run
-  # 5-6 h and never finish). There is no fast subset either: every crate's
-  # tests — even gpui-query's no-gpui `core` feature — import gpui's
+  # NOTE: there is no WORKSPACE-WIDE `cargo test` job here. A full `cargo test`
+  # does codegen of the entire Zed gpui + gpui-component + gpui-form graph
+  # (~13 GB of target/), which on the macOS runner is a multi-HOUR build that
+  # exceeds GitHub's 6 h job limit. There is no fast subset either: every
+  # crate's tests — even gpui-query's no-gpui `core` feature — import gpui's
   # `TestAppContext`, so they all require compiling Zed from source.
   #
   # Coverage is not lost for the "does it build?" question: the `check` job
   # type-checks AND macro-expands the WHOLE codebase (forms included) in ~8
-  # min. The full `cargo test` suite works locally (RUST_MIN_STACK +
-  # recursion_limit=8192 in src/lib.rs make the proc-macro expansion succeed
-  # instead of SIGBUS-ing). In CI we run only the SCOPED `test` job below
-  # (`cargo test -p gpui-starter --lib`, behind sccache); the workspace-wide
-  # test build stays out of CI for the reasons above.
+  # min. For runtime correctness we run the SCOPED `test` job below
+  # (`cargo test -p gpui-starter --lib`), which compiles only this crate's
+  # pure unit tests (no gpui TestAppContext, no live D-Bus) and passes clean.
   # ---------------------------------------------------------------------
 
   clippy:
@@ -103,7 +96,7 @@ jobs:
   # ---------------------------------------------------------------------
   # Linux lane: compiles the cfg(target_os = "linux")-gated code paths
   # (compositor, layer_shell, detached/session_env) that the macOS-primary
-  # lane never sees. Same no-`test` policy, same stack/codegen discipline.
+  # lane never sees. Same scoped-`test` policy, same codegen discipline.
   # ---------------------------------------------------------------------
   check-linux:
     name: Check (Linux)
@@ -154,14 +147,13 @@ jobs:
   # hour (every crate's tests pull gpui's TestAppContext) and not viable in CI,
   # but `cargo test -p gpui-starter --lib` compiles ONLY this crate's lib test
   # target — pure unit tests (no gpui TestAppContext, no live D-Bus) — which
-  # sccache + a dedicated rust-cache key keep fast on repeat runs. Non-blocking
-  # (continue-on-error) until proven stable across cold/warm runs.
+  # sccache + a dedicated rust-cache key keep fast on repeat runs. Binding now
+  # that the glob-shadow stack overflow is fixed (231 lib tests pass clean).
   # ---------------------------------------------------------------------
   test:
     name: Test (lib, Linux)
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
