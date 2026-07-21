@@ -76,17 +76,11 @@ pub fn initialize(cx: &mut App) {
     if !snapshot.clipboard_available {
         snapshot.last_error = Some("clipboard backend unavailable".to_string());
     }
-    crate::capabilities::set(
-        "desktop_actions",
-        crate::capabilities::CapabilityStatus {
-            supported: true,
-            enabled: true,
-            degraded: snapshot.last_error.is_some(),
-            reason: snapshot.last_error.clone().map(Into::into),
-            last_error: snapshot.last_error.clone().map(Into::into),
-        },
-        cx,
-    );
+    let status = match snapshot.last_error.as_deref() {
+        Some(err) => crate::capabilities::CapabilityStatus::degraded(err),
+        None => crate::capabilities::CapabilityStatus::supported_enabled(),
+    };
+    crate::capabilities::set("desktop_actions", status, cx);
     cx.set_global(DesktopActionsState {
         snapshot,
         inner: Arc::new(Mutex::new(DesktopActionsInner {

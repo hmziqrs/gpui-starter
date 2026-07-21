@@ -51,17 +51,17 @@ pub fn initialize(cx: &mut App) {
         },
     };
     cx.set_global(snapshot.clone());
-    crate::capabilities::set(
-        "secure_storage",
-        crate::capabilities::CapabilityStatus {
-            supported: true,
-            enabled: snapshot.available,
-            degraded: !snapshot.available,
-            reason: snapshot.last_error.clone().map(Into::into),
-            last_error: snapshot.last_error.clone().map(Into::into),
-        },
-        cx,
-    );
+    let status = if snapshot.available {
+        crate::capabilities::CapabilityStatus::supported_enabled()
+    } else {
+        crate::capabilities::CapabilityStatus::error(
+            snapshot
+                .last_error
+                .as_deref()
+                .unwrap_or("secure storage unavailable"),
+        )
+    };
+    crate::capabilities::set("secure_storage", status, cx);
 }
 
 pub fn snapshot(cx: &App) -> SecureStorageSnapshot {

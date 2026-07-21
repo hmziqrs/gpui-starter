@@ -22,6 +22,33 @@ impl CapabilityStatus {
             last_error: None,
         }
     }
+
+    /// Capability is supported but a sub-component failed: the feature stays
+    /// enabled (users can still exercise the parts that work) but is flagged
+    /// degraded with `err` as both the human-readable reason and last_error.
+    pub fn degraded(err: impl ToString) -> Self {
+        let msg: SharedString = err.to_string().into();
+        Self {
+            supported: true,
+            enabled: true,
+            degraded: true,
+            reason: Some(msg.clone()),
+            last_error: Some(msg),
+        }
+    }
+
+    /// Capability failed to initialize entirely: supported but not enabled,
+    /// flagged degraded, with `err` as both the reason and last_error.
+    pub fn error(err: impl ToString) -> Self {
+        let msg: SharedString = err.to_string().into();
+        Self {
+            supported: true,
+            enabled: false,
+            degraded: true,
+            reason: Some(msg.clone()),
+            last_error: Some(msg),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default)]
