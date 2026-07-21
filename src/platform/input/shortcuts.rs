@@ -63,10 +63,7 @@ pub fn apply_enabled(enabled: bool, cx: &mut App) {
         state.last_error = Some("failed to lock hotkey manager".to_string());
     }
 
-    set_capability(&state, cx);
-    cx.update_global::<ShortcutState, _>(|s, _cx| {
-        *s = state;
-    });
+    commit(state, cx);
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -79,10 +76,7 @@ pub fn apply_enabled(enabled: bool, cx: &mut App) {
     } else {
         None
     };
-    set_capability(&state, cx);
-    cx.update_global::<ShortcutState, _>(|s, _cx| {
-        *s = state;
-    });
+    commit(state, cx);
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -114,10 +108,7 @@ pub fn shutdown(cx: &mut App) {
     if state.enabled {
         state.last_error = Some("global shortcuts unregistered during shutdown".to_string());
     }
-    set_capability(&state, cx);
-    cx.update_global::<ShortcutState, _>(|s, _cx| {
-        *s = state;
-    });
+    commit(state, cx);
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -147,4 +138,11 @@ fn set_capability(state: &ShortcutState, cx: &mut App) {
         },
         cx,
     );
+}
+
+fn commit(state: ShortcutState, cx: &mut App) {
+    set_capability(&state, cx);
+    cx.update_global::<ShortcutState, _>(|s, _cx| {
+        *s = state;
+    });
 }

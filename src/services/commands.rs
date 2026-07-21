@@ -206,9 +206,8 @@ pub fn execute(id: CommandId, cx: &mut App) {
         CommandId::CopyDiagnostics => {
             if let Err(error) = crate::desktop_actions::copy_diagnostics(cx) {
                 tracing::warn!(target: "gpui_starter::commands", %error, "copy diagnostics failed");
-                crate::error_surface::report(
+                report_error(
                     format!("Copy diagnostics failed: {error}"),
-                    crate::errors::AppErrorSeverity::Error,
                     crate::error_surface::ErrorCategory::System,
                     vec![
                         crate::error_surface::ErrorAction::Retry,
@@ -221,9 +220,8 @@ pub fn execute(id: CommandId, cx: &mut App) {
         CommandId::OpenLogsFolder => {
             if let Err(error) = crate::desktop_actions::open_logs_folder(cx) {
                 tracing::warn!(target: "gpui_starter::commands", %error, "open logs folder failed");
-                crate::error_surface::report(
+                report_error(
                     format!("Open logs folder failed: {error}"),
-                    crate::errors::AppErrorSeverity::Error,
                     crate::error_surface::ErrorCategory::Storage,
                     vec![
                         crate::error_surface::ErrorAction::OpenSettings,
@@ -236,9 +234,8 @@ pub fn execute(id: CommandId, cx: &mut App) {
         CommandId::OpenConfigFolder => {
             if let Err(error) = crate::desktop_actions::open_config_folder(cx) {
                 tracing::warn!(target: "gpui_starter::commands", %error, "open config folder failed");
-                crate::error_surface::report(
+                report_error(
                     format!("Open config folder failed: {error}"),
-                    crate::errors::AppErrorSeverity::Error,
                     crate::error_surface::ErrorCategory::Config,
                     vec![
                         crate::error_surface::ErrorAction::OpenSettings,
@@ -271,6 +268,21 @@ pub fn execute(id: CommandId, cx: &mut App) {
 
 fn navigate(page: Page, cx: &mut App) {
     events::emit(AppEventKind::Navigate(AppRoute::page(page)), cx);
+}
+
+fn report_error(
+    message: impl Into<String>,
+    category: crate::error_surface::ErrorCategory,
+    actions: Vec<crate::error_surface::ErrorAction>,
+    cx: &mut App,
+) {
+    crate::error_surface::report(
+        message,
+        crate::errors::AppErrorSeverity::Error,
+        category,
+        actions,
+        cx,
+    );
 }
 
 fn command(id: CommandId, title: &str, subtitle: &str, icon: IconName) -> CommandSpec {
