@@ -7,39 +7,55 @@ use gpui_component::{
     h_flex,
 };
 
-use gpui_query::core::{QueryStatus, RetryPolicy};
+use gpui_query::core::{QueryResource, QueryStatus, RetryPolicy};
 
 use super::super::QueryPlaygroundPage;
 use super::super::ui_helpers::{chip, mini_card, section_card, status_badge};
 
+// Helpers for the recurring `Option<(Entity<QueryResource<..>>, Subscription)>`
+// read shape used across the playground render sections (audit finding D4).
+// Each encapsulates the `read_with` + `map_or`/`and_then` boilerplate so call
+// sites read as one-liners. Note: these only fit the QueryStatus/Option<T>
+// accessors — MutationStatus, infinite `page_count`, and select bare-Entity
+// sites deliberately stay inline.
+
+/// Read the status of an optional query entity, defaulting to [`QueryStatus::Idle`].
+fn query_status<T: 'static, E: 'static>(
+    opt: Option<&(Entity<QueryResource<T, E>>, Subscription)>,
+    cx: &App,
+) -> QueryStatus {
+    opt.map_or(QueryStatus::Idle, |(e, _)| e.read_with(cx, |r, _| r.status()))
+}
+
+/// Read the cloned data (if any) of an optional query entity.
+fn query_data<T: Clone + 'static, E: 'static>(
+    opt: Option<&(Entity<QueryResource<T, E>>, Subscription)>,
+    cx: &App,
+) -> Option<T> {
+    opt.and_then(|(e, _)| e.read_with(cx, |r, _| r.data().cloned()))
+}
+
+/// Read the cloned error (if any) of an optional query entity.
+fn query_error<T: 'static, E: Clone + 'static>(
+    opt: Option<&(Entity<QueryResource<T, E>>, Subscription)>,
+    cx: &App,
+) -> Option<E> {
+    opt.and_then(|(e, _)| e.read_with(cx, |r, _| r.error().cloned()))
+}
+
 impl QueryPlaygroundPage {
     pub(in super::super) fn render_cache_policies(&mut self, cx: &mut Context<Self>) -> Div {
         // NoCache
-        let nocache_status = self
-            .nocache_query
-            .as_ref()
-            .map_or(QueryStatus::Idle, |(e, _)| {
-                e.read_with(cx, |r, _| r.status())
-            });
-        let nocache_loading = self.nocache_query.as_ref().map_or(false, |(e, _)| {
-            e.read_with(cx, |r, _| r.status().is_loading())
-        });
+        let nocache_status = query_status(self.nocache_query.as_ref(), cx);
+        let nocache_loading = nocache_status.is_loading();
 
         // TTL
-        let ttl_status = self.ttl_query.as_ref().map_or(QueryStatus::Idle, |(e, _)| {
-            e.read_with(cx, |r, _| r.status())
-        });
-        let ttl_loading = self.ttl_query.as_ref().map_or(false, |(e, _)| {
-            e.read_with(cx, |r, _| r.status().is_loading())
-        });
+        let ttl_status = query_status(self.ttl_query.as_ref(), cx);
+        let ttl_loading = ttl_status.is_loading();
 
         // SWR
-        let swr_status = self.swr_query.as_ref().map_or(QueryStatus::Idle, |(e, _)| {
-            e.read_with(cx, |r, _| r.status())
-        });
-        let swr_loading = self.swr_query.as_ref().map_or(false, |(e, _)| {
-            e.read_with(cx, |r, _| r.status().is_loading())
-        });
+        let swr_status = query_status(self.swr_query.as_ref(), cx);
+        let swr_loading = swr_status.is_loading();
 
         section_card(
             "Cache Policies",
@@ -91,33 +107,13 @@ impl QueryPlaygroundPage {
     }
 
     pub(in super::super) fn render_request_policies(&mut self, cx: &mut Context<Self>) -> Div {
-        let latest_status = self
-            .latest_wins_query
-            .as_ref()
-            .map_or(QueryStatus::Idle, |(e, _)| {
-                e.read_with(cx, |r, _| r.status())
-            });
-        let latest_data = self
-            .latest_wins_query
-            .as_ref()
-            .and_then(|(e, _)| e.read_with(cx, |r, _| r.data().cloned()));
-        let latest_loading = self.latest_wins_query.as_ref().map_or(false, |(e, _)| {
-            e.read_with(cx, |r, _| r.status().is_loading())
-        });
+        let latest_status = query_status(self.latest_wins_query.as_ref(), cx);
+        let latest_data = query_data(self.latest_wins_query.as_ref(), cx);
+        let latest_loading = latest_status.is_loading();
 
-        let ignore_status = self
-            .ignore_query
-            .as_ref()
-            .map_or(QueryStatus::Idle, |(e, _)| {
-                e.read_with(cx, |r, _| r.status())
-            });
-        let ignore_data = self
-            .ignore_query
-            .as_ref()
-            .and_then(|(e, _)| e.read_with(cx, |r, _| r.data().cloned()));
-        let ignore_loading = self.ignore_query.as_ref().map_or(false, |(e, _)| {
-            e.read_with(cx, |r, _| r.status().is_loading())
-        });
+        let ignore_status = query_status(self.ignore_query.as_ref(), cx);
+        let ignore_data = query_data(self.ignore_query.as_ref(), cx);
+        let ignore_loading = ignore_status.is_loading();
 
         section_card(
             "Request Policies",
@@ -160,16 +156,8 @@ impl QueryPlaygroundPage {
     }
 
     pub(in super::super) fn render_retry_policy(&mut self, cx: &mut Context<Self>) -> Div {
-        let status = self
-            .retry_query
-            .as_ref()
-            .map_or(QueryStatus::Idle, |(e, _)| {
-                e.read_with(cx, |r, _| r.status())
-            });
-        let error = self
-            .retry_query
-            .as_ref()
-            .and_then(|(e, _)| e.read_with(cx, |r, _| r.error().cloned()));
+        let status = query_status(self.retry_query.as_ref(), cx);
+        let error = query_error(self.retry_query.as_ref(), cx);
         let loading = status.is_loading();
         // Read the actual policy off the entity so the chips stay truthful.
         let policy = self
