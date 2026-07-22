@@ -294,6 +294,10 @@ jobs:
           chmod +x "$STAGE/install-linux.sh" 2>/dev/null || true
 
       - name: Generate PKGBUILD
+        env:
+          # Always point the PKGBUILD at whichever repo the release ran on,
+          # so AUR/makepkg source download resolves regardless of the default.
+          REPO: ${{ github.repository }}
         run: |
           mkdir -p stage
           TARBALL="gpui-starter-${{ steps.version.outputs.value }}-${{ matrix.arch }}-linux.tar.gz"

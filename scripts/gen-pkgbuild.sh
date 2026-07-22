@@ -48,7 +48,7 @@ pkgver=${VERSION}
 pkgrel=1
 pkgdesc="A starter application built on the GPUI framework (Zed's UI toolkit)"
 arch=('${PKGARCH}')
-url="https://github.com/\${REPO:-zed-industries/gpui-starter}"
+url="https://github.com/\${REPO:-freeoxide/gpui-starter}"
 license=('MIT')
 depends=('vulkan-driver' 'libxkbcommon-x11' 'wayland' 'fontconfig' 'freetype2')
 provides=('gpui-starter')
@@ -57,7 +57,7 @@ conflicts=('gpui-starter')
 # The release workflow publishes this architecture-specific tarball to the
 # GitHub Release; makepkg fetches it by its real name ($TARBALL expands here,
 # \${REPO} stays literal for the packager to override).
-source=("${TARBALL}::https://github.com/\${REPO:-zed-industries/gpui-starter}/releases/download/v${VERSION}/${TARBALL}")
+source=("${TARBALL}::https://github.com/\${REPO:-freeoxide/gpui-starter}/releases/download/v${VERSION}/${TARBALL}")
 sha256sums=('SKIP')  # verified via the signed update manifest / GitHub Release checksums
 
 package() {
