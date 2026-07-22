@@ -28,6 +28,20 @@ pub struct QueryDevToolsV2Page {
 impl QueryDevToolsV2Page {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let mut subscriptions = Vec::new();
+        // KNOWN LIMITATION (gpui-query architecture, verified in 0.1.4 and 0.2.0):
+        // this dashboard refreshes only when the `QueryClient` *global* is mutated
+        // — i.e. via `update_global::<QueryClient, _>` / `global_mut` / `set_global`,
+        // which push GPUI's `NotifyGlobalObservers` effect. gpui-query routes only
+        // fetch-start / hook-setup through `update_global` (resource creation,
+        // request-id allocation, mutation registration). Query/mutation/infinite
+        // *completions* (`complete_success` / `complete_failure`) write via a bare
+        // `entity.update(...)` on the resource entity, which wakes only
+        // `cx.observe(&entity)` subscribers — never this global observer. So a
+        // resolved query can show stale status here until the next global mutation
+        // (another query starting, GC, or a toolbar action). Making completions
+        // refresh live requires gpui-query to route those completion writes through
+        // `update_global` (or emit a dirty signal) — see the gpui-query design doc,
+        // "Required Core Change 2". A short-term workaround is a polling timer.
         subscriptions.push(cx.observe_global_in::<QueryClient>(window, |_, _, cx| {
             cx.notify();
         }));

@@ -112,7 +112,12 @@ notifications-portal = ["dep:ashpd"]
 
 [dependencies]
 gpui.workspace = true
-gpui-query = { version = "0.1.4", features = ["hook"] }
+# Version is a range (not `^0.1.4`) so the local-path override in
+# [patch.crates-io] (currently v0.2.0) actually satisfies this requirement and is
+# applied. With a strict `^0.1.4`, Cargo silently drops the patch as
+# `[[patch.unused]]` and builds crates.io 0.1.4 regardless of `just gpui-query-local`.
+# Published 0.1.4 still resolves for `just gpui-query-cratesio`.
+gpui-query = { version = ">=0.1.4, <0.3.0", features = ["hook"] }
 gpui_platform.workspace = true
 gpui-component.workspace = true
 gpui-component-assets.workspace = true
