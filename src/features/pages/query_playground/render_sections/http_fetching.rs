@@ -5,19 +5,20 @@ use gpui_component::{ActiveTheme as _, Disableable as _, button::Button, h_flex}
 
 use gpui_query::core::QueryStatus;
 
-use super::super::{HttpFetchKind, QueryPlaygroundPage};
 use super::super::ui_helpers::{chip, section_card, status_badge};
+use super::super::{HttpFetchKind, QueryPlaygroundPage};
 
 impl QueryPlaygroundPage {
     pub(in super::super) fn render_http_fetching(&mut self, cx: &mut Context<Self>) -> Div {
-        let loading = self
-            .http_query
-            .as_ref()
-            .map_or(false, |(e, _)| e.read_with(cx, |r, _| r.status().is_loading()));
+        let loading = self.http_query.as_ref().map_or(false, |(e, _)| {
+            e.read_with(cx, |r, _| r.status().is_loading())
+        });
         let status = self
             .http_query
             .as_ref()
-            .map_or(QueryStatus::Idle, |(e, _)| e.read_with(cx, |r, _| r.status()));
+            .map_or(QueryStatus::Idle, |(e, _)| {
+                e.read_with(cx, |r, _| r.status())
+            });
         let result = self
             .http_query
             .as_ref()
@@ -60,9 +61,11 @@ impl QueryPlaygroundPage {
                         .outline()
                         .label("GET XML")
                         .disabled(loading)
-                        .on_click(cx.listener(|this, _, _, cx| {
-                            this.fetch_http(HttpFetchKind::GetXml, cx)
-                        })),
+                        .on_click(
+                            cx.listener(|this, _, _, cx| {
+                                this.fetch_http(HttpFetchKind::GetXml, cx)
+                            }),
+                        ),
                 )
                 .child(
                     Button::new("pg-http-text")
@@ -106,16 +109,20 @@ impl QueryPlaygroundPage {
                 .pb_3()
                 .child(status_badge(status, cx))
                 .when_some(result.as_ref(), |el, r| {
-                    el.child(chip(&format!("{} {} → {}", r.status, r.method, r.url), bg, cx))
-                        .child(chip(
-                            &format!(
-                                "{} · {}ms",
-                                short_content_type(&r.content_type),
-                                r.elapsed_ms
-                            ),
-                            bg,
-                            cx,
-                        ))
+                    el.child(chip(
+                        &format!("{} {} → {}", r.status, r.method, r.url),
+                        bg,
+                        cx,
+                    ))
+                    .child(chip(
+                        &format!(
+                            "{} · {}ms",
+                            short_content_type(&r.content_type),
+                            r.elapsed_ms
+                        ),
+                        bg,
+                        cx,
+                    ))
                 }),
         )
         .when_some(result.as_ref(), |el, r| {

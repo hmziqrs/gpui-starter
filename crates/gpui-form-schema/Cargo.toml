@@ -1,0 +1,15 @@
+[package]
+name = "gpui-form-schema"
+description = """
+Schema crate for gpui-form
+"""
+version = "0.5.1"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+repository = "https://github.com/hmziqrs/gpui-starter"
+
+[dependencies]
+heck = { workspace = true }
+inventory = { workspace = true }
+strum = { features = [ "derive" ], workspace = true }

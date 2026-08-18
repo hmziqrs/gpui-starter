@@ -1,0 +1,11 @@
+#[test]
+fn gpui_form_reports_invalid_custom_component_arguments() {
+    let tests = trybuild::TestCases::new();
+    tests.compile_fail("tests/ui/custom_component_*.rs");
+}
+
+#[test]
+fn gpui_form_compiles_koruma_builder_attrs_end_to_end() {
+    let tests = trybuild::TestCases::new();
+    tests.pass("tests/ui/koruma_builder_attrs_pass.rs");
+}
