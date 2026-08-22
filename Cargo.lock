@@ -3248,7 +3248,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "bon",
  "gpui-form-component",
@@ -3259,7 +3259,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-codegen"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "darling",
  "derive_more",
@@ -3272,7 +3272,7 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-component"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "chrono",
  "es-fluent",
@@ -3286,13 +3286,11 @@ dependencies = [
  "icu_locale_core",
  "jiff",
  "serde",
- "serde_json",
- "unic-langid",
 ]
 
 [[package]]
 name = "gpui-form-component-derive"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "darling",
  "proc-macro-crate",
@@ -3304,35 +3302,27 @@ dependencies = [
 
 [[package]]
 name = "gpui-form-core"
-version = "0.5.1"
+version = "0.5.2"
 
 [[package]]
 name = "gpui-form-derive"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "darling",
  "es-fluent",
- "gpui",
- "gpui-component",
- "gpui-form",
  "gpui-form-codegen",
- "insta",
  "itertools 0.14.0",
- "koruma",
- "koruma-collection",
  "koruma-derive-core",
- "prettyplease",
  "proc-macro-error2",
  "proc-macro2",
  "quote",
  "syn 2.0.118",
  "syn-cfg-attr",
- "trybuild",
 ]
 
 [[package]]
 name = "gpui-form-schema"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "heck 0.5.0",
  "inventory",
@@ -3342,6 +3332,8 @@ dependencies = [
 [[package]]
 name = "gpui-query"
 version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90dd2a2172123b17109a9e87a091e36a0a0eda818ead2f7628b42dc74698452f"
 dependencies = [
  "ahash 0.8.12",
  "gpui",
@@ -8788,12 +8780,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
-name = "target-triple"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3a6bfce3d99adfa72d24750a61f782f3036a81e7f86d8841ee1326deaebd171"
-
-[[package]]
 name = "tauri-winrt-notification"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9436,21 +9422,6 @@ name = "try-lock"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
-
-[[package]]
-name = "trybuild"
-version = "1.0.120"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e605bf6b39357663d8ba4e984f8be8da8df6bb32e81031d6889024ea8fd68e4"
-dependencies = [
- "glob",
- "serde",
- "serde_derive",
- "serde_json",
- "target-triple",
- "termcolor",
- "toml 1.1.2+spec-1.1.0",
-]
 
 [[package]]
 name = "ttf-parser"

@@ -1,31 +1,17 @@
 [workspace]
 members = [
 	".",
-	"crates/gpui-form",
-	"crates/gpui-form-codegen",
-	"crates/gpui-form-component",
-	"crates/gpui-form-component-derive",
-	"crates/gpui-form-core",
-	"crates/gpui-form-derive",
-	"crates/gpui-form-schema",
 ]
 
 [workspace.dependencies]
-# gpui-form: vendored in-repo (git history of this very repository, last built
-# green on CI in PR #3). The standalone checkout that produced them lives at
-# /Users/hmziq/fo/form on macOS; its unpublished 0.5.2 restructure removed the
-# crates/ copies here and pointed at absolute local paths, which broke every
-# cargo command on any other machine (CI died at manifest load). Until the
-# 0.5.x crates are published to crates.io, the vendored 0.5.1 set is the
-# single source CI can build. gpui/gpui-component versions are inherited from
-# this table via `workspace = true`, keeping the dependency graph unified.
-gpui-form = { path = "crates/gpui-form" }
-gpui-form-core = { path = "crates/gpui-form-core" }
-gpui-form-schema = { path = "crates/gpui-form-schema" }
-gpui-form-component = { path = "crates/gpui-form-component" }
-gpui-form-component-derive = { path = "crates/gpui-form-component-derive" }
-gpui-form-codegen = { path = "crates/gpui-form-codegen" }
-gpui-form-derive = { path = "crates/gpui-form-derive" }
+# gpui-form: sourced from the standalone checkout at /Users/hmziq/fo/form
+gpui-form = { path = "/Users/hmziq/fo/form/crates/gpui-form" }
+gpui-form-core = { path = "/Users/hmziq/fo/form/crates/gpui-form-core" }
+gpui-form-schema = { path = "/Users/hmziq/fo/form/crates/gpui-form-schema" }
+gpui-form-component = { path = "/Users/hmziq/fo/form/crates/gpui-form-component" }
+gpui-form-component-derive = { path = "/Users/hmziq/fo/form/crates/gpui-form-component-derive" }
+gpui-form-codegen = { path = "/Users/hmziq/fo/form/crates/gpui-form-codegen" }
+gpui-form-derive = { path = "/Users/hmziq/fo/form/crates/gpui-form-derive" }
 
 # GPUI ecosystem
 gpui = { git = "https://github.com/zed-industries/zed", rev = "1d217ee39d381ac101b7cf49d3d22451ac1093fe" }
@@ -259,15 +245,7 @@ gpui_macros = { opt-level = 3 }
 gpui = { git = "https://github.com/zed-industries/zed", rev = "1d217ee39d381ac101b7cf49d3d22451ac1093fe" }
 gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "1d217ee39d381ac101b7cf49d3d22451ac1093fe" }
 gpui_macros = { git = "https://github.com/zed-industries/zed", rev = "1d217ee39d381ac101b7cf49d3d22451ac1093fe" }
-# gpui-query source toggle: `just gpui-query-local` / `just gpui-query-cratesio`.
-# DEFAULT (vendored): published 0.1.4 + one-line fix — its release-only
-# `#[cfg(not(debug_assertions))]` fallback in hook/query_hooks.rs calls cx.new()
-# without `use gpui::AppContext`, so NO published version (0.1.4 nor 0.2.0, and
-# upstream master as of 2026-08-18) compiles in the RELEASE profile against the
-# pinned gpui rev. Dev builds never see the broken branch (debug_assertions on),
-# which is why every green run so far masked it. Keep exactly ONE of the two
-# lines below active — a duplicate gpui-query key is a TOML error.
+# Toggle local gpui-query checkout: `just gpui-query-local` / `just gpui-query-cratesio`
 # >>> gpui-query-local >>>
-gpui-query = { path = "crates/gpui-query" }
 # gpui-query = { path = "/Users/hmziq/fo/gpui-query/crates/gpui-query" }
 # <<< gpui-query-local <<<

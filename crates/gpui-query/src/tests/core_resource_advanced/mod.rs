@@ -1,2 +1,0 @@
-mod query_resource_advanced;
-mod infinite_query_resource_advanced;

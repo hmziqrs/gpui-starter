@@ -7,29 +7,22 @@ GPUI_QUERY_PATH="${GPUI_QUERY_PATH:-/Users/hmziq/fo/gpui-query}"
 
 MARKER_START="# >>> gpui-query-local >>>"
 MARKER_END="# <<< gpui-query-local <<<"
-VENDORED='gpui-query = { path = "crates/gpui-query" }'
-LOCAL_LINE="gpui-query = { path = \"$GPUI_QUERY_PATH/crates/gpui-query\" }"
 
 usage() {
   cat <<EOF
 Usage: just gpui-query-local | just gpui-query-cratesio | just gpui-query-status
 
-Toggles the gpui-query source between the live standalone checkout
-($GPUI_QUERY_PATH) and the in-repo vendored copy (crates/gpui-query =
-published 0.1.4 + release-profile AppContext import fix) by flipping
-comments inside the [patch.crates-io] marker block of Cargo.toml.
-
-Exactly ONE of the two lines is active at a time — a duplicate
-gpui-query key in [patch.crates-io] is a TOML parse error.
+Toggles the gpui-query / gpui-query-legacy source between a local path
+checkout ($GPUI_QUERY_PATH) and crates.io by flipping comments inside the
+[patch.crates-io] block of Cargo.toml.
 
 Commands:
-  local     Use the standalone path checkout (active dev of gpui-query).
-  cratesio  Use the vendored patched copy (default; run before committing).
-            Named for symmetry: it plays the role the registry used to.
-  status    Print the currently active source.
+  local     Use local path checkout (for active development of gpui-query).
+  cratesio  Use crates.io published version (default; run before committing).
+  status    Print current source for both crates.
 
 Env:
-  GPUI_QUERY_PATH  Override the standalone checkout root (default: $GPUI_QUERY_PATH)
+  GPUI_QUERY_PATH  Override the local checkout root (default: $GPUI_QUERY_PATH)
 EOF
 }
 
@@ -44,22 +37,18 @@ if ! grep -qF "$MARKER_START" "$CARGO_TOML"; then
   exit 1
 fi
 
-# Rewrites the marker block so exactly one of the two patch lines is active.
-# The vendored line is identified by its relative path; any other
-# `gpui-query = { path = ... }` line in the block is treated as the
-# standalone-checkout line and regenerated with the current GPUI_QUERY_PATH.
 toggle() {
   local mode="$1"
-  awk -v mode="$mode" -v start="$MARKER_START" -v end="$MARKER_END" \
-      -v vendored="$VENDORED" -v local_line="$LOCAL_LINE" '
+  awk -v mode="$mode" -v start="$MARKER_START" -v end="$MARKER_END" '
     $0 == start { in_block=1; print; next }
     $0 == end   { in_block=0; print; next }
-    in_block && $0 ~ /gpui-query = \{ path = "crates\/gpui-query" \}/ {
-      print (mode == "cratesio") ? vendored : "# " vendored
-      next
-    }
-    in_block && $0 ~ /^#? ?gpui-query = \{ path = / {
-      print (mode == "local") ? local_line : "# " local_line
+    in_block {
+      if (mode == "local") {
+        sub(/^# /, "", $0)
+      } else if (mode == "cratesio") {
+        if ($0 !~ /^# /) $0 = "# " $0
+      }
+      print
       next
     }
     { print }
@@ -67,17 +56,16 @@ toggle() {
 }
 
 status() {
-  case "$(awk -v start="$MARKER_START" -v end="$MARKER_END" '
+  if awk -v start="$MARKER_START" -v end="$MARKER_END" '
     $0 == start { in_block=1; next }
     $0 == end   { in_block=0; next }
-    in_block && /^gpui-query = \{ path = "crates\/gpui-query" \}/ { v=1 }
-    in_block && /^gpui-query = \{ path = / && !/"crates\/gpui-query"/ { l=1 }
-    END { print (l ? "local" : (v ? "vendored" : "unknown")) }
-  ' "$CARGO_TOML")" in
-    local)    echo "gpui-query source: LOCAL ($GPUI_QUERY_PATH)" ;;
-    vendored) echo "gpui-query source: vendored crates/gpui-query (0.1.4 + release-profile fix)" ;;
-    *)        echo "gpui-query source: UNKNOWN (marker block has no active line)" >&2; exit 1 ;;
-  esac
+    in_block && /^gpui-query/ { found=1 }
+    END { exit found ? 0 : 1 }
+  ' "$CARGO_TOML"; then
+    echo "gpui-query source: LOCAL ($GPUI_QUERY_PATH)"
+  else
+    echo "gpui-query source: crates.io (0.1.4)"
+  fi
 }
 
 case "${1:-status}" in
@@ -88,7 +76,7 @@ case "${1:-status}" in
     ;;
   cratesio)
     toggle cratesio
-    echo "Toggled to vendored copy (crates/gpui-query, 0.1.4 + fix)"
+    echo "Toggled to crates.io (0.1.4)"
     ;;
   status)
     status

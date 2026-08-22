@@ -17,11 +17,6 @@ use crate::notifications::{
     NotificationRequest,
 };
 
-// async_trait's generated wrapper fns carry #[must_use] and return boxed
-// futures (already #[must_use]) — new nightly clippy flags the generated code
-// as double_must_use. The attribute is macro-emitted, so the allow lives here
-// at the macro use site.
-#[allow(clippy::double_must_use)]
 #[async_trait]
 pub trait NotificationBackend: Send + Sync {
     fn kind(&self) -> NotificationBackendKind;
