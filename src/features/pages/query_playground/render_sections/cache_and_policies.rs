@@ -24,7 +24,9 @@ fn query_status<T: 'static, E: 'static>(
     opt: Option<&(Entity<QueryResource<T, E>>, Subscription)>,
     cx: &App,
 ) -> QueryStatus {
-    opt.map_or(QueryStatus::Idle, |(e, _)| e.read_with(cx, |r, _| r.status()))
+    opt.map_or(QueryStatus::Idle, |(e, _)| {
+        e.read_with(cx, |r, _| r.status())
+    })
 }
 
 /// Read the cloned data (if any) of an optional query entity.
@@ -175,20 +177,35 @@ impl QueryPlaygroundPage {
             cx,
         )
         .child(
-            h_flex().gap_2().flex_wrap().px_4().py_3()
-                .child(
-                    Button::new("pg-retry-trigger")
-                        .primary()
-                        .label(if loading { "Retrying…" } else { "Trigger Failing Fetch" })
-                        .disabled(loading)
-                        .on_click(cx.listener(|this, _, _, cx| this.trigger_failing_fetch(cx))),
-                ),
+            h_flex().gap_2().flex_wrap().px_4().py_3().child(
+                Button::new("pg-retry-trigger")
+                    .primary()
+                    .label(if loading {
+                        "Retrying…"
+                    } else {
+                        "Trigger Failing Fetch"
+                    })
+                    .disabled(loading)
+                    .on_click(cx.listener(|this, _, _, cx| this.trigger_failing_fetch(cx))),
+            ),
         )
         .child(
-            h_flex().gap_3().items_center().px_4().pb_3()
+            h_flex()
+                .gap_3()
+                .items_center()
+                .px_4()
+                .pb_3()
                 .child(status_badge(status, cx))
-                .child(chip(&format!("max retries: {}", policy.max_retries), cx.theme().background, cx))
-                .child(chip(&format!("backoff: {}ms", policy.retry_delay_ms), cx.theme().background, cx))
+                .child(chip(
+                    &format!("max retries: {}", policy.max_retries),
+                    cx.theme().background,
+                    cx,
+                ))
+                .child(chip(
+                    &format!("backoff: {}ms", policy.retry_delay_ms),
+                    cx.theme().background,
+                    cx,
+                ))
                 .when_some(error, |el, _| {
                     el.child(
                         div()

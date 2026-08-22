@@ -1,0 +1,21 @@
+[package]
+name = "gpui-form-component-derive"
+description = """
+Component-oriented proc macros for gpui-form runtime helpers.
+"""
+version = "0.5.1"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+repository = "https://github.com/hmziqrs/gpui-starter"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+darling = { workspace = true }
+proc-macro-crate = { workspace = true }
+proc-macro-error2 = { workspace = true }
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+syn = { features = [ "full" ], workspace = true }

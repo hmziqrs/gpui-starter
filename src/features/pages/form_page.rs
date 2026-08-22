@@ -4,7 +4,7 @@ use gpui_component::{
     ActiveTheme as _, WindowExt as _,
     button::{Button, ButtonVariants as _},
     checkbox::Checkbox,
-    form::{field, v_form, Field},
+    form::{Field, field, v_form},
     h_flex,
     input::{Input, InputEvent, InputState},
     v_flex,

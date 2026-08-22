@@ -2,7 +2,10 @@
 
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::{io::Write, path::{Path, PathBuf}};
+use std::{
+    io::Write,
+    path::{Path, PathBuf},
+};
 
 use atomic_write_file::AtomicWriteFile;
 use gpui::{App, BorrowAppContext, Global};
@@ -306,7 +309,9 @@ fn arm_debounce(cx: &mut App) {
             })
         });
 
-        let Some((path, bytes)) = request else { return; };
+        let Some((path, bytes)) = request else {
+            return;
+        };
 
         // Step 2 (background thread): atomic write + fsync. The UI thread
         // never blocks on disk I/O.
