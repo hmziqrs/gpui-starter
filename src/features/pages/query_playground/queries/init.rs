@@ -6,8 +6,8 @@ use gpui_query::hook::{
     use_query_select,
 };
 
-use super::actions::run_http;
 use super::super::{HttpFetchKind, PlaygroundPage, PlaygroundUser, QueryPlaygroundPage};
+use super::actions::run_http;
 
 // ---------------------------------------------------------------------------
 // Lazy init helpers — each sets up the entity on first call
@@ -45,7 +45,9 @@ macro_rules! ensure_query {
 
 impl QueryPlaygroundPage {
     pub(super) fn ensure_simple_query(&mut self, cx: &mut Context<Self>) {
-        ensure_query!(self.simple_query, cx,
+        ensure_query!(
+            self.simple_query,
+            cx,
             QueryOptions::new("playground::simple")
                 .cache_policy(CachePolicy::NoCache)
                 .request_policy(RequestPolicy::LatestWins)
@@ -57,11 +59,14 @@ impl QueryPlaygroundPage {
                     name: "Alice".into(),
                     email: "alice@test.com".into(),
                 })
-            });
+            }
+        );
     }
 
     pub(super) fn ensure_nocache_query(&mut self, cx: &mut Context<Self>) {
-        ensure_query!(self.nocache_query, cx,
+        ensure_query!(
+            self.nocache_query,
+            cx,
             QueryOptions::new("playground::nocache")
                 .cache_policy(CachePolicy::NoCache)
                 .request_policy(RequestPolicy::LatestWins)
@@ -73,11 +78,14 @@ impl QueryPlaygroundPage {
                     name: "NoCache Bob".into(),
                     email: "bob@test.com".into(),
                 })
-            });
+            }
+        );
     }
 
     pub(super) fn ensure_ttl_query(&mut self, cx: &mut Context<Self>) {
-        ensure_query!(self.ttl_query, cx,
+        ensure_query!(
+            self.ttl_query,
+            cx,
             QueryOptions::new("playground::ttl")
                 .cache_policy(CachePolicy::Ttl { ttl_ms: 5_000 })
                 .request_policy(RequestPolicy::LatestWins)
@@ -89,11 +97,14 @@ impl QueryPlaygroundPage {
                     name: "TTL Carol".into(),
                     email: "carol@test.com".into(),
                 })
-            });
+            }
+        );
     }
 
     pub(super) fn ensure_swr_query(&mut self, cx: &mut Context<Self>) {
-        ensure_query!(self.swr_query, cx,
+        ensure_query!(
+            self.swr_query,
+            cx,
             QueryOptions::new("playground::swr")
                 .cache_policy(CachePolicy::StaleWhileRevalidate {
                     ttl_ms: 3_000,
@@ -108,11 +119,14 @@ impl QueryPlaygroundPage {
                     name: "SWR Dave".into(),
                     email: "dave@test.com".into(),
                 })
-            });
+            }
+        );
     }
 
     pub(super) fn ensure_latest_wins_query(&mut self, cx: &mut Context<Self>) {
-        ensure_query!(self.latest_wins_query, cx,
+        ensure_query!(
+            self.latest_wins_query,
+            cx,
             QueryOptions::new("playground::latest_wins")
                 .cache_policy(CachePolicy::NoCache)
                 .request_policy(RequestPolicy::LatestWins)
@@ -120,11 +134,14 @@ impl QueryPlaygroundPage {
             |exec| async move {
                 exec.timer(std::time::Duration::from_secs(2)).await;
                 Ok("latest-wins result".into())
-            });
+            }
+        );
     }
 
     pub(super) fn ensure_ignore_query(&mut self, cx: &mut Context<Self>) {
-        ensure_query!(self.ignore_query, cx,
+        ensure_query!(
+            self.ignore_query,
+            cx,
             QueryOptions::new("playground::ignore")
                 .cache_policy(CachePolicy::NoCache)
                 .request_policy(RequestPolicy::IgnoreWhileLoading)
@@ -132,7 +149,8 @@ impl QueryPlaygroundPage {
             |exec| async move {
                 exec.timer(std::time::Duration::from_secs(2)).await;
                 Ok("ignore result".into())
-            });
+            }
+        );
     }
 
     pub(super) fn ensure_retry_query(&mut self, cx: &mut Context<Self>) {
@@ -140,7 +158,9 @@ impl QueryPlaygroundPage {
         // status-deduped QueryObserver won't re-render on each increment — the
         // climbing count would be invisible. Attach a raw observer so the retry
         // counter is visible during the retry loop.
-        ensure_query!(self.retry_query, cx,
+        ensure_query!(
+            self.retry_query,
+            cx,
             QueryOptions::new("playground::retry")
                 .cache_policy(CachePolicy::NoCache)
                 .request_policy(RequestPolicy::LatestWins)
@@ -148,7 +168,8 @@ impl QueryPlaygroundPage {
             |exec| async move {
                 exec.timer(std::time::Duration::from_millis(300)).await;
                 Err(QueryError::response("simulated failure"))
-            });
+            }
+        );
     }
 
     pub(super) fn ensure_mutation(&mut self, cx: &mut Context<Self>) {
@@ -235,7 +256,9 @@ impl QueryPlaygroundPage {
     }
 
     pub(super) fn ensure_imperative(&mut self, cx: &mut Context<Self>) {
-        ensure_query!(self.imperative_query, cx,
+        ensure_query!(
+            self.imperative_query,
+            cx,
             QueryOptions::new("playground::imperative")
                 .cache_policy(CachePolicy::NoCache)
                 .request_policy(RequestPolicy::LatestWins)
@@ -243,7 +266,8 @@ impl QueryPlaygroundPage {
             |exec| async move {
                 exec.timer(std::time::Duration::from_secs(2)).await;
                 Ok("imperative result".into())
-            });
+            }
+        );
     }
 
     /// Real HTTP query (reqwest over the tokio runtime). Created lazily on the

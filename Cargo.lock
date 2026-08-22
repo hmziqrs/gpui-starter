@@ -3249,6 +3249,7 @@ dependencies = [
 [[package]]
 name = "gpui-form"
 version = "0.5.2"
+source = "git+https://github.com/freeoxide/gpui-form?rev=8a373a9761d1320457955f9642ff98f3423f8066#8a373a9761d1320457955f9642ff98f3423f8066"
 dependencies = [
  "bon",
  "gpui-form-component",
@@ -3260,6 +3261,7 @@ dependencies = [
 [[package]]
 name = "gpui-form-codegen"
 version = "0.5.2"
+source = "git+https://github.com/freeoxide/gpui-form?rev=8a373a9761d1320457955f9642ff98f3423f8066#8a373a9761d1320457955f9642ff98f3423f8066"
 dependencies = [
  "darling",
  "derive_more",
@@ -3273,6 +3275,7 @@ dependencies = [
 [[package]]
 name = "gpui-form-component"
 version = "0.5.2"
+source = "git+https://github.com/freeoxide/gpui-form?rev=8a373a9761d1320457955f9642ff98f3423f8066#8a373a9761d1320457955f9642ff98f3423f8066"
 dependencies = [
  "chrono",
  "es-fluent",
@@ -3291,6 +3294,7 @@ dependencies = [
 [[package]]
 name = "gpui-form-component-derive"
 version = "0.5.2"
+source = "git+https://github.com/freeoxide/gpui-form?rev=8a373a9761d1320457955f9642ff98f3423f8066#8a373a9761d1320457955f9642ff98f3423f8066"
 dependencies = [
  "darling",
  "proc-macro-crate",
@@ -3303,10 +3307,12 @@ dependencies = [
 [[package]]
 name = "gpui-form-core"
 version = "0.5.2"
+source = "git+https://github.com/freeoxide/gpui-form?rev=8a373a9761d1320457955f9642ff98f3423f8066#8a373a9761d1320457955f9642ff98f3423f8066"
 
 [[package]]
 name = "gpui-form-derive"
 version = "0.5.2"
+source = "git+https://github.com/freeoxide/gpui-form?rev=8a373a9761d1320457955f9642ff98f3423f8066#8a373a9761d1320457955f9642ff98f3423f8066"
 dependencies = [
  "darling",
  "es-fluent",
@@ -3323,6 +3329,7 @@ dependencies = [
 [[package]]
 name = "gpui-form-schema"
 version = "0.5.2"
+source = "git+https://github.com/freeoxide/gpui-form?rev=8a373a9761d1320457955f9642ff98f3423f8066#8a373a9761d1320457955f9642ff98f3423f8066"
 dependencies = [
  "heck 0.5.0",
  "inventory",
@@ -3332,8 +3339,7 @@ dependencies = [
 [[package]]
 name = "gpui-query"
 version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90dd2a2172123b17109a9e87a091e36a0a0eda818ead2f7628b42dc74698452f"
+source = "git+https://github.com/hmziqagent/gpui-query?rev=f84eac4be3c46c1d7e5d8cffb8b6a898d4526f73#f84eac4be3c46c1d7e5d8cffb8b6a898d4526f73"
 dependencies = [
  "ahash 0.8.12",
  "gpui",

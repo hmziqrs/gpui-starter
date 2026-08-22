@@ -1,4 +1,4 @@
-use gpui::{prelude::*, Context, Div};
+use gpui::{Context, Div, prelude::*};
 use gpui_component::{ActiveTheme as _, v_flex};
 
 use super::SettingsPage;

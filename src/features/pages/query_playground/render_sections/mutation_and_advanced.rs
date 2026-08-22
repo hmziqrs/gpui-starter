@@ -178,7 +178,11 @@ impl QueryPlaygroundPage {
             cx,
         )
         .child(
-            h_flex().gap_2().flex_wrap().px_4().py_3()
+            h_flex()
+                .gap_2()
+                .flex_wrap()
+                .px_4()
+                .py_3()
                 .child(
                     Button::new("pg-inf-next")
                         .primary()
@@ -200,12 +204,19 @@ impl QueryPlaygroundPage {
                         .on_click(cx.listener(|this, _, _, cx| this.reset_infinite(cx))),
                 )
                 .child(status_badge(inf_status, cx))
-                .child(chip(&format!("pages: {}/3 (max)", page_count), cx.theme().background, cx))
+                .child(chip(
+                    &format!("pages: {}/3 (max)", page_count),
+                    cx.theme().background,
+                    cx,
+                ))
                 .child(chip(&range_label, cx.theme().background, cx)),
         )
         .when(!pages.is_empty(), |el| {
             el.child(
-                v_flex().gap_2().px_4().pb_3()
+                v_flex()
+                    .gap_2()
+                    .px_4()
+                    .pb_3()
                     .children(pages.into_iter().map(|(idx, page)| {
                         div()
                             .px_3()
@@ -213,13 +224,15 @@ impl QueryPlaygroundPage {
                             .rounded(cx.theme().radius)
                             .bg(cx.theme().muted)
                             .child(
-                                v_flex().gap_1()
+                                v_flex()
+                                    .gap_1()
+                                    .child(div().text_xs().font_weight(FontWeight::SEMIBOLD).child(
+                                        format!("Page {} (index {})", page.page_number, idx),
+                                    ))
                                     .child(
-                                        div().text_xs().font_weight(FontWeight::SEMIBOLD)
-                                            .child(format!("Page {} (index {})", page.page_number, idx)),
-                                    )
-                                    .child(
-                                        div().text_xs().text_color(cx.theme().muted_foreground)
+                                        div()
+                                            .text_xs()
+                                            .text_color(cx.theme().muted_foreground)
                                             .child(page.items.join(", ")),
                                     ),
                             )

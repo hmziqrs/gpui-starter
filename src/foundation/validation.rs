@@ -15,9 +15,8 @@ use crate::routes::{APP_URL_SCHEME, VALID_HOSTS};
 /// Validate that a deep-link URL uses the expected scheme (`gpui-starter://`)
 /// and reject unexpected hosts.
 pub fn validate_deep_link_url(url: &str) -> Result<Url, AppError> {
-    let parsed = Url::parse(url).map_err(|err| {
-        AppError::invalid_deep_link(url, err.to_string())
-    })?;
+    let parsed =
+        Url::parse(url).map_err(|err| AppError::invalid_deep_link(url, err.to_string()))?;
 
     if parsed.scheme() != APP_URL_SCHEME {
         return Err(AppError::invalid_deep_link(
