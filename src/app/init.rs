@@ -129,13 +129,13 @@ pub fn init(cx: &mut App) {
     }
 
     if let Some(show) = persisted.scrollbar_show {
-        gpui_component::Theme::global_mut(cx).scrollbar_show = show;
+        gpui_component::Theme::global_mut(cx).scrollbar_mode = show;
     }
     cx.refresh_windows();
 
     cx.observe_global::<gpui_component::Theme>(move |cx| {
         let theme_name = cx.theme().theme_name().to_string();
-        let scrollbar_show = cx.theme().scrollbar_show;
+        let scrollbar_show = cx.theme().scrollbar_mode;
         crate::app_state::update_config(cx, |config| {
             config.theme = theme_name;
             config.scrollbar_show = Some(scrollbar_show);

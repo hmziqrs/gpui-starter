@@ -9,7 +9,9 @@ use std::{
 
 use atomic_write_file::AtomicWriteFile;
 use gpui::{App, BorrowAppContext, Global};
-use gpui_component::scroll::ScrollbarShow;
+// Renamed upstream at gpui-component 5a5e2ab; variant names (and so the
+// persisted serde representation) are unchanged.
+use gpui_component::scroll::ScrollbarMode;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -55,7 +57,7 @@ impl Global for AppState {}
 pub struct AppConfig {
     pub version: u32,
     pub theme: String,
-    pub scrollbar_show: Option<ScrollbarShow>,
+    pub scrollbar_show: Option<ScrollbarMode>,
     pub locale: String,
     pub active_route: AppRoute,
     pub sidebar_collapsed: bool,
