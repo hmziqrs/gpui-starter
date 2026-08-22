@@ -465,7 +465,11 @@ fn query_row(
 // Query Expanded Detail
 // ---------------------------------------------------------------------------
 
-fn query_expanded_detail(row: &RegistryRow, radius: Pixels, secondary: Hsla) -> Div {
+fn query_expanded_detail(
+    row: &RegistryRow,
+    radius: Pixels,
+    secondary: Hsla,
+) -> Div {
     let q = &row.query;
     // Audit Finding P17: reuse the row's precomputed integer strings instead
     // of `format!()`-ing them on every render of the expanded detail.
@@ -473,10 +477,7 @@ fn query_expanded_detail(row: &RegistryRow, radius: Pixels, secondary: Hsla) -> 
         ("Key", SharedString::from(q.key.clone())),
         ("Status", SharedString::from(format!("{:?}", q.status))),
         ("Cache Policy", SharedString::from(q.cache_policy.clone())),
-        (
-            "Cache Age",
-            SharedString::from(format_cache_age(q.cache_age_ms)),
-        ),
+        ("Cache Age", SharedString::from(format_cache_age(q.cache_age_ms))),
         ("Cache Hits", row.cache_hits_str.clone()),
         ("Retry Count", row.retry_count_str.clone()),
     ];

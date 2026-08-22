@@ -202,7 +202,10 @@ pub fn init(cx: &mut App) {
                             error = %err,
                             "db_migrations failed"
                         );
-                        crate::lifecycle::set_startup_error(format!("migration failed: {err}"), cx);
+                        crate::lifecycle::set_startup_error(
+                            format!("migration failed: {err}"),
+                            cx,
+                        );
                     }
                 },
                 Err(err) => {

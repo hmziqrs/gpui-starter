@@ -6,9 +6,7 @@ use gpui_query::hook::{
     fetch_query_with_signal, mutate, mutate_with_callbacks,
 };
 
-use super::super::{
-    HttpFetchKind, HttpFetchResult, PlaygroundPage, PlaygroundUser, QueryPlaygroundPage,
-};
+use super::super::{HttpFetchKind, HttpFetchResult, PlaygroundPage, PlaygroundUser, QueryPlaygroundPage};
 
 // ---------------------------------------------------------------------------
 // Actions

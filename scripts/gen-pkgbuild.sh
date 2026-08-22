@@ -23,13 +23,6 @@ fi
 VERSION="$1"
 TARBALL="$2"
 
-# Repo that hosts the Release assets. The workflow passes REPO (github.repository)
-# at generation time; it becomes the DEFAULT of the literal ${REPO:-...} below so
-# an AUR packager can still override it at makepkg time, while the out-of-the-box
-# URL points at the repo that actually cut the release (a fork's assets would
-# otherwise 404 against a hard-coded upstream path).
-REPO="${REPO:-freeoxide/gpui-starter}"
-
 # Validate X.Y.Z (reuse the shared normalizer's regex shape).
 if ! printf '%s' "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
   echo "Error: invalid version '$VERSION' (expected X.Y.Z)" >&2
@@ -55,7 +48,7 @@ pkgver=${VERSION}
 pkgrel=1
 pkgdesc="A starter application built on the GPUI framework (Zed's UI toolkit)"
 arch=('${PKGARCH}')
-url="https://github.com/\${REPO:-${REPO}}"
+url="https://github.com/\${REPO:-freeoxide/gpui-starter}"
 license=('MIT')
 depends=('vulkan-driver' 'libxkbcommon-x11' 'wayland' 'fontconfig' 'freetype2')
 provides=('gpui-starter')
@@ -63,28 +56,22 @@ conflicts=('gpui-starter')
 
 # The release workflow publishes this architecture-specific tarball to the
 # GitHub Release; makepkg fetches it by its real name ($TARBALL expands here,
-# \${REPO} stays literal for the packager to override — its default is the repo
-# that generated this file, i.e. where the assets actually live).
-source=("${TARBALL}::https://github.com/\${REPO:-${REPO}}/releases/download/v${VERSION}/${TARBALL}")
+# \${REPO} stays literal for the packager to override).
+source=("${TARBALL}::https://github.com/\${REPO:-freeoxide/gpui-starter}/releases/download/v${VERSION}/${TARBALL}")
 sha256sums=('SKIP')  # verified via the signed update manifest / GitHub Release checksums
 
 package() {
-    # The tarball nests the app inside a top-level gpui-starter/ directory
-    # (binary + lib/ + LICENSE + README.md + assets); makepkg extracts it into
-    # \$srcdir, so every path below is prefixed gpui-starter/. (The unprefixed
-    # form hit the DIRECTORY gpui-starter with install(1) — "omitting
-    # directory" — and silently skipped lib/.)
-    install -Dm755 "gpui-starter/gpui-starter" "\${pkgdir}/usr/bin/gpui-starter"
+    install -Dm755 "gpui-starter" "\${pkgdir}/usr/bin/gpui-starter"
 
     # Bundled shared libraries (patchelf rpath = \$ORIGIN/lib). Install them
     # next to the binary so the relinked rpath resolves without a system lib.
-    if [ -d "gpui-starter/lib" ]; then
+    if [ -d "lib" ]; then
         install -dm755 "\${pkgdir}/usr/lib/gpui-starter"
-        cp -a gpui-starter/lib/. "\${pkgdir}/usr/lib/gpui-starter/"
+        cp -a lib/. "\${pkgdir}/usr/lib/gpui-starter/"
     fi
 
-    install -Dm644 "gpui-starter/LICENSE" "\${pkgdir}/usr/share/licenses/\${pkgname}/LICENSE"
-    install -Dm644 "gpui-starter/README.md" "\${pkgdir}/usr/share/doc/\${pkgname}/README.md"
+    install -Dm644 "LICENSE" "\${pkgdir}/usr/share/licenses/\${pkgname}/LICENSE"
+    install -Dm644 "README.md" "\${pkgdir}/usr/share/doc/\${pkgname}/README.md"
 
     # Desktop entry: filename MUST be the desktop-entry id (com.gpui-starter.app)
     # so the app's notify-rust Hint::DesktopEntry resolves it, and StartupWMClass
@@ -104,8 +91,8 @@ DESKTOP
 
     # Icon (hicolor) so Icon=gpui-starter resolves. pacman hooks refresh the
     # icon/desktop caches automatically on install to these standard dirs.
-    if [ -f "gpui-starter/gpui-starter.png" ]; then
-        install -Dm644 "gpui-starter/gpui-starter.png" "\${pkgdir}/usr/share/icons/hicolor/512x512/apps/gpui-starter.png"
+    if [ -f "gpui-starter.png" ]; then
+        install -Dm644 "gpui-starter.png" "\${pkgdir}/usr/share/icons/hicolor/512x512/apps/gpui-starter.png"
     fi
 }
 PKGBUILD

@@ -275,7 +275,10 @@ impl RemoteSink {
     /// at the call site and cannot be threaded through a single shared
     /// invocation without dropping the per-call context that is the whole
     /// point of the log.
-    fn require_connected(&self, log_dropped: impl FnOnce()) -> Result<(), TelemetryError> {
+    fn require_connected(
+        &self,
+        log_dropped: impl FnOnce(),
+    ) -> Result<(), TelemetryError> {
         if self.connected {
             return Ok(());
         }
