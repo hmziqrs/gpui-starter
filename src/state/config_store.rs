@@ -2,11 +2,16 @@
 
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::{io::Write, path::{Path, PathBuf}};
+use std::{
+    io::Write,
+    path::{Path, PathBuf},
+};
 
 use atomic_write_file::AtomicWriteFile;
 use gpui::{App, BorrowAppContext, Global};
-use gpui_component::scroll::ScrollbarShow;
+// Renamed upstream at gpui-component 5a5e2ab; variant names (and so the
+// persisted serde representation) are unchanged.
+use gpui_component::scroll::ScrollbarMode;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -52,7 +57,7 @@ impl Global for AppState {}
 pub struct AppConfig {
     pub version: u32,
     pub theme: String,
-    pub scrollbar_show: Option<ScrollbarShow>,
+    pub scrollbar_show: Option<ScrollbarMode>,
     pub locale: String,
     pub active_route: AppRoute,
     pub sidebar_collapsed: bool,
@@ -306,7 +311,9 @@ fn arm_debounce(cx: &mut App) {
             })
         });
 
-        let Some((path, bytes)) = request else { return; };
+        let Some((path, bytes)) = request else {
+            return;
+        };
 
         // Step 2 (background thread): atomic write + fsync. The UI thread
         // never blocks on disk I/O.

@@ -202,11 +202,7 @@ impl ErrorPlaygroundPage {
                                 cx.spawn(async move |this, cx| {
                                     let result = rt
                                         .spawn(async move {
-                                            client
-                                                .get(ctx.url)
-                                                .timeout(ctx.timeout)
-                                                .send()
-                                                .await
+                                            client.get(ctx.url).timeout(ctx.timeout).send().await
                                         })
                                         .await;
 

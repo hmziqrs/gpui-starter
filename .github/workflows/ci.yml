@@ -153,7 +153,12 @@ jobs:
   test:
     name: Test (lib, Linux)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Full codegen of the zed git graph. A warm rust-cache + sccache keeps
+    # this well under 30 min, but ANY Cargo.lock change (dep bump, new pin)
+    # invalidates the key and the cold rebuild needs 60-100+ min at
+    # CARGO_BUILD_JOBS=2 — the original 30-min cap killed exactly that run
+    # (PR #6's first attempt: cancelled at 30m17s with rustc mid-compile).
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
 

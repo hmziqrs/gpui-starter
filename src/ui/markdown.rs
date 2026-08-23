@@ -18,7 +18,7 @@
 use std::sync::Arc;
 
 use gpui::{
-    AnyElement, App, ElementId, IntoElement, SharedString, StyleRefinement, Window,
+    AnyElement, App, ElementId, HighlightStyle, IntoElement, SharedString, StyleRefinement, Window,
     WindowAppearance, div, prelude::*, px, rems,
 };
 use gpui_component::ActiveTheme as _;
@@ -80,6 +80,9 @@ pub fn render_markdown_with_id(
         // rev e416af7 (v0.5.2); default both — no table-specific styling needed.
         table: StyleRefinement::default(),
         table_cell: StyleRefinement::default(),
+        // `inline_code` was added to `TextViewStyle` at gpui-component 5a5e2ab;
+        // default it — its background falls back to the theme accent.
+        inline_code: HighlightStyle::default(),
         is_dark,
     };
 

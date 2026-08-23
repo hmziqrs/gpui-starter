@@ -52,7 +52,10 @@ fn validate_path_segment(segment: &str) -> Result<(), AppError> {
         if segment.contains(forbidden) {
             return Err(AppError::invalid_deep_link(
                 segment,
-                format!("path segment contains forbidden character `{:?}`", forbidden),
+                format!(
+                    "path segment contains forbidden character `{:?}`",
+                    forbidden
+                ),
             ));
         }
     }
@@ -91,16 +94,19 @@ impl AppRoute {
             // single source of truth for the route set.
             Self::Page(page) => format!("{}://{}", APP_URL_SCHEME, page.host()),
             Self::SettingsNotifications => {
-                format!("{}://{}/notifications", APP_URL_SCHEME, Page::Settings.host())
+                format!(
+                    "{}://{}/notifications",
+                    APP_URL_SCHEME,
+                    Page::Settings.host()
+                )
             }
         }
     }
 
     pub fn parse_deep_link(input: &str) -> Result<Self, AppError> {
         // --- 1. Parse the raw URL -------------------------------------------
-        let url = Url::parse(input).map_err(|err| {
-            AppError::invalid_deep_link(input, err.to_string())
-        })?;
+        let url =
+            Url::parse(input).map_err(|err| AppError::invalid_deep_link(input, err.to_string()))?;
 
         // --- 2. Scheme validation -------------------------------------------
         if url.scheme() != APP_URL_SCHEME {
@@ -152,9 +158,7 @@ impl AppRoute {
                 Some(page) => Ok(Self::Page(page)),
                 None => Err(AppError::invalid_deep_link(input, "unknown route")),
             },
-            (h, ["notifications"]) if h == Page::Settings.host() => {
-                Ok(Self::SettingsNotifications)
-            }
+            (h, ["notifications"]) if h == Page::Settings.host() => Ok(Self::SettingsNotifications),
             _ => Err(AppError::invalid_deep_link(input, "unknown route")),
         }
     }

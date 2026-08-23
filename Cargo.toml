@@ -4,25 +4,33 @@ members = [
 ]
 
 [workspace.dependencies]
-# gpui-form: sourced from the standalone checkout at /Users/hmziq/fo/form
-gpui-form = { path = "/Users/hmziq/fo/form/crates/gpui-form" }
-gpui-form-core = { path = "/Users/hmziq/fo/form/crates/gpui-form-core" }
-gpui-form-schema = { path = "/Users/hmziq/fo/form/crates/gpui-form-schema" }
-gpui-form-component = { path = "/Users/hmziq/fo/form/crates/gpui-form-component" }
-gpui-form-component-derive = { path = "/Users/hmziq/fo/form/crates/gpui-form-component-derive" }
-gpui-form-codegen = { path = "/Users/hmziq/fo/form/crates/gpui-form-codegen" }
-gpui-form-derive = { path = "/Users/hmziq/fo/form/crates/gpui-form-derive" }
+# gpui-form: git-sourced from the standalone repo's fork (NOT vendored
+# in-tree, NOT crates.io — only the older 0.5.1 architecture is published
+# there; the four -schema/-component*/-codegen crates were never published).
+# All seven point at the SAME rev so cargo resolves them from one checkout.
+# That fork rev floats its zed git deps exactly like this workspace and
+# gpui-component@main do (unpinned, frozen by the lockfile) — pinning a rev
+# HERE while they float would fork the graph into two gpui copies and a wall
+# of cross-copy trait mismatches. Upstream PR pending; retarget to
+# freeoxide/gpui-form when the bump merges there.
+gpui-form = { git = "https://github.com/hmziqagent/gpui-form", rev = "47e296a98f428099a2278b13abeced099656eba0" }
+gpui-form-core = { git = "https://github.com/hmziqagent/gpui-form", rev = "47e296a98f428099a2278b13abeced099656eba0" }
+gpui-form-schema = { git = "https://github.com/hmziqagent/gpui-form", rev = "47e296a98f428099a2278b13abeced099656eba0" }
+gpui-form-component = { git = "https://github.com/hmziqagent/gpui-form", rev = "47e296a98f428099a2278b13abeced099656eba0" }
+gpui-form-component-derive = { git = "https://github.com/hmziqagent/gpui-form", rev = "47e296a98f428099a2278b13abeced099656eba0" }
+gpui-form-codegen = { git = "https://github.com/hmziqagent/gpui-form", rev = "47e296a98f428099a2278b13abeced099656eba0" }
+gpui-form-derive = { git = "https://github.com/hmziqagent/gpui-form", rev = "47e296a98f428099a2278b13abeced099656eba0" }
 
 # GPUI ecosystem
-gpui = { git = "https://github.com/zed-industries/zed", rev = "1d217ee39d381ac101b7cf49d3d22451ac1093fe" }
-gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "1d217ee39d381ac101b7cf49d3d22451ac1093fe", features = [
+gpui = { git = "https://github.com/zed-industries/zed", version = "=0.2.2" }
+gpui_platform = { git = "https://github.com/zed-industries/zed", version = "=0.1.0", features = [
     "font-kit",
     "x11",
     "wayland",
     "runtime_shaders",
 ] }
-gpui-component = { git = "https://github.com/longbridge/gpui-component", rev = "e416af7f4dad861f251d357b6aa677dbc13a500e" }
-gpui-component-assets = { git = "https://github.com/longbridge/gpui-component", rev = "e416af7f4dad861f251d357b6aa677dbc13a500e" }
+gpui-component = { git = "https://github.com/longbridge/gpui-component", rev = "5a5e2abc837b6d927e2b38e2097d2fbf39ebee77" }
+gpui-component-assets = { git = "https://github.com/longbridge/gpui-component", rev = "5a5e2abc837b6d927e2b38e2097d2fbf39ebee77" }
 
 # Serialization & data
 anyhow = "1"
@@ -112,11 +120,10 @@ notifications-portal = ["dep:ashpd"]
 
 [dependencies]
 gpui.workspace = true
-# Version is a range (not `^0.1.4`) so the local-path override in
-# [patch.crates-io] (currently v0.2.0) actually satisfies this requirement and is
-# applied. With a strict `^0.1.4`, Cargo silently drops the patch as
-# `[[patch.unused]]` and builds crates.io 0.1.4 regardless of `just gpui-query-local`.
-# Published 0.1.4 still resolves for `just gpui-query-cratesio`.
+# Version is a range (not `^0.1.4`) so the git override in [patch.crates-io]
+# (0.1.4 + release-profile fix) actually satisfies this requirement and is
+# applied. With a strict `^0.1.4`-only pin Cargo can silently drop a future
+# patch as `[[patch.unused]]` and build the registry version regardless.
 gpui-query = { version = ">=0.1.4, <0.3.0", features = ["hook"] }
 gpui_platform.workspace = true
 gpui-component.workspace = true
@@ -242,10 +249,21 @@ gpui_platform = { opt-level = 3 }
 gpui_macros = { opt-level = 3 }
 
 [patch.crates-io]
-gpui = { git = "https://github.com/zed-industries/zed", rev = "1d217ee39d381ac101b7cf49d3d22451ac1093fe" }
-gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "1d217ee39d381ac101b7cf49d3d22451ac1093fe" }
-gpui_macros = { git = "https://github.com/zed-industries/zed", rev = "1d217ee39d381ac101b7cf49d3d22451ac1093fe" }
-# Toggle local gpui-query checkout: `just gpui-query-local` / `just gpui-query-cratesio`
+# version selectors: the zed repo root carries 0.0.0 stub packages with the
+# same names; without them cargo aborts with "resolved to more than one
+# candidate" (the real crates live under crates/).
+gpui = { git = "https://github.com/zed-industries/zed", version = "=0.2.2" }
+gpui_platform = { git = "https://github.com/zed-industries/zed", version = "=0.1.0" }
+gpui_macros = { git = "https://github.com/zed-industries/zed", version = "=0.1.0" }
+# gpui-query source toggle: `just gpui-query-local` / `just gpui-query-cratesio`.
+# DEFAULT (git): hmziqagent/gpui-query@f84eac4 = published v0.1.4 + one-line
+# release-profile fix — no published version (0.1.4, 0.2.0, nor upstream
+# master) compiles with debug_assertions off: the release-only fallback in
+# hook/query_hooks.rs calls cx.new() without importing gpui::AppContext.
+# Dev builds never compile that branch, which masked it. Drop this patch once
+# a fixed version ships on crates.io. Keep exactly ONE line active — a
+# duplicate gpui-query key is a TOML error.
 # >>> gpui-query-local >>>
+gpui-query = { git = "https://github.com/hmziqagent/gpui-query", rev = "f84eac4be3c46c1d7e5d8cffb8b6a898d4526f73" }
 # gpui-query = { path = "/Users/hmziq/fo/gpui-query/crates/gpui-query" }
 # <<< gpui-query-local <<<
