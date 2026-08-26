@@ -4,22 +4,21 @@ members = [
 ]
 
 [workspace.dependencies]
-# gpui-form: git-sourced from the standalone repo's fork (NOT vendored
+# gpui-form: git-sourced from the standalone repo (NOT vendored
 # in-tree, NOT crates.io — only the older 0.5.1 architecture is published
 # there; the four -schema/-component*/-codegen crates were never published).
 # All seven point at the SAME rev so cargo resolves them from one checkout.
-# That fork rev floats its zed git deps exactly like this workspace and
+# That repo floats its zed git deps exactly like this workspace and
 # gpui-component@main do (unpinned, frozen by the lockfile) — pinning a rev
 # HERE while they float would fork the graph into two gpui copies and a wall
-# of cross-copy trait mismatches. Upstream PR pending; retarget to
-# freeoxide/gpui-form when the bump merges there.
-gpui-form = { git = "https://github.com/hmziqagent/gpui-form", rev = "47e296a98f428099a2278b13abeced099656eba0" }
-gpui-form-core = { git = "https://github.com/hmziqagent/gpui-form", rev = "47e296a98f428099a2278b13abeced099656eba0" }
-gpui-form-schema = { git = "https://github.com/hmziqagent/gpui-form", rev = "47e296a98f428099a2278b13abeced099656eba0" }
-gpui-form-component = { git = "https://github.com/hmziqagent/gpui-form", rev = "47e296a98f428099a2278b13abeced099656eba0" }
-gpui-form-component-derive = { git = "https://github.com/hmziqagent/gpui-form", rev = "47e296a98f428099a2278b13abeced099656eba0" }
-gpui-form-codegen = { git = "https://github.com/hmziqagent/gpui-form", rev = "47e296a98f428099a2278b13abeced099656eba0" }
-gpui-form-derive = { git = "https://github.com/hmziqagent/gpui-form", rev = "47e296a98f428099a2278b13abeced099656eba0" }
+# of cross-copy trait mismatches.
+gpui-form = { git = "https://github.com/freeoxide/gpui-form", rev = "7f971b3971560a7d59734a235dc69d69d9e66044" }
+gpui-form-core = { git = "https://github.com/freeoxide/gpui-form", rev = "7f971b3971560a7d59734a235dc69d69d9e66044" }
+gpui-form-schema = { git = "https://github.com/freeoxide/gpui-form", rev = "7f971b3971560a7d59734a235dc69d69d9e66044" }
+gpui-form-component = { git = "https://github.com/freeoxide/gpui-form", rev = "7f971b3971560a7d59734a235dc69d69d9e66044" }
+gpui-form-component-derive = { git = "https://github.com/freeoxide/gpui-form", rev = "7f971b3971560a7d59734a235dc69d69d9e66044" }
+gpui-form-codegen = { git = "https://github.com/freeoxide/gpui-form", rev = "7f971b3971560a7d59734a235dc69d69d9e66044" }
+gpui-form-derive = { git = "https://github.com/freeoxide/gpui-form", rev = "7f971b3971560a7d59734a235dc69d69d9e66044" }
 
 # GPUI ecosystem
 gpui = { git = "https://github.com/zed-industries/zed", version = "=0.2.2" }

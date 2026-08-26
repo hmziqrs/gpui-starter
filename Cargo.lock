@@ -3211,7 +3211,7 @@ dependencies = [
 [[package]]
 name = "gpui-form"
 version = "0.5.2"
-source = "git+https://github.com/hmziqagent/gpui-form?rev=47e296a98f428099a2278b13abeced099656eba0#47e296a98f428099a2278b13abeced099656eba0"
+source = "git+https://github.com/freeoxide/gpui-form?rev=7f971b3971560a7d59734a235dc69d69d9e66044#7f971b3971560a7d59734a235dc69d69d9e66044"
 dependencies = [
  "bon",
  "gpui-form-component",
@@ -3223,7 +3223,7 @@ dependencies = [
 [[package]]
 name = "gpui-form-codegen"
 version = "0.5.2"
-source = "git+https://github.com/hmziqagent/gpui-form?rev=47e296a98f428099a2278b13abeced099656eba0#47e296a98f428099a2278b13abeced099656eba0"
+source = "git+https://github.com/freeoxide/gpui-form?rev=7f971b3971560a7d59734a235dc69d69d9e66044#7f971b3971560a7d59734a235dc69d69d9e66044"
 dependencies = [
  "darling",
  "derive_more",
@@ -3237,7 +3237,7 @@ dependencies = [
 [[package]]
 name = "gpui-form-component"
 version = "0.5.2"
-source = "git+https://github.com/hmziqagent/gpui-form?rev=47e296a98f428099a2278b13abeced099656eba0#47e296a98f428099a2278b13abeced099656eba0"
+source = "git+https://github.com/freeoxide/gpui-form?rev=7f971b3971560a7d59734a235dc69d69d9e66044#7f971b3971560a7d59734a235dc69d69d9e66044"
 dependencies = [
  "chrono",
  "es-fluent",
@@ -3256,7 +3256,7 @@ dependencies = [
 [[package]]
 name = "gpui-form-component-derive"
 version = "0.5.2"
-source = "git+https://github.com/hmziqagent/gpui-form?rev=47e296a98f428099a2278b13abeced099656eba0#47e296a98f428099a2278b13abeced099656eba0"
+source = "git+https://github.com/freeoxide/gpui-form?rev=7f971b3971560a7d59734a235dc69d69d9e66044#7f971b3971560a7d59734a235dc69d69d9e66044"
 dependencies = [
  "darling",
  "proc-macro-crate",
@@ -3269,15 +3269,14 @@ dependencies = [
 [[package]]
 name = "gpui-form-core"
 version = "0.5.2"
-source = "git+https://github.com/hmziqagent/gpui-form?rev=47e296a98f428099a2278b13abeced099656eba0#47e296a98f428099a2278b13abeced099656eba0"
+source = "git+https://github.com/freeoxide/gpui-form?rev=7f971b3971560a7d59734a235dc69d69d9e66044#7f971b3971560a7d59734a235dc69d69d9e66044"
 
 [[package]]
 name = "gpui-form-derive"
 version = "0.5.2"
-source = "git+https://github.com/hmziqagent/gpui-form?rev=47e296a98f428099a2278b13abeced099656eba0#47e296a98f428099a2278b13abeced099656eba0"
+source = "git+https://github.com/freeoxide/gpui-form?rev=7f971b3971560a7d59734a235dc69d69d9e66044#7f971b3971560a7d59734a235dc69d69d9e66044"
 dependencies = [
  "darling",
- "es-fluent",
  "gpui-form-codegen",
  "itertools 0.14.0",
  "koruma-derive-core",
@@ -3291,7 +3290,7 @@ dependencies = [
 [[package]]
 name = "gpui-form-schema"
 version = "0.5.2"
-source = "git+https://github.com/hmziqagent/gpui-form?rev=47e296a98f428099a2278b13abeced099656eba0#47e296a98f428099a2278b13abeced099656eba0"
+source = "git+https://github.com/freeoxide/gpui-form?rev=7f971b3971560a7d59734a235dc69d69d9e66044#7f971b3971560a7d59734a235dc69d69d9e66044"
 dependencies = [
  "heck 0.5.0",
  "inventory",
