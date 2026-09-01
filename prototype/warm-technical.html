@@ -1,0 +1,925 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>gpui-starter — prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Martian+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+<style type="text/tailwindcss">
+@theme {
+  --color-canvas:  #0d0a0c;
+  --color-surface: #0d0a0c;
+  --color-panel:   #111013;
+  --color-code:    #0e0e0e;
+
+  --color-fg:        #eaeae8;
+  --color-fg-muted:  #a8a8a5;
+  --color-fg-subtle: #6f6f72;
+
+  --color-line: #28282b;
+  --color-rule: #3e3e42;
+
+  --color-accent: #ff2e97;
+  --color-accent-dim: #c4176f;
+
+  --font-display: Archivo, "Arial Narrow", sans-serif;
+  --font-body: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Martian Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --gutter: clamp(1.25rem, 4vw, 2.5rem);
+}
+
+@layer base {
+  html { scroll-behavior: smooth; scroll-padding-top: 110px; }
+  body {
+    margin: 0;
+    background: var(--color-canvas);
+    color: var(--color-fg);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--color-accent); color: #fff; }
+  h1, h2, h3 { font-family: var(--font-display); font-weight: 800; margin: 0; }
+}
+
+@layer components {
+  /* ---------- the ruled frame ---------- */
+  .frame {
+    width: 100%; max-width: 1216px; margin-inline: auto;
+    padding-inline: var(--gutter);
+    border-left: 1px solid var(--color-rule);
+    border-right: 1px solid var(--color-rule);
+  }
+  .wrap {
+    width: 100%; max-width: 1216px; margin-inline: auto;
+    padding-inline: var(--gutter);
+  }
+  .sect     { border-top: 1px solid var(--color-line); padding-block: clamp(56px, 8vw, 112px); }
+  .sect-rule{ border-top: 1px solid var(--color-rule); padding-block: clamp(56px, 8vw, 112px); }
+
+  /* parent gets top+left, children get right+bottom → single-pixel grid */
+  .ruled { border-top: 1px solid var(--color-line); border-left: 1px solid var(--color-line); }
+  .ruled > * { border-right: 1px solid var(--color-line); border-bottom: 1px solid var(--color-line); }
+
+  /* ---------- type ---------- */
+  .display  { font-family: var(--font-display); font-weight: 800; letter-spacing: -.02em; line-height: 1.02; }
+  .t-hero   { font-size: clamp(2.6rem, 5.6vw, 4.5rem); }
+  .t-h2     { font-size: clamp(1.9rem, 3.6vw, 2.7rem); line-height: 1.04; }
+  .t-h3     { font-size: clamp(1.3rem, 2vw, 1.6rem); line-height: 1.15; }
+  .lead     { font-size: 17px; line-height: 1.62; color: var(--color-fg-muted); }
+  .mono     { font-family: var(--font-mono); }
+  .eyebrow  {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--color-fg-muted);
+  }
+  .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
+
+  /* ---------- buttons ---------- */
+  .btn {
+    position: relative; display: inline-flex; align-items: center; justify-content: center;
+    gap: 10px; white-space: nowrap; border: 0; cursor: pointer;
+    font-weight: 600; font-stretch: 100%; letter-spacing: -.005em;
+    height: 36px; padding-inline: 14px; font-size: 13.5px;
+    border-radius: 0;
+    --cut: 7px;
+    clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%);
+    transition: background 120ms linear, color 120ms linear;
+    text-decoration: none;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-lg { height: 46px; padding-inline: 24px; font-size: 16px; --cut: 9px; }
+  .btn-solid { background: var(--color-fg); color: var(--color-canvas); }
+  .btn-solid:hover { background: var(--color-accent); color: #fff; }
+  .btn-accent { background: var(--color-accent); color: #fff; }
+  .btn-accent:hover { background: var(--color-accent-dim); }
+
+  /* pills — the soft counterpart to the cut buttons */
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 32px; padding-inline: 14px; border-radius: 9999px;
+    border: 1px solid var(--color-line); background: transparent;
+    color: var(--color-fg-muted); font-size: 13px; font-weight: 500;
+    text-decoration: none; cursor: pointer;
+    transition: border-color 120ms linear, color 120ms linear, background 120ms linear;
+  }
+  .pill:hover { color: var(--color-fg); border-color: var(--color-rule); }
+  .pill[aria-selected="true"] { background: #1a181b; color: var(--color-fg); border-color: var(--color-rule); }
+
+  .nav-link {
+    border-radius: 9999px; padding: 6px 12px; font-size: 14.5px; font-weight: 500;
+    color: var(--color-fg-muted); text-decoration: none;
+    transition: color 120ms linear, background 120ms linear;
+  }
+  .nav-link:hover { color: var(--color-fg); background: #1a181b; }
+
+  .alink { color: var(--color-fg); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; text-decoration-color: var(--color-rule); }
+  .alink:hover { text-decoration-color: var(--color-accent); color: var(--color-accent); }
+
+  /* NEW badge — sharp, filled, not a pill */
+  .tag {
+    display: inline-flex; align-items: center; height: 20px; padding-inline: 7px;
+    background: var(--color-accent); color: #000;
+    font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+    letter-spacing: .1em; text-transform: uppercase;
+  }
+  .tag-quiet { background: transparent; color: var(--color-fg-subtle); border: 1px solid var(--color-line); }
+
+  /* ---------- code ---------- */
+  .codebox { background: var(--color-code); border: 1px solid var(--color-line); }
+  .codebar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 9px 14px; border-bottom: 1px solid var(--color-line);
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--color-fg-subtle);
+  }
+  .codebody { padding: 14px 16px; overflow-x: auto; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.75; }
+  .codebody pre { margin: 0; }
+  .c-dim { color: #6f6f72; }
+  .c-key { color: #ff2e97; }
+  .c-str { color: #d8c9a3; }
+  .c-ok  { color: #6ee7a8; }
+  .c-p   { color: #ff2e97; user-select: none; }
+
+  code.inline {
+    font-family: var(--font-mono); font-size: .82em;
+    background: var(--color-code); border: 1px solid var(--color-line);
+    border-radius: 3px; padding: 1px 5px;
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== ANNOUNCEMENT ===== -->
+<a href="#release" class="block bg-black no-underline" style="border-bottom:1px solid var(--color-line)">
+  <div class="wrap h-10 flex items-center justify-center gap-2.5 text-[13px] text-fg">
+    <span>gpui-starter v0.2.0 — signed auto-updater, notification inbox, AccessKit</span>
+    <span class="text-fg-muted">→</span>
+  </div>
+</a>
+
+<!-- ===== HEADER ===== -->
+<header class="sticky top-0 z-40 backdrop-blur-xl" style="background:rgb(13 10 12 / 86%); border-bottom:1px solid var(--color-line)">
+  <div class="wrap h-16 flex items-center gap-6">
+    <a href="#" class="flex items-center gap-2.5 no-underline text-fg shrink-0">
+      <span class="grid place-items-center w-7 h-7 bg-fg text-canvas mono text-[13px] font-semibold" style="clip-path:polygon(0 0,calc(100% - 5px) 0,100% 5px,100% 100%,0 100%)">g</span>
+      <span class="display text-[20px] tracking-[-.03em]">gpui-starter</span>
+    </a>
+
+    <nav class="hidden md:flex items-center gap-1 ml-3">
+      <a href="#docs" class="nav-link">Docs</a>
+      <a href="#guides" class="nav-link">Guides</a>
+      <a href="#reference" class="nav-link">Reference</a>
+      <a href="#blog" class="nav-link">Blog</a>
+    </nav>
+
+    <button class="hidden lg:flex items-center gap-2.5 h-9 flex-1 max-w-[26rem] px-3 text-[13.5px] text-fg-subtle cursor-pointer bg-transparent"
+            style="border:1px solid var(--color-line)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <span class="flex-1 text-left">Search docs, APIs, guides…</span>
+      <span class="mono text-[11px] px-1.5" style="border:1px solid var(--color-line)">/</span>
+    </button>
+
+    <div class="flex items-center gap-2 ml-auto">
+      <a href="https://github.com/freeoxide/gpui-starter" aria-label="GitHub" class="hidden sm:grid place-items-center w-9 h-9 rounded-full text-fg-muted hover:text-fg hover:bg-[#1a181b] no-underline transition-colors">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.4-4-1.4-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2 0 1.9 1.2 1.9 1.2 1.1 1.9 2.9 1.4 3.6 1 .1-.8.4-1.4.8-1.7-2.7-.3-5.5-1.3-5.5-6 0-1.3.5-2.4 1.2-3.2-.1-.3-.6-1.5.1-3.2 0 0 1-.3 3.3 1.2A11.5 11.5 0 0 1 12 5.8c1 0 2 .1 3 .4 2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.7-5.5 6 .5.4.9 1.1.9 2.3v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"/></svg>
+      </a>
+      <a href="#install" class="btn btn-solid">Install</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ===== HERO — framed by vertical rules, closed by a horizontal rule ===== -->
+<section style="border-bottom:1px solid var(--color-line)">
+  <div class="frame py-14 md:py-20">
+    <div class="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.02fr)] gap-12 lg:gap-14">
+
+      <div>
+        <div class="flex items-center gap-3">
+          <span class="tag">New</span>
+          <span class="mono text-[11.5px] tracking-[.12em] uppercase text-fg-muted">v0.2.0 released →</span>
+        </div>
+
+        <h1 class="display t-hero mt-6">
+          One repo for the <span class="text-accent">whole</span> desktop app.
+        </h1>
+
+        <p class="lead mt-7 max-w-[46ch]">
+          Routing, 23 themes, Fluent i18n, SQLite, keyring, tray, signed updates and a ⌘K
+          launcher — already wired. Run <code class="inline">cargo run</code> and start deleting
+          what you don't need.
+        </p>
+
+        <p class="text-[14px] font-semibold mt-10">Clone gpui-starter v0.2.0</p>
+        <div class="mt-3 flex items-stretch codebox">
+          <div class="flex-1 min-w-0 flex items-center gap-2.5 px-4 py-3.5 overflow-x-auto">
+            <span class="c-p mono text-[14px]">$</span>
+            <code class="mono text-[13.5px] whitespace-nowrap">git clone https://github.com/freeoxide/gpui-starter.git</code>
+          </div>
+          <button class="copy-btn shrink-0 w-11 grid place-items-center text-fg-subtle hover:text-fg bg-transparent cursor-pointer transition-colors"
+                  style="border:0;border-left:1px solid var(--color-line)"
+                  data-copy="git clone https://github.com/freeoxide/gpui-starter.git" aria-label="Copy">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+          </button>
+        </div>
+
+        <div class="mt-4 flex items-center justify-between gap-4 flex-wrap">
+          <div class="flex gap-2" role="tablist" data-ostabs>
+            <button class="pill" aria-selected="true">macOS</button>
+            <button class="pill" aria-selected="false">Linux</button>
+          </div>
+          <a href="#docs" class="text-[13px] text-fg-muted hover:text-fg no-underline transition-colors">Build requirements ↗</a>
+        </div>
+
+        <p class="mt-8"><a href="#workflow" class="alink font-semibold text-[15px]">Then follow the quickstart</a> <span class="text-fg-muted">→</span></p>
+      </div>
+
+      <!-- demo panel -->
+      <div class="self-start w-full" style="border:1px solid var(--color-rule)">
+        <div class="grid grid-cols-4" role="tablist" data-demotabs>
+          <button class="h-11 text-[13px] font-medium bg-transparent cursor-pointer transition-colors demotab" aria-selected="true"  data-demo="start" style="border:0;border-right:1px solid var(--color-rule);border-bottom:1px solid var(--color-rule)">Cold start</button>
+          <button class="h-11 text-[13px] font-medium bg-transparent cursor-pointer transition-colors demotab" aria-selected="false" data-demo="mem"   style="border:0;border-right:1px solid var(--color-rule);border-bottom:1px solid var(--color-rule)">Memory</button>
+          <button class="h-11 text-[13px] font-medium bg-transparent cursor-pointer transition-colors demotab" aria-selected="false" data-demo="size"  style="border:0;border-right:1px solid var(--color-rule);border-bottom:1px solid var(--color-rule)">Bundle</button>
+          <button class="h-11 text-[13px] font-medium bg-transparent cursor-pointer transition-colors demotab" aria-selected="false" data-demo="tests" style="border:0;border-bottom:1px solid var(--color-rule)">Tests</button>
+        </div>
+
+        <div class="p-6">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <h2 class="text-[17px] font-bold tracking-[-.01em]" data-demo-title>Cold start to first frame</h2>
+              <p class="mono text-[11.5px] text-fg-muted mt-1" data-demo-sub>release build · seconds · lower is better</p>
+            </div>
+            <button class="mono text-[11px] text-fg-muted hover:text-fg bg-transparent border-0 cursor-pointer transition-colors">▶ replay</button>
+          </div>
+
+          <div class="mt-7 space-y-3.5" data-demo-bars></div>
+
+          <div class="mt-6 pt-3 flex items-start justify-between gap-3" style="border-top:1px solid rgb(62 62 66 / .4)">
+            <p class="mono text-[10.5px] leading-relaxed text-fg-subtle max-w-[42ch]">
+              six-page app shell · M2 Pro · release profile · cold page cache · medians of 5 ·
+              <span class="text-accent">placeholder dataset</span>
+            </p>
+            <a href="#evidence" class="mono text-[10.5px] text-fg-muted hover:text-fg no-underline shrink-0">reproduce</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ===== USED BY / STACK STRIP ===== -->
+<div style="border-bottom:1px solid var(--color-line)">
+  <div class="wrap py-7">
+    <p class="eyebrow">Built on</p>
+    <div class="mt-4 flex flex-wrap items-center gap-x-9 gap-y-3 text-fg-subtle">
+      <span class="display text-[19px] tracking-[-.02em]">Rust</span>
+      <span class="display text-[19px] tracking-[-.02em]">GPUI</span>
+      <span class="display text-[19px] tracking-[-.02em]">SQLite</span>
+      <span class="display text-[19px] tracking-[-.02em]">Fluent</span>
+      <span class="display text-[19px] tracking-[-.02em]">AccessKit</span>
+      <span class="display text-[19px] tracking-[-.02em]">ed25519</span>
+      <span class="display text-[19px] tracking-[-.02em]">keyring</span>
+      <span class="display text-[19px] tracking-[-.02em]">tokio</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== FOUR TOOLS — ruled grid ===== -->
+<section class="sect">
+  <div class="wrap">
+    <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+      <h2 class="display t-h2 max-w-[16ch]">Four subsystems,<br />designed together.</h2>
+      <p class="lead max-w-[38ch] text-[15px]">
+        Each one lives behind its own module. <code class="inline">tray</code> and
+        <code class="inline">telemetry</code> come out cleanly. Nothing else breaks.
+      </p>
+    </div>
+
+    <div class="mt-12 ruled grid sm:grid-cols-2 lg:grid-cols-4">
+      <article class="p-6 flex flex-col">
+        <span class="grid place-items-center w-10 h-10 rounded-lg text-fg-muted" style="border:1px solid var(--color-line)">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 17l6-5-6-5"/><path d="M12 19h8"/></svg>
+        </span>
+        <h3 class="text-[17px] font-bold mt-5 tracking-[-.01em]">App shell</h3>
+        <p class="mono text-[11px] text-fg-subtle mt-1.5">replaces hand-rolled chrome</p>
+        <p class="text-[14px] text-fg-muted mt-4 flex-1 leading-relaxed">
+          Custom title bar with drag regions and traffic lights, collapsible sidebar, status bar,
+          route-based pages.
+        </p>
+        <code class="mono block truncate rounded-lg px-3 py-2 mt-5 text-[12px] text-fg-muted" style="border:1px solid var(--color-line);background:var(--color-code)">impl Render for Page</code>
+      </article>
+
+      <article class="p-6 flex flex-col">
+        <span class="grid place-items-center w-10 h-10 rounded-lg text-fg-muted" style="border:1px solid var(--color-line)">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/></svg>
+        </span>
+        <h3 class="text-[17px] font-bold mt-5 tracking-[-.01em]">Persistence</h3>
+        <p class="mono text-[11px] text-fg-subtle mt-1.5">replaces sqlite glue · dirs · keyring</p>
+        <p class="text-[14px] text-fg-muted mt-4 flex-1 leading-relaxed">
+          rusqlite storage, versioned JSON config with a migration chain, OS keyring for secrets.
+        </p>
+        <code class="mono block truncate rounded-lg px-3 py-2 mt-5 text-[12px] text-fg-muted" style="border:1px solid var(--color-line);background:var(--color-code)">db.migrate_to(V3)</code>
+      </article>
+
+      <article class="p-6 flex flex-col">
+        <span class="grid place-items-center w-10 h-10 rounded-lg text-fg-muted" style="border:1px solid var(--color-line)">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8"/></svg>
+        </span>
+        <h3 class="text-[17px] font-bold mt-5 tracking-[-.01em]">OS integration</h3>
+        <p class="mono text-[11px] text-fg-subtle mt-1.5">replaces tauri plugins</p>
+        <p class="text-[14px] text-fg-muted mt-4 flex-1 leading-relaxed">
+          Tray menu, native notifications with toast fallback, global hotkey, deep links through
+          the instance guard.
+        </p>
+        <code class="mono block truncate rounded-lg px-3 py-2 mt-5 text-[12px] text-fg-muted" style="border:1px solid var(--color-line);background:var(--color-code)">gpui-starter://open</code>
+      </article>
+
+      <article class="p-6 flex flex-col">
+        <span class="grid place-items-center w-10 h-10 rounded-lg text-fg-muted" style="border:1px solid var(--color-line)">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4v6h6"/><path d="M20 20v-6h-6"/><path d="M20 9A8 8 0 0 0 6 6M4 15a8 8 0 0 0 14 3"/></svg>
+        </span>
+        <h3 class="text-[17px] font-bold mt-5 tracking-[-.01em]">gpui-query</h3>
+        <p class="mono text-[11px] text-fg-subtle mt-1.5">replaces bespoke async state</p>
+        <p class="text-[14px] text-fg-muted mt-4 flex-1 leading-relaxed">
+          TanStack-style caching for entities: stale-while-revalidate, retries, invalidation,
+          infinite queries.
+        </p>
+        <code class="mono block truncate rounded-lg px-3 py-2 mt-5 text-[12px] text-fg-muted" style="border:1px solid var(--color-line);background:var(--color-code)">use_query("projects")</code>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ===== WORKFLOW ===== -->
+<section id="workflow" class="sect-rule">
+  <div class="wrap">
+    <p class="eyebrow">A minute with gpui-starter</p>
+    <h2 class="display t-h2 mt-4 max-w-[15ch]">One binary, start to ship.</h2>
+
+    <div class="mt-12 grid lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] gap-8 lg:gap-12 items-start">
+      <div>
+        <p class="lead text-[15px] max-w-[42ch]">
+          Install, develop, test and ship with the same toolchain. Every step below is a real
+          command with real output.
+        </p>
+        <ol class="list-none p-0 mt-8 m-0" data-stepper>
+          <li><button class="step w-full text-left px-4 py-3.5 bg-transparent border-0 cursor-pointer transition-colors" data-step="0" aria-selected="true">
+            <div class="flex gap-3.5"><span class="num text-[11px] step-idx">01</span>
+              <div><div class="text-[15px] font-semibold step-title">Install</div>
+              <div class="mono text-[12px] text-fg-muted mt-0.5">$ cargo run</div>
+              <div class="text-[13.5px] text-fg-muted mt-2 step-desc hidden leading-relaxed">Builds and launches the shell with all six pages wired. No extra toolchain, no bundler.</div></div></div>
+          </button></li>
+          <li><button class="step w-full text-left px-4 py-3.5 bg-transparent border-0 cursor-pointer transition-colors" data-step="1" aria-selected="false">
+            <div class="flex gap-3.5"><span class="num text-[11px] step-idx">02</span>
+              <div><div class="text-[15px] font-semibold step-title">Theme it</div>
+              <div class="mono text-[12px] text-fg-muted mt-0.5">$ cp themes/gruvbox.json themes/mine.json</div>
+              <div class="text-[13.5px] text-fg-muted mt-2 step-desc hidden leading-relaxed">The watcher reloads themes and Fluent bundles in place. No restart.</div></div></div>
+          </button></li>
+          <li><button class="step w-full text-left px-4 py-3.5 bg-transparent border-0 cursor-pointer transition-colors" data-step="2" aria-selected="false">
+            <div class="flex gap-3.5"><span class="num text-[11px] step-idx">03</span>
+              <div><div class="text-[15px] font-semibold step-title">Test</div>
+              <div class="mono text-[12px] text-fg-muted mt-0.5">$ cargo test</div>
+              <div class="text-[13.5px] text-fg-muted mt-2 step-desc hidden leading-relaxed">Integration harness under cfg(test), including updater signature rejection.</div></div></div>
+          </button></li>
+          <li><button class="step w-full text-left px-4 py-3.5 bg-transparent border-0 cursor-pointer transition-colors" data-step="3" aria-selected="false">
+            <div class="flex gap-3.5"><span class="num text-[11px] step-idx">04</span>
+              <div><div class="text-[15px] font-semibold step-title">Bundle</div>
+              <div class="mono text-[12px] text-fg-muted mt-0.5">$ bash scripts/macos-dev-app.sh</div>
+              <div class="text-[13.5px] text-fg-muted mt-2 step-desc hidden leading-relaxed">Produces a codesigned .app you can open straight from the terminal.</div></div></div>
+          </button></li>
+          <li><button class="step w-full text-left px-4 py-3.5 bg-transparent border-0 cursor-pointer transition-colors" data-step="4" aria-selected="false">
+            <div class="flex gap-3.5"><span class="num text-[11px] step-idx">05</span>
+              <div><div class="text-[15px] font-semibold step-title">Ship</div>
+              <div class="mono text-[12px] text-fg-muted mt-0.5">$ just release 0.3.0</div>
+              <div class="text-[13.5px] text-fg-muted mt-2 step-desc hidden leading-relaxed">Signs the manifest with ed25519 and pushes a GitHub release clients can verify.</div></div></div>
+          </button></li>
+        </ol>
+      </div>
+
+      <div class="codebox">
+        <div class="codebar"><span data-step-title>terminal — install</span>
+          <button class="copy-btn bg-transparent border-0 text-inherit cursor-pointer hover:text-fg mono text-[10.5px] uppercase tracking-[.1em]" data-copy="cargo run">Copy</button>
+        </div>
+        <div class="codebody min-h-[290px]">
+<pre data-panel="0"><span class="c-p">$ </span>cargo run
+<span class="c-dim">   Compiling gpui-starter v0.2.0</span>
+<span class="c-dim">    Finished `dev` profile in 12.4s</span>
+<span class="c-dim">     Running `target/debug/gpui-starter`</span>
+
+<span class="c-ok">  ✓</span> lifecycle       <span class="c-dim">first_run = true</span>
+<span class="c-ok">  ✓</span> single-instance <span class="c-dim">lock acquired</span>
+<span class="c-ok">  ✓</span> themes          <span class="c-dim">23 loaded, watching ./themes</span>
+<span class="c-ok">  ✓</span> i18n            <span class="c-dim">en, zh-CN</span>
+<span class="c-ok">  ✓</span> sqlite          <span class="c-dim">app support dir</span>
+<span class="c-ok">  ✓</span> tray            <span class="c-dim">menu bar registered</span>
+
+<span class="c-str">  window ready</span> <span class="c-dim">[0.31s]</span></pre>
+<pre class="hidden" data-panel="1"><span class="c-p">$ </span>cp themes/gruvbox.json themes/mine.json
+<span class="c-dim">  watcher  themes/mine.json added</span>
+<span class="c-ok">  ✓</span> theme reloaded  <span class="c-dim">no restart · 24 themes</span>
+
+<span class="c-p">$ </span>vim i18n/zh-CN/app.ftl
+<span class="c-dim">  watcher  i18n/zh-CN/app.ftl changed</span>
+<span class="c-ok">  ✓</span> fluent bundle rebuilt <span class="c-dim">[8ms]</span></pre>
+<pre class="hidden" data-panel="2"><span class="c-p">$ </span>cargo test
+<span class="c-dim">running 148 tests</span>
+<span class="c-dim">test lifecycle::first_run ............... </span><span class="c-ok">ok</span>
+<span class="c-dim">test config::migrate_v1_to_v3 ........... </span><span class="c-ok">ok</span>
+<span class="c-dim">test updater::rejects_bad_signature ..... </span><span class="c-ok">ok</span>
+<span class="c-dim">test i18n::all_keys_resolve_zh_cn ....... </span><span class="c-ok">ok</span>
+
+<span class="c-ok">test result: ok.</span> <span class="c-dim">148 passed; 0 failed [2.1s]</span></pre>
+<pre class="hidden" data-panel="3"><span class="c-p">$ </span>bash scripts/macos-dev-app.sh
+<span class="c-dim">  bundling   GPUI Starter.app</span>
+<span class="c-dim">  codesign   adhoc, hardened runtime</span>
+<span class="c-ok">  ✓</span> <span class="c-str">target/app/GPUI Starter.app</span>
+
+<span class="c-p">$ </span>open "$(bash scripts/macos-dev-app.sh)"</pre>
+<pre class="hidden" data-panel="4"><span class="c-p">$ </span>just release 0.3.0
+<span class="c-dim">  signing    manifest.json (ed25519)</span>
+<span class="c-dim">  uploading  gh release v0.3.0</span>
+<span class="c-dim">  assets     3 platforms</span>
+<span class="c-ok">  ✓</span> clients verify and update on next check</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== EVIDENCE ===== -->
+<section id="evidence" class="sect">
+  <div class="wrap">
+    <p class="eyebrow">Evidence</p>
+    <h2 class="display t-h2 mt-4 max-w-[18ch]">Native rendering, measured.</h2>
+    <p class="lead mt-5 max-w-[54ch]">
+      The same six-page app shell, built on each stack. Replace these with a real measurement run
+      before publishing — they are placeholders.
+    </p>
+
+    <div class="mt-12 ruled grid md:grid-cols-2">
+      <div class="p-7">
+        <h3 class="text-[16px] font-bold">Cold start to first frame</h3>
+        <p class="mono text-[11px] text-fg-muted mt-1">seconds · lower is better</p>
+        <div class="mt-6 space-y-3.5">
+          <div class="flex items-center gap-4">
+            <span class="text-[13.5px] w-28 shrink-0">gpui-starter</span>
+            <div class="flex-1 h-6" style="background:#161418"><div class="h-6 bg-accent" style="width:14%"></div></div>
+            <span class="num text-[14px] w-14 text-right font-semibold">0.31s</span>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="text-[13.5px] w-28 shrink-0 text-fg-muted">Tauri</span>
+            <div class="flex-1 h-6" style="background:#161418"><div class="h-6" style="width:42%;background:#4a4a4e"></div></div>
+            <span class="num text-[14px] w-14 text-right text-fg-muted">0.94s</span>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="text-[13.5px] w-28 shrink-0 text-fg-muted">Electron</span>
+            <div class="flex-1 h-6" style="background:#161418"><div class="h-6" style="width:100%;background:#4a4a4e"></div></div>
+            <span class="num text-[14px] w-14 text-right text-fg-muted">2.20s</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-7">
+        <h3 class="text-[16px] font-bold">Idle resident memory</h3>
+        <p class="mono text-[11px] text-fg-muted mt-1">megabytes · lower is better</p>
+        <div class="mt-6 space-y-3.5">
+          <div class="flex items-center gap-4">
+            <span class="text-[13.5px] w-28 shrink-0">gpui-starter</span>
+            <div class="flex-1 h-6" style="background:#161418"><div class="h-6 bg-accent" style="width:22%"></div></div>
+            <span class="num text-[14px] w-14 text-right font-semibold">64</span>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="text-[13.5px] w-28 shrink-0 text-fg-muted">Tauri</span>
+            <div class="flex-1 h-6" style="background:#161418"><div class="h-6" style="width:51%;background:#4a4a4e"></div></div>
+            <span class="num text-[14px] w-14 text-right text-fg-muted">148</span>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="text-[13.5px] w-28 shrink-0 text-fg-muted">Electron</span>
+            <div class="flex-1 h-6" style="background:#161418"><div class="h-6" style="width:100%;background:#4a4a4e"></div></div>
+            <span class="num text-[14px] w-14 text-right text-fg-muted">290</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ruled grid grid-cols-2 md:grid-cols-4" style="border-top:0">
+      <div class="p-6"><div class="num text-[30px] font-semibold">23</div><div class="mono text-[11px] text-fg-muted mt-2">themes, hot-reloaded</div></div>
+      <div class="p-6"><div class="num text-[30px] font-semibold">6</div><div class="mono text-[11px] text-fg-muted mt-2">pages wired</div></div>
+      <div class="p-6"><div class="num text-[30px] font-semibold">148</div><div class="mono text-[11px] text-fg-muted mt-2">tests passing</div></div>
+      <div class="p-6"><div class="num text-[30px] font-semibold">0</div><div class="mono text-[11px] text-fg-muted mt-2">webviews shipped</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== BUILT-IN APIS ===== -->
+<section id="explorer" class="sect-rule">
+  <div class="wrap">
+    <p class="eyebrow">Batteries included</p>
+    <h2 class="display t-h2 mt-4 max-w-[20ch]">Real APIs, not a feature checklist.</h2>
+
+    <div class="mt-9 flex gap-2 flex-wrap" role="tablist" data-explorer-tabs>
+      <button class="pill" role="tab" aria-selected="true"  data-tab="routing">Routing</button>
+      <button class="pill" role="tab" aria-selected="false" data-tab="themes">Themes</button>
+      <button class="pill" role="tab" aria-selected="false" data-tab="i18n">i18n</button>
+      <button class="pill" role="tab" aria-selected="false" data-tab="forms">Forms</button>
+      <button class="pill" role="tab" aria-selected="false" data-tab="query">Query</button>
+      <button class="pill" role="tab" aria-selected="false" data-tab="notify">Notifications</button>
+    </div>
+
+    <div class="mt-8 grid lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] gap-8 lg:gap-12 items-start" data-explorer-panels>
+
+      <div data-panel="routing">
+        <h3 class="t-h3 display">Page routing</h3>
+        <p class="lead text-[15px] mt-3">A page is an entity plus a route entry. Sidebar, ⌘K launcher and deep links all read the same registry.</p>
+        <a href="#docs" class="alink text-[14px] mt-5 inline-block">Architecture docs</a>
+      </div>
+      <div class="codebox" data-panel="routing">
+        <div class="codebar"><span>src/app/routes.rs</span><button class="copy-btn bg-transparent border-0 text-inherit cursor-pointer hover:text-fg mono text-[10.5px] uppercase tracking-[.1em]" data-copy="routes.rs">Copy</button></div>
+        <div class="codebody"><pre><span class="c-dim">// register once — sidebar, ⌘K and deep links follow</span>
+<span class="c-key">pub fn</span> routes(cx: &amp;<span class="c-key">mut</span> App) -&gt; Vec&lt;Route&gt; {
+    <span class="c-key">vec!</span>[
+        Route::new(Page::Home).icon(<span class="c-str">"house"</span>),
+        Route::new(Page::Form).icon(<span class="c-str">"file-text"</span>),
+        Route::new(Page::Settings).icon(<span class="c-str">"settings"</span>),
+        Route::new(Page::Diagnostics).dev_only(),
+    ]
+}</pre></div>
+      </div>
+
+      <div class="hidden" data-panel="themes">
+        <h3 class="t-h3 display">Theme system</h3>
+        <p class="lead text-[15px] mt-3">23 themes ship as plain JSON in <code class="inline">themes/</code>. The watcher picks up a new file while the app runs.</p>
+        <a href="#docs" class="alink text-[14px] mt-5 inline-block">Theme guide</a>
+      </div>
+      <div class="codebox hidden" data-panel="themes">
+        <div class="codebar"><span>themes/tokyonight.json</span><span>json</span></div>
+        <div class="codebody"><pre>{
+  <span class="c-key">"name"</span>: <span class="c-str">"Tokyo Night"</span>,
+  <span class="c-key">"appearance"</span>: <span class="c-str">"dark"</span>,
+  <span class="c-key">"colors"</span>: {
+    <span class="c-key">"background"</span>: <span class="c-str">"#1a1b26"</span>,
+    <span class="c-key">"foreground"</span>: <span class="c-str">"#c0caf5"</span>,
+    <span class="c-key">"accent"</span>:     <span class="c-str">"#7aa2f7"</span>
+  }
+}
+<span class="c-dim">// drop in themes/ → live in the switcher</span></pre></div>
+      </div>
+
+      <div class="hidden" data-panel="i18n">
+        <h3 class="t-h3 display">Fluent i18n</h3>
+        <p class="lead text-[15px] mt-3">Built on <code class="inline">es-fluent</code>, so message keys are typed at compile time. Validation errors resolve through the same bundle.</p>
+        <a href="#docs" class="alink text-[14px] mt-5 inline-block">i18n setup</a>
+      </div>
+      <div class="codebox hidden" data-panel="i18n">
+        <div class="codebar"><span>i18n/en/app.ftl</span><span>fluent</span></div>
+        <div class="codebody"><pre>form-email-invalid = <span class="c-str">{ $value } is not a valid email</span>
+update-available   = <span class="c-str">Version { $version } is ready</span>
+
+<span class="c-dim">// src/pages/form.rs</span>
+label.child(t!(FormEmailInvalid { value: &amp;input }))</pre></div>
+      </div>
+
+      <div class="hidden" data-panel="forms">
+        <h3 class="t-h3 display">Forms &amp; validation</h3>
+        <p class="lead text-[15px] mt-3"><code class="inline">gpui-form</code> binds inputs to a struct; <code class="inline">koruma</code> derives the rules. Messages come back localized, per field.</p>
+        <a href="#docs" class="alink text-[14px] mt-5 inline-block">Forms guide</a>
+      </div>
+      <div class="codebox hidden" data-panel="forms">
+        <div class="codebar"><span>src/pages/form.rs</span><span>rust</span></div>
+        <div class="codebody"><pre><span class="c-dim">#[derive(Form, Validate)]</span>
+<span class="c-key">struct</span> SignUp {
+    <span class="c-dim">#[validate(email)]</span>
+    email: String,
+    <span class="c-dim">#[validate(length(min = 8))]</span>
+    password: String,
+    <span class="c-dim">#[validate(url, optional)]</span>
+    website: Option&lt;String&gt;,
+}</pre></div>
+      </div>
+
+      <div class="hidden" data-panel="query">
+        <h3 class="t-h3 display">gpui-query</h3>
+        <p class="lead text-[15px] mt-3">Cache policy per query, plus retries, invalidation and cancellation, all observable from an entity.</p>
+        <a href="#docs" class="alink text-[14px] mt-5 inline-block">gpui-query docs</a>
+      </div>
+      <div class="codebox hidden" data-panel="query">
+        <div class="codebar"><span>src/pages/home.rs</span><span>rust</span></div>
+        <div class="codebody"><pre><span class="c-key">let</span> projects = use_query(
+    QueryKey::new(<span class="c-str">"projects"</span>),
+    |_| <span class="c-key">async</span> { api::projects().await },
+    QueryOptions {
+        cache: CachePolicy::StaleWhileRevalidate(60.secs()),
+        retry: RetryPolicy::exponential(3),
+        ..default()
+    },
+    cx,
+);</pre></div>
+      </div>
+
+      <div class="hidden" data-panel="notify">
+        <h3 class="t-h3 display">Notifications</h3>
+        <p class="lead text-[15px] mt-3">Native OS backend when available, in-app toast when not, and a persistent inbox the user can reopen.</p>
+        <a href="#docs" class="alink text-[14px] mt-5 inline-block">Notifications docs</a>
+      </div>
+      <div class="codebox hidden" data-panel="notify">
+        <div class="codebar"><span>src/system/notify.rs</span><span>rust</span></div>
+        <div class="codebody"><pre>Notification::new(<span class="c-str">"Export finished"</span>)
+    .body(<span class="c-str">"report.csv · 4.2 MB"</span>)
+    .action(<span class="c-str">"Reveal"</span>, Action::RevealInFinder(path))
+    .fallback(Fallback::Toast)
+    .send(cx);
+
+<span class="c-dim">// native → toast → inbox, in that order</span></pre></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== COMPARISON — ruled table ===== -->
+<section id="compare" class="sect">
+  <div class="wrap">
+    <p class="eyebrow">Comparison</p>
+    <h2 class="display t-h2 mt-4 max-w-[20ch]">What you get on day one.</h2>
+
+    <div class="mt-11 overflow-x-auto">
+      <table class="w-full border-collapse text-[14px] min-w-[700px]">
+        <thead>
+          <tr>
+            <th class="text-left eyebrow font-normal py-3.5 pr-5" style="border-bottom:1px solid var(--color-rule)">Capability</th>
+            <th class="text-left eyebrow font-normal py-3.5 px-5 !text-fg" style="border-bottom:1px solid var(--color-rule);border-left:1px solid var(--color-line)">gpui-starter</th>
+            <th class="text-left eyebrow font-normal py-3.5 px-5" style="border-bottom:1px solid var(--color-rule);border-left:1px solid var(--color-line)">bare GPUI</th>
+            <th class="text-left eyebrow font-normal py-3.5 px-5" style="border-bottom:1px solid var(--color-rule);border-left:1px solid var(--color-line)">Tauri</th>
+            <th class="text-left eyebrow font-normal py-3.5 px-5" style="border-bottom:1px solid var(--color-rule);border-left:1px solid var(--color-line)">Electron</th>
+          </tr>
+        </thead>
+        <tbody class="[&_td]:py-3 [&_td]:border-b [&_td]:border-b-line [&_td:not(:first-child)]:px-5 [&_td:not(:first-child)]:border-l [&_td:not(:first-child)]:border-l-line [&_td:first-child]:pr-5 [&_td:nth-child(2)]:font-semibold [&_td:nth-child(n+3)]:text-fg-muted">
+          <tr><td>Native GPU rendering</td><td>✓</td><td>✓</td><td>webview</td><td>webview</td></tr>
+          <tr><td>Sidebar + page routing</td><td>✓</td><td class="!text-fg-subtle">—</td><td class="!text-fg-subtle">—</td><td class="!text-fg-subtle">—</td></tr>
+          <tr><td>Theme system, hot-reload</td><td>23 built in</td><td class="!text-fg-subtle">—</td><td>CSS</td><td>CSS</td></tr>
+          <tr><td>i18n with typed keys</td><td>✓ Fluent</td><td class="!text-fg-subtle">—</td><td>plugin</td><td>library</td></tr>
+          <tr><td>Command launcher (⌘K)</td><td>✓</td><td class="!text-fg-subtle">—</td><td class="!text-fg-subtle">—</td><td class="!text-fg-subtle">—</td></tr>
+          <tr><td>Signed auto-updater</td><td>✓ ed25519</td><td class="!text-fg-subtle">—</td><td>✓</td><td>✓</td></tr>
+          <tr><td>Keyring / secure storage</td><td>✓</td><td class="!text-fg-subtle">—</td><td>plugin</td><td>plugin</td></tr>
+          <tr><td>Crash reports + diagnostics</td><td>✓</td><td class="!text-fg-subtle">—</td><td class="!text-fg-subtle">—</td><td>✓</td></tr>
+          <tr><td>Screen reader support</td><td>✓ AccessKit</td><td>manual</td><td>✓</td><td>✓</td></tr>
+          <tr><td>Ships a browser engine</td><td>no</td><td>no</td><td>system</td><td>bundled</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ===== DOCS / GUIDES / REFERENCE ===== -->
+<section id="docs" class="sect-rule">
+  <div class="wrap">
+    <p class="eyebrow">Documentation</p>
+    <h2 class="display t-h2 mt-4 max-w-[18ch]">Docs, guides and reference — kept apart.</h2>
+    <p class="lead mt-5 max-w-[52ch]">Concepts and configuration in Docs. Task recipes in Guides. Generated symbols in Reference.</p>
+
+    <div class="mt-12 ruled grid md:grid-cols-3">
+      <a href="#docs" class="p-7 no-underline text-fg block hover:bg-[#111013] transition-colors">
+        <h3 class="text-[17px] font-bold">Docs</h3>
+        <p class="text-[14px] text-fg-muted mt-3 leading-relaxed">Lifecycle, entities, themes, i18n, tray, updater. What each subsystem is and how to configure it.</p>
+        <ul class="list-none p-0 mt-5 space-y-1.5 text-[13.5px] text-fg-muted">
+          <li>Installation</li><li>Project structure</li><li>Adding a page</li>
+        </ul>
+        <span class="alink text-[13.5px] mt-5 inline-block">Read the docs</span>
+      </a>
+      <a href="#guides" class="p-7 no-underline text-fg block hover:bg-[#111013] transition-colors" id="guides">
+        <h3 class="text-[17px] font-bold">Guides</h3>
+        <p class="text-[14px] text-fg-muted mt-3 leading-relaxed">Short procedural walkthroughs. Title, context, code, command, done.</p>
+        <ul class="list-none p-0 mt-5 space-y-1.5 text-[13.5px] text-fg-muted">
+          <li>Build a custom title bar</li><li>keyring for credentials</li><li>CI/CD for desktop builds</li>
+        </ul>
+        <span class="alink text-[13.5px] mt-5 inline-block">Browse guides</span>
+      </a>
+      <a href="#reference" class="p-7 no-underline text-fg block hover:bg-[#111013] transition-colors" id="reference">
+        <h3 class="text-[17px] font-bold">Reference</h3>
+        <p class="text-[14px] text-fg-muted mt-3 leading-relaxed">Every public item, generated from the crate. The action here is browsing symbols.</p>
+        <ul class="list-none p-0 mt-5 space-y-1.5 mono text-[12.5px] text-fg-muted">
+          <li><span class="text-accent">F</span> use_query</li><li><span class="text-accent">S</span> QueryClient</li><li><span class="text-accent">E</span> CachePolicy</li>
+        </ul>
+        <span class="alink text-[13.5px] mt-5 inline-block">Browse symbols</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ===== BLOG ===== -->
+<section id="blog" class="sect">
+  <div class="wrap">
+    <div class="flex items-end justify-between gap-6 flex-wrap">
+      <div>
+        <p class="eyebrow">Latest</p>
+        <h2 class="display t-h2 mt-4">From the blog.</h2>
+      </div>
+      <div class="flex gap-2" role="tablist" data-blogtabs>
+        <button class="pill" aria-selected="true">Everything</button>
+        <button class="pill" aria-selected="false">Articles</button>
+        <button class="pill" aria-selected="false">Releases</button>
+      </div>
+    </div>
+
+    <a href="#release" class="mt-10 block p-8 no-underline text-fg hover:bg-[#111013] transition-colors" style="border:1px solid var(--color-rule)" id="release">
+      <div class="flex items-center gap-3">
+        <span class="tag">Release</span>
+        <span class="mono text-[11px] text-fg-muted">Aug 20, 2026</span>
+      </div>
+      <h3 class="display text-[30px] mt-5">gpui-starter v0.2.0</h3>
+      <p class="lead mt-4 max-w-[62ch]">
+        Signed auto-updater with ed25519 manifests, a persistent notification inbox, AccessKit
+        integration for screen readers, and two new themes. Migration is a config bump.
+      </p>
+      <span class="alink text-[14px] mt-6 inline-block">Read the release notes</span>
+    </a>
+
+    <ul class="list-none p-0 m-0 mt-2">
+      <li><a href="#blog" class="flex items-baseline gap-5 py-3.5 no-underline text-fg hover:text-accent transition-colors" style="border-bottom:1px solid var(--color-line)"><span class="num text-[12px] text-fg-subtle w-16 shrink-0">Jul 08</span><span class="text-[15px] flex-1">The GPUI rendering pipeline, deep dive</span><span class="mono text-[11px] text-fg-subtle">Article</span></a></li>
+      <li><a href="#blog" class="flex items-baseline gap-5 py-3.5 no-underline text-fg hover:text-accent transition-colors" style="border-bottom:1px solid var(--color-line)"><span class="num text-[12px] text-fg-subtle w-16 shrink-0">Jun 14</span><span class="text-[15px] flex-1">Migrating an Electron app to Rust</span><span class="mono text-[11px] text-fg-subtle">Article</span></a></li>
+      <li><a href="#blog" class="flex items-baseline gap-5 py-3.5 no-underline text-fg hover:text-accent transition-colors" style="border-bottom:1px solid var(--color-line)"><span class="num text-[12px] text-fg-subtle w-16 shrink-0">May 13</span><span class="text-[15px] flex-1">v0.1.0 — first public release</span><span class="mono text-[11px] text-fg-subtle">Release</span></a></li>
+      <li><a href="#blog" class="flex items-baseline gap-5 py-3.5 no-underline text-fg hover:text-accent transition-colors" style="border-bottom:1px solid var(--color-line)"><span class="num text-[12px] text-fg-subtle w-16 shrink-0">Apr 02</span><span class="text-[15px] flex-1">The GPUI entity system explained</span><span class="mono text-[11px] text-fg-subtle">Article</span></a></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===== FINAL CTA ===== -->
+<section id="install" class="sect-rule">
+  <div class="wrap text-center">
+    <h2 class="display text-[clamp(2.4rem,6vw,4.25rem)] max-w-[16ch] mx-auto">Stop rewriting the shell.</h2>
+    <p class="lead mt-6 max-w-[48ch] mx-auto">
+      Clone it, delete what you don't need, and spend the week on your product instead of the
+      update manifest.
+    </p>
+
+    <div class="mt-10 max-w-[560px] mx-auto flex items-stretch codebox text-left">
+      <div class="flex-1 min-w-0 flex items-center gap-2.5 px-4 py-3.5 overflow-x-auto">
+        <span class="c-p mono text-[14px]">$</span>
+        <code class="mono text-[13.5px] whitespace-nowrap">cargo run</code>
+      </div>
+      <button class="copy-btn shrink-0 w-11 grid place-items-center text-fg-subtle hover:text-fg bg-transparent cursor-pointer transition-colors"
+              style="border:0;border-left:1px solid var(--color-line)" data-copy="cargo run" aria-label="Copy">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      </button>
+    </div>
+
+    <div class="mt-7 flex flex-wrap justify-center gap-3">
+      <a href="#docs" class="btn btn-lg btn-solid">Read the docs</a>
+      <a href="https://github.com/freeoxide/gpui-starter" class="btn btn-lg btn-accent">Clone on GitHub</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ===== FOOTER ===== -->
+<footer style="border-top:1px solid var(--color-line)">
+  <div class="wrap py-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-10">
+    <div>
+      <div class="flex items-center gap-2.5">
+        <span class="grid place-items-center w-7 h-7 bg-fg text-canvas mono text-[13px] font-semibold" style="clip-path:polygon(0 0,calc(100% - 5px) 0,100% 5px,100% 100%,0 100%)">g</span>
+        <span class="display text-[18px] tracking-[-.03em]">gpui-starter</span>
+      </div>
+      <p class="text-[13.5px] text-fg-muted mt-4 max-w-[28ch] leading-relaxed">A GPUI desktop boilerplate. MIT licensed.</p>
+    </div>
+    <div>
+      <p class="eyebrow">Docs</p>
+      <ul class="list-none p-0 mt-4 space-y-2.5 text-[13.5px]">
+        <li><a href="#docs" class="no-underline text-fg-muted hover:text-fg">Getting started</a></li>
+        <li><a href="#docs" class="no-underline text-fg-muted hover:text-fg">Architecture</a></li>
+        <li><a href="#docs" class="no-underline text-fg-muted hover:text-fg">Themes</a></li>
+        <li><a href="#reference" class="no-underline text-fg-muted hover:text-fg">Reference</a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="eyebrow">Project</p>
+      <ul class="list-none p-0 mt-4 space-y-2.5 text-[13.5px]">
+        <li><a href="#blog" class="no-underline text-fg-muted hover:text-fg">Blog</a></li>
+        <li><a href="#guides" class="no-underline text-fg-muted hover:text-fg">Guides</a></li>
+        <li><a href="#" class="no-underline text-fg-muted hover:text-fg">Changelog</a></li>
+        <li><a href="#" class="no-underline text-fg-muted hover:text-fg">FAQ</a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="eyebrow">Community</p>
+      <ul class="list-none p-0 mt-4 space-y-2.5 text-[13.5px]">
+        <li><a href="https://github.com/freeoxide/gpui-starter" class="no-underline text-fg-muted hover:text-fg">GitHub</a></li>
+        <li><a href="https://github.com/freeoxide/gpui-starter/issues" class="no-underline text-fg-muted hover:text-fg">Issues</a></li>
+        <li><a href="#" class="no-underline text-fg-muted hover:text-fg">Contributing</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap pb-10 flex flex-wrap justify-between gap-4 mono text-[11px] text-fg-subtle">
+    <span>© 2026 hmziqrs · MIT</span>
+    <span>design prototype</span>
+  </div>
+</footer>
+
+<script>
+/* ---- copy ---- */
+document.querySelectorAll('.copy-btn').forEach((b) => b.addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(b.dataset.copy || ''); } catch {}
+  const prev = b.innerHTML; b.textContent = '✓';
+  setTimeout(() => { b.innerHTML = prev; }, 1100);
+}));
+
+/* ---- generic pill groups ---- */
+document.querySelectorAll('[data-ostabs],[data-blogtabs]').forEach((g) => {
+  const all = g.querySelectorAll('.pill');
+  all.forEach((t) => t.addEventListener('click', () => all.forEach((o) => o.setAttribute('aria-selected', String(o === t)))));
+});
+
+/* ---- hero demo ---- */
+(() => {
+  const data = {
+    start: { title: 'Cold start to first frame', sub: 'release build · seconds · lower is better',
+      rows: [['gpui-starter','0.31s',14],['Tauri','0.94s',42],['Electron','2.20s',100]] },
+    mem:   { title: 'Idle resident memory', sub: 'six pages loaded · megabytes · lower is better',
+      rows: [['gpui-starter','64 MB',22],['Tauri','148 MB',51],['Electron','290 MB',100]] },
+    size:  { title: 'Installer size', sub: 'macOS arm64 · megabytes · lower is better',
+      rows: [['gpui-starter','14 MB',8],['Tauri','38 MB',21],['Electron','180 MB',100]] },
+    tests: { title: 'Test suite runtime', sub: '148 integration tests · seconds · lower is better',
+      rows: [['gpui-starter','2.1s',18],['Tauri','6.4s',55],['Electron','11.7s',100]] },
+  };
+  const bars = document.querySelector('[data-demo-bars]');
+  const title = document.querySelector('[data-demo-title]');
+  const sub = document.querySelector('[data-demo-sub]');
+  const tabs = document.querySelector('[data-demotabs]');
+  if (!bars || !tabs) return;
+
+  const paintTabs = () => tabs.querySelectorAll('.demotab').forEach((t) => {
+    const on = t.getAttribute('aria-selected') === 'true';
+    t.style.background = on ? 'var(--color-canvas)' : 'transparent';
+    t.style.color = on ? 'var(--color-fg)' : 'var(--color-fg-muted)';
+    t.style.borderBottomColor = on ? 'transparent' : 'var(--color-rule)';
+  });
+
+  const render = (k) => {
+    const d = data[k];
+    title.textContent = d.title; sub.textContent = d.sub;
+    bars.innerHTML = d.rows.map(([name, val, pct], i) => `
+      <div class="flex items-center gap-4">
+        <span class="text-[13px] w-24 shrink-0 ${i === 0 ? '' : 'text-fg-muted'}">${name}</span>
+        <div class="flex-1 h-6" style="background:#161418">
+          <div class="h-6 transition-[width] duration-500 ease-out" style="width:${pct}%;background:${i === 0 ? 'var(--color-accent)' : '#4a4a4e'}"></div>
+        </div>
+        <span class="num text-[13.5px] w-16 text-right ${i === 0 ? 'font-semibold' : 'text-fg-muted'}">${val}</span>
+      </div>`).join('');
+  };
+
+  tabs.addEventListener('click', (e) => {
+    const b = e.target.closest('.demotab'); if (!b) return;
+    tabs.querySelectorAll('.demotab').forEach((t) => t.setAttribute('aria-selected', String(t === b)));
+    paintTabs(); render(b.dataset.demo);
+  });
+  paintTabs(); render('start');
+})();
+
+/* ---- workflow stepper ---- */
+(() => {
+  const root = document.querySelector('[data-stepper]');
+  if (!root) return;
+  const titles = ['install','theme it','test','bundle','ship'];
+  const steps = root.querySelectorAll('.step');
+  const panels = document.querySelectorAll('[data-panel]');
+  const bar = document.querySelector('[data-step-title]');
+  const paint = () => steps.forEach((s) => {
+    const on = s.getAttribute('aria-selected') === 'true';
+    s.style.background = on ? '#111013' : 'transparent';
+    s.style.borderLeft = on ? '2px solid var(--color-accent)' : '2px solid transparent';
+    s.querySelector('.step-idx').style.color = on ? 'var(--color-accent)' : 'var(--color-fg-subtle)';
+    s.querySelector('.step-title').style.color = on ? 'var(--color-fg)' : 'var(--color-fg-muted)';
+    s.querySelector('.step-desc').classList.toggle('hidden', !on);
+  });
+  steps.forEach((s) => s.addEventListener('click', () => {
+    steps.forEach((o) => o.setAttribute('aria-selected', String(o === s)));
+    const i = s.dataset.step;
+    document.querySelectorAll('.codebody > pre[data-panel]').forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== i));
+    bar.textContent = 'terminal — ' + titles[Number(i)];
+    paint();
+  }));
+  paint();
+})();
+
+/* ---- explorer ---- */
+(() => {
+  const tabs = document.querySelector('[data-explorer-tabs]');
+  const panels = document.querySelector('[data-explorer-panels]');
+  if (!tabs || !panels) return;
+  tabs.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-tab]'); if (!b) return;
+    tabs.querySelectorAll('[data-tab]').forEach((t) => t.setAttribute('aria-selected', String(t === b)));
+    panels.querySelectorAll('[data-panel]').forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== b.dataset.tab));
+  });
+})();
+</script>
+</body>
+</html>
