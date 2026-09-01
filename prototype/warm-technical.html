@@ -85,15 +85,13 @@
     position: relative; display: inline-flex; align-items: center; justify-content: center;
     gap: 10px; white-space: nowrap; border: 0; cursor: pointer;
     font-weight: 600; font-stretch: 100%; letter-spacing: -.005em;
-    height: 36px; padding-inline: 14px; font-size: 13.5px;
-    border-radius: 0;
-    --cut: 7px;
-    clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%);
+    height: 36px; padding-inline: 15px; font-size: 13.5px;
+    border-radius: 8px;
     transition: background 120ms linear, color 120ms linear;
     text-decoration: none;
   }
   .btn:active { transform: translateY(1px); }
-  .btn-lg { height: 46px; padding-inline: 24px; font-size: 16px; --cut: 9px; }
+  .btn-lg { height: 46px; padding-inline: 24px; font-size: 16px; border-radius: 10px; }
   .btn-solid { background: var(--color-fg); color: var(--color-canvas); }
   .btn-solid:hover { background: var(--color-accent); color: #fff; }
   .btn-accent { background: var(--color-accent); color: #fff; }
@@ -168,7 +166,7 @@
 <header class="sticky top-0 z-40 backdrop-blur-xl" style="background:rgb(13 10 12 / 86%); border-bottom:1px solid var(--color-line)">
   <div class="wrap h-16 flex items-center gap-6">
     <a href="#" class="flex items-center gap-2.5 no-underline text-fg shrink-0">
-      <span class="grid place-items-center w-7 h-7 bg-fg text-canvas mono text-[13px] font-semibold" style="clip-path:polygon(0 0,calc(100% - 5px) 0,100% 5px,100% 100%,0 100%)">g</span>
+      <span class="grid place-items-center w-7 h-7 bg-fg text-canvas mono text-[13px] font-semibold" style="border-radius:7px">g</span>
       <span class="display text-[20px] tracking-[-.03em]">gpui-starter</span>
     </a>
 
@@ -785,7 +783,7 @@ label.child(t!(FormEmailInvalid { value: &amp;input }))</pre></div>
   <div class="wrap py-14 grid sm:grid-cols-2 lg:grid-cols-4 gap-10">
     <div>
       <div class="flex items-center gap-2.5">
-        <span class="grid place-items-center w-7 h-7 bg-fg text-canvas mono text-[13px] font-semibold" style="clip-path:polygon(0 0,calc(100% - 5px) 0,100% 5px,100% 100%,0 100%)">g</span>
+        <span class="grid place-items-center w-7 h-7 bg-fg text-canvas mono text-[13px] font-semibold" style="border-radius:7px">g</span>
         <span class="display text-[18px] tracking-[-.03em]">gpui-starter</span>
       </div>
       <p class="text-[13.5px] text-fg-muted mt-4 max-w-[28ch] leading-relaxed">A GPUI desktop boilerplate. MIT licensed.</p>
