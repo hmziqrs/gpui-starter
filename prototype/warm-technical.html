@@ -211,7 +211,7 @@
         </h1>
 
         <p class="lead mt-7 max-w-[46ch]">
-          Routing, 23 themes, Fluent i18n, SQLite, keyring, tray, signed updates and a ⌘K
+          Routing, 24 themes, Fluent i18n, SQLite, keyring, tray, signed updates and a ⌘K
           launcher — already wired. Run <code class="inline">cargo run</code> and start deleting
           what you don't need.
         </p>
@@ -357,8 +357,79 @@
   </div>
 </section>
 
+<!-- ===== SIX PAGES ===== -->
+<section id="pages" class="sect-rule">
+  <div class="wrap">
+    <p class="eyebrow">Not a hello-world</p>
+    <h2 class="display t-h2 mt-4 max-w-[18ch]">Six pages, already wired.</h2>
+    <p class="lead mt-5 max-w-[56ch]">
+      Sidebar routing, theme switching, form validation and the command palette are all live the
+      first time you run it. Delete the pages you don't need.
+    </p>
+
+    <div class="mt-12 ruled grid sm:grid-cols-2 lg:grid-cols-3">
+      <article class="p-6">
+        <div class="flex items-baseline justify-between gap-3">
+          <h3 class="text-[16px] font-bold">Home</h3>
+          <span class="num text-[11px] text-fg-subtle">01</span>
+        </div>
+        <code class="mono block text-[11px] text-fg-subtle mt-1.5">features/pages/home.rs</code>
+        <p class="text-[13.5px] text-fg-muted mt-3.5 leading-relaxed">Default route after the first-run check. The landing surface for whatever you build.</p>
+      </article>
+      <article class="p-6">
+        <div class="flex items-baseline justify-between gap-3">
+          <h3 class="text-[16px] font-bold">Form</h3>
+          <span class="num text-[11px] text-fg-subtle">02</span>
+        </div>
+        <code class="mono block text-[11px] text-fg-subtle mt-1.5">features/pages/form_page.rs</code>
+        <p class="text-[13.5px] text-fg-muted mt-3.5 leading-relaxed">gpui-form bindings with koruma rules. Errors resolve through Fluent, so they arrive localized.</p>
+      </article>
+      <article class="p-6">
+        <div class="flex items-baseline justify-between gap-3">
+          <h3 class="text-[16px] font-bold">Settings</h3>
+          <span class="num text-[11px] text-fg-subtle">03</span>
+        </div>
+        <code class="mono block text-[11px] text-fg-subtle mt-1.5">features/pages/settings/</code>
+        <p class="text-[13.5px] text-fg-muted mt-3.5 leading-relaxed">Theme switcher, locale, telemetry consent and update preferences, persisted to JSON config.</p>
+      </article>
+      <article class="p-6">
+        <div class="flex items-baseline justify-between gap-3">
+          <h3 class="text-[16px] font-bold">About</h3>
+          <span class="num text-[11px] text-fg-subtle">04</span>
+        </div>
+        <code class="mono block text-[11px] text-fg-subtle mt-1.5">features/pages/about.rs</code>
+        <p class="text-[13.5px] text-fg-muted mt-3.5 leading-relaxed">Version, build metadata and license — the page every desktop app needs and nobody enjoys writing.</p>
+      </article>
+      <article class="p-6">
+        <div class="flex items-baseline justify-between gap-3">
+          <h3 class="text-[16px] font-bold">Diagnostics</h3>
+          <span class="num text-[11px] text-fg-subtle">05</span>
+        </div>
+        <code class="mono block text-[11px] text-fg-subtle mt-1.5">features/pages/diagnostics/</code>
+        <p class="text-[13.5px] text-fg-muted mt-3.5 leading-relaxed">Live app state, subsystem health, theme metadata and debug actions. Useful in dev and in support.</p>
+      </article>
+      <article class="p-6">
+        <div class="flex items-baseline justify-between gap-3">
+          <h3 class="text-[16px] font-bold">Notifications</h3>
+          <span class="num text-[11px] text-fg-subtle">06</span>
+        </div>
+        <code class="mono block text-[11px] text-fg-subtle mt-1.5">features/pages/notifications.rs</code>
+        <p class="text-[13.5px] text-fg-muted mt-3.5 leading-relaxed">The persistent inbox. Everything the app has sent, still there after a restart.</p>
+      </article>
+    </div>
+
+    <p class="mono text-[11.5px] text-fg-subtle mt-6 leading-relaxed">
+      also in the repo — <span class="text-fg-muted">ai_chat</span> ·
+      <span class="text-fg-muted">query_playground</span> ·
+      <span class="text-fg-muted">query_devtools_v2</span> ·
+      <span class="text-fg-muted">error_playground</span>
+      <span class="text-fg-subtle">— demo pages, safe to delete</span>
+    </p>
+  </div>
+</section>
+
 <!-- ===== WORKFLOW ===== -->
-<section id="workflow" class="sect-rule">
+<section id="workflow" class="sect">
   <div class="wrap">
     <p class="eyebrow">A minute with gpui-starter</p>
     <h2 class="display t-h2 mt-4 max-w-[15ch]">One binary, start to ship.</h2>
@@ -415,7 +486,7 @@
 
 <span class="c-ok">  ✓</span> lifecycle       <span class="c-dim">first_run = true</span>
 <span class="c-ok">  ✓</span> single-instance <span class="c-dim">lock acquired</span>
-<span class="c-ok">  ✓</span> themes          <span class="c-dim">23 loaded, watching ./themes</span>
+<span class="c-ok">  ✓</span> themes          <span class="c-dim">24 loaded, watching ./themes</span>
 <span class="c-ok">  ✓</span> i18n            <span class="c-dim">en, zh-CN</span>
 <span class="c-ok">  ✓</span> sqlite          <span class="c-dim">app support dir</span>
 <span class="c-ok">  ✓</span> tray            <span class="c-dim">menu bar registered</span>
@@ -423,7 +494,7 @@
 <span class="c-str">  window ready</span> <span class="c-dim">[0.31s]</span></pre>
 <pre class="hidden" data-panel="1"><span class="c-p">$ </span>cp themes/gruvbox.json themes/mine.json
 <span class="c-dim">  watcher  themes/mine.json added</span>
-<span class="c-ok">  ✓</span> theme reloaded  <span class="c-dim">no restart · 24 themes</span>
+<span class="c-ok">  ✓</span> theme reloaded  <span class="c-dim">no restart · 25 themes</span>
 
 <span class="c-p">$ </span>vim i18n/zh-CN/app.ftl
 <span class="c-dim">  watcher  i18n/zh-CN/app.ftl changed</span>
@@ -454,7 +525,7 @@
 </section>
 
 <!-- ===== EVIDENCE ===== -->
-<section id="evidence" class="sect">
+<section id="evidence" class="sect-rule">
   <div class="wrap">
     <p class="eyebrow">Evidence</p>
     <h2 class="display t-h2 mt-4 max-w-[18ch]">Native rendering, measured.</h2>
@@ -510,7 +581,7 @@
     </div>
 
     <div class="ruled grid grid-cols-2 md:grid-cols-4" style="border-top:0">
-      <div class="p-6"><div class="num text-[30px] font-semibold">23</div><div class="mono text-[11px] text-fg-muted mt-2">themes, hot-reloaded</div></div>
+      <div class="p-6"><div class="num text-[30px] font-semibold">24</div><div class="mono text-[11px] text-fg-muted mt-2">themes, hot-reloaded</div></div>
       <div class="p-6"><div class="num text-[30px] font-semibold">6</div><div class="mono text-[11px] text-fg-muted mt-2">pages wired</div></div>
       <div class="p-6"><div class="num text-[30px] font-semibold">148</div><div class="mono text-[11px] text-fg-muted mt-2">tests passing</div></div>
       <div class="p-6"><div class="num text-[30px] font-semibold">0</div><div class="mono text-[11px] text-fg-muted mt-2">webviews shipped</div></div>
@@ -519,7 +590,7 @@
 </section>
 
 <!-- ===== BUILT-IN APIS ===== -->
-<section id="explorer" class="sect-rule">
+<section id="explorer" class="sect">
   <div class="wrap">
     <p class="eyebrow">Batteries included</p>
     <h2 class="display t-h2 mt-4 max-w-[20ch]">Real APIs, not a feature checklist.</h2>
@@ -555,7 +626,7 @@
 
       <div class="hidden" data-panel="themes">
         <h3 class="t-h3 display">Theme system</h3>
-        <p class="lead text-[15px] mt-3">23 themes ship as plain JSON in <code class="inline">themes/</code>. The watcher picks up a new file while the app runs.</p>
+        <p class="lead text-[15px] mt-3">24 themes ship as plain JSON in <code class="inline">themes/</code>. The watcher picks up a new file while the app runs.</p>
         <a href="#docs" class="alink text-[14px] mt-5 inline-block">Theme guide</a>
       </div>
       <div class="codebox hidden" data-panel="themes">
@@ -642,8 +713,125 @@ label.child(t!(FormEmailInvalid { value: &amp;input }))</pre></div>
   </div>
 </section>
 
+<!-- ===== THEMES ===== -->
+<section id="themes" class="sect-rule">
+  <div class="wrap">
+    <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+      <div>
+        <p class="eyebrow">Theming</p>
+        <h2 class="display t-h2 mt-4 max-w-[16ch]">24 themes, hot-reloaded.</h2>
+      </div>
+      <p class="lead text-[15px] max-w-[40ch]">
+        Every theme is a plain JSON file in <code class="inline">themes/</code>. Drop one in while the
+        app is running and it appears in the switcher — no rebuild, no restart.
+      </p>
+    </div>
+
+    <div class="mt-11 ruled grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">Adventure</div>
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">Alduin</div>
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">Asciinema</div>
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">Ayu Light</div>
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">Catppuccin</div>
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">Crush</div>
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">Everforest</div>
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">Fahrenheit</div>
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">Flexoki</div>
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">Gruvbox</div>
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">Harper</div>
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">High Contrast Dark</div>
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">High Contrast Light</div>
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">Hybrid</div>
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">Jellybeans</div>
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">Kibble</div>
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">macOS Classic</div>
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">Matrix</div>
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">Mellifluous</div>
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">Molokai</div>
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">Solarized</div>
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">Spaceduck</div>
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">Tokyo</div>
+      <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-[#111013] transition-colors">Twilight</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== REST OF THE WIRING ===== -->
+<section id="wiring" class="sect">
+  <div class="wrap">
+    <p class="eyebrow">The unglamorous half</p>
+    <h2 class="display t-h2 mt-4 max-w-[20ch]">The parts nobody wants to write twice.</h2>
+    <p class="lead mt-5 max-w-[56ch]">
+      None of this is a differentiator on its own. All of it is a week you don't spend.
+    </p>
+
+    <div class="mt-12 ruled grid sm:grid-cols-2 lg:grid-cols-4">
+      <article class="p-6">
+        <h3 class="text-[15.5px] font-bold">Command launcher</h3>
+        <code class="mono block text-[11px] text-fg-subtle mt-1.5">features/command_palette.rs</code>
+        <p class="text-[13.5px] text-fg-muted mt-3.5 leading-relaxed">⌘K opens a floating palette with fuzzy search across every registered action. Full keyboard navigation.</p>
+      </article>
+      <article class="p-6">
+        <h3 class="text-[15.5px] font-bold">Undo / redo</h3>
+        <code class="mono block text-[11px] text-fg-subtle mt-1.5">services/undo_stack.rs</code>
+        <p class="text-[13.5px] text-fg-muted mt-3.5 leading-relaxed">Command-pattern stack behind ⌘Z / ⌘Y. One trait to implement per action, works across any operation.</p>
+      </article>
+      <article class="p-6">
+        <h3 class="text-[15.5px] font-bold">Crash reporting</h3>
+        <code class="mono block text-[11px] text-fg-subtle mt-1.5">services/crash_report.rs</code>
+        <p class="text-[13.5px] text-fg-muted mt-3.5 leading-relaxed">Panic hooks capture stack traces and write structured reports to disk. Surface or upload them on next launch.</p>
+      </article>
+      <article class="p-6">
+        <h3 class="text-[15.5px] font-bold">Telemetry</h3>
+        <code class="mono block text-[11px] text-fg-subtle mt-1.5">services/telemetry/</code>
+        <p class="text-[13.5px] text-fg-muted mt-3.5 leading-relaxed">Three modes — disabled, local-only, remote — behind an explicit consent gate. You decide what leaves the machine.</p>
+      </article>
+      <article class="p-6">
+        <h3 class="text-[15.5px] font-bold">Logging</h3>
+        <code class="mono block text-[11px] text-fg-subtle mt-1.5">services/logging.rs</code>
+        <p class="text-[13.5px] text-fg-muted mt-3.5 leading-relaxed">File-based logging through tracing-appender, with env-filter levels wired to the same config.</p>
+      </article>
+      <article class="p-6">
+        <h3 class="text-[15.5px] font-bold">Accessibility</h3>
+        <code class="mono block text-[11px] text-fg-subtle mt-1.5">services/accessibility.rs</code>
+        <p class="text-[13.5px] text-fg-muted mt-3.5 leading-relaxed">AccessKit integration so the tree is exposed to VoiceOver, Narrator and Orca.</p>
+      </article>
+      <article class="p-6">
+        <h3 class="text-[15.5px] font-bold">Secure storage</h3>
+        <code class="mono block text-[11px] text-fg-subtle mt-1.5">services/secure_storage.rs</code>
+        <p class="text-[13.5px] text-fg-muted mt-3.5 leading-relaxed">OS keyring for secrets: macOS Keychain, Windows Credential Manager, Linux Secret Service.</p>
+      </article>
+      <article class="p-6">
+        <h3 class="text-[15.5px] font-bold">Deep links</h3>
+        <code class="mono block text-[11px] text-fg-subtle mt-1.5">platform/ipc/</code>
+        <p class="text-[13.5px] text-fg-muted mt-3.5 leading-relaxed">URL-scheme handling forwarded through the single-instance guard, so a link reaches the running window.</p>
+      </article>
+      <article class="p-6">
+        <h3 class="text-[15.5px] font-bold">Lifecycle</h3>
+        <code class="mono block text-[11px] text-fg-subtle mt-1.5">services/first_run.rs</code>
+        <p class="text-[13.5px] text-fg-muted mt-3.5 leading-relaxed">Startup, shutdown and crash state machine, including first-run detection for onboarding.</p>
+      </article>
+      <article class="p-6">
+        <h3 class="text-[15.5px] font-bold">Connectivity</h3>
+        <code class="mono block text-[11px] text-fg-subtle mt-1.5">services/connectivity.rs</code>
+        <p class="text-[13.5px] text-fg-muted mt-3.5 leading-relaxed">Online/offline awareness so async work can back off instead of piling up retries.</p>
+      </article>
+      <article class="p-6">
+        <h3 class="text-[15.5px] font-bold">Background tasks</h3>
+        <code class="mono block text-[11px] text-fg-subtle mt-1.5">services/tasks.rs</code>
+        <p class="text-[13.5px] text-fg-muted mt-3.5 leading-relaxed">A task registry over the tokio runtime, cancelled cleanly on shutdown.</p>
+      </article>
+      <article class="p-6">
+        <h3 class="text-[15.5px] font-bold">Error surface</h3>
+        <code class="mono block text-[11px] text-fg-subtle mt-1.5">services/error_surface.rs</code>
+        <p class="text-[13.5px] text-fg-muted mt-3.5 leading-relaxed">One place errors are collected and rendered, instead of unwrap() scattered through the UI.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
 <!-- ===== COMPARISON — ruled table ===== -->
-<section id="compare" class="sect">
+<section id="compare" class="sect-rule">
   <div class="wrap">
     <p class="eyebrow">Comparison</p>
     <h2 class="display t-h2 mt-4 max-w-[20ch]">What you get on day one.</h2>
@@ -662,7 +850,7 @@ label.child(t!(FormEmailInvalid { value: &amp;input }))</pre></div>
         <tbody class="[&_td]:py-3 [&_td]:border-b [&_td]:border-b-line [&_td:not(:first-child)]:px-5 [&_td:not(:first-child)]:border-l [&_td:not(:first-child)]:border-l-line [&_td:first-child]:pr-5 [&_td:nth-child(2)]:font-semibold [&_td:nth-child(n+3)]:text-fg-muted">
           <tr><td>Native GPU rendering</td><td>✓</td><td>✓</td><td>webview</td><td>webview</td></tr>
           <tr><td>Sidebar + page routing</td><td>✓</td><td class="!text-fg-subtle">—</td><td class="!text-fg-subtle">—</td><td class="!text-fg-subtle">—</td></tr>
-          <tr><td>Theme system, hot-reload</td><td>23 built in</td><td class="!text-fg-subtle">—</td><td>CSS</td><td>CSS</td></tr>
+          <tr><td>Theme system, hot-reload</td><td>24 built in</td><td class="!text-fg-subtle">—</td><td>CSS</td><td>CSS</td></tr>
           <tr><td>i18n with typed keys</td><td>✓ Fluent</td><td class="!text-fg-subtle">—</td><td>plugin</td><td>library</td></tr>
           <tr><td>Command launcher (⌘K)</td><td>✓</td><td class="!text-fg-subtle">—</td><td class="!text-fg-subtle">—</td><td class="!text-fg-subtle">—</td></tr>
           <tr><td>Signed auto-updater</td><td>✓ ed25519</td><td class="!text-fg-subtle">—</td><td>✓</td><td>✓</td></tr>
@@ -677,7 +865,7 @@ label.child(t!(FormEmailInvalid { value: &amp;input }))</pre></div>
 </section>
 
 <!-- ===== DOCS / GUIDES / REFERENCE ===== -->
-<section id="docs" class="sect-rule">
+<section id="docs" class="sect">
   <div class="wrap">
     <p class="eyebrow">Documentation</p>
     <h2 class="display t-h2 mt-4 max-w-[18ch]">Docs, guides and reference — kept apart.</h2>
@@ -713,7 +901,7 @@ label.child(t!(FormEmailInvalid { value: &amp;input }))</pre></div>
 </section>
 
 <!-- ===== BLOG ===== -->
-<section id="blog" class="sect">
+<section id="blog" class="sect-rule">
   <div class="wrap">
     <div class="flex items-end justify-between gap-6 flex-wrap">
       <div>
@@ -750,7 +938,7 @@ label.child(t!(FormEmailInvalid { value: &amp;input }))</pre></div>
 </section>
 
 <!-- ===== FINAL CTA ===== -->
-<section id="install" class="sect-rule">
+<section id="install" class="sect">
   <div class="wrap text-center">
     <h2 class="display text-[clamp(2.4rem,6vw,4.25rem)] max-w-[16ch] mx-auto">Stop rewriting the shell.</h2>
     <p class="lead mt-6 max-w-[48ch] mx-auto">
