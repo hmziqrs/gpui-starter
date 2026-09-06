@@ -1,355 +1,897 @@
 ---
 import MarketingLayout from '../layouts/MarketingLayout.astro';
+import { getCollection } from 'astro:content';
 import AppPreview from '../components/AppPreview.astro';
+import { latestVersion } from '../util/changelog';
+import { formatDate } from '../util/author';
+
+const CLONE = 'git clone https://github.com/freeoxide/gpui-starter.git';
+
+const posts = (await getCollection('blog'))
+  .filter((p) => !p.data.draft)
+  .toSorted((a, b) => b.data.date.valueOf() - a.data.date.valueOf())
+  .slice(0, 5);
+
+const [featured, ...rest] = posts;
+
+const themes = [
+  'Adventure', 'Alduin', 'Asciinema', 'Ayu', 'Catppuccin', 'Crush',
+  'Everforest', 'Fahrenheit', 'Flexoki', 'Gruvbox', 'Harper',
+  'High Contrast Dark', 'High Contrast Light', 'Hybrid', 'Jellybeans',
+  'Kibble', 'macOS Classic', 'Matrix', 'Mellifluous', 'Molokai',
+  'Solarized', 'Spaceduck', 'Tokyo Night', 'Twilight',
+];
+
+const subsystems = [
+  {
+    title: 'App shell',
+    sub: 'replaces hand-rolled chrome',
+    body: 'Custom title bar with drag regions and traffic lights, collapsible sidebar, status bar, route-based pages.',
+    code: 'impl Render for Page',
+    href: '/docs/architecture/',
+    icon: 'M4 17l6-5-6-5 M12 19h8',
+  },
+  {
+    title: 'Persistence',
+    sub: 'replaces sqlite glue · dirs · keyring',
+    body: 'rusqlite storage, versioned JSON config with a migration chain, OS keyring for secrets.',
+    code: 'db.migrate_to(V3)',
+    href: '/docs/secure-storage/',
+    icon: 'M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6',
+  },
+  {
+    title: 'OS integration',
+    sub: 'replaces tauri plugins',
+    body: 'Tray menu, native notifications with toast fallback, global hotkey, deep links through the instance guard.',
+    code: 'gpui-starter://open',
+    href: '/docs/notifications/',
+    icon: 'M3 4h18v13H3z M8 21h8',
+  },
+  {
+    title: 'gpui-query',
+    sub: 'replaces bespoke async state',
+    body: 'TanStack-style caching for entities: stale-while-revalidate, retries, invalidation, infinite queries.',
+    code: 'use_query("projects")',
+    href: '/docs/gpui-query/',
+    icon: 'M4 4v6h6 M20 20v-6h-6 M20 9A8 8 0 0 0 6 6M4 15a8 8 0 0 0 14 3',
+  },
+];
+
+const pages = [
+  { n: '01', title: 'Home', body: 'Landing page for the shell, wired to gpui-query so you can see cached async data on first paint.' },
+  { n: '02', title: 'Form', body: 'gpui-form inputs bound to a struct, koruma validation rules, errors localized through Fluent.' },
+  { n: '03', title: 'Settings', body: 'Theme switcher, locale picker and telemetry consent gate, all persisted to versioned JSON config.' },
+  { n: '04', title: 'About', body: 'Version, build metadata and update check, backed by the ed25519-signed updater.' },
+  { n: '05', title: 'Diagnostics', body: 'Live subsystem health, active entities, theme metadata, and debug actions for support.' },
+  { n: '06', title: 'Notifications', body: 'Native OS notifications with in-app toast fallback and a persistent inbox the user can reopen.' },
+];
+
+const steps = [
+  {
+    title: 'Install',
+    cmd: '$ cargo run',
+    desc: 'Builds and launches the shell with all six pages wired. You install no extra toolchain and run no bundler.',
+    bar: 'terminal · install',
+  },
+  {
+    title: 'Theme it',
+    cmd: '$ cp themes/gruvbox.json themes/mine.json',
+    desc: 'The watcher reloads themes and Fluent bundles in place, so the app keeps running.',
+    bar: 'terminal · theme it',
+  },
+  {
+    title: 'Test',
+    cmd: '$ cargo test',
+    desc: 'Integration harness under cfg(test), including updater signature rejection.',
+    bar: 'terminal · test',
+  },
+  {
+    title: 'Bundle',
+    cmd: '$ bash scripts/macos-dev-app.sh',
+    desc: 'Produces a codesigned .app you can open straight from the terminal.',
+    bar: 'terminal · bundle',
+  },
+  {
+    title: 'Ship',
+    cmd: '$ just release 0.3.0',
+    desc: 'Signs the manifest with ed25519 and pushes a GitHub release clients can verify.',
+    bar: 'terminal · ship',
+  },
+];
+
+const wiring = [
+  { title: 'Command launcher', path: 'features/command_palette.rs', body: 'Cmd+K opens a floating palette with fuzzy search across every registered action. Full keyboard navigation.' },
+  { title: 'Undo / redo', path: 'services/undo_stack.rs', body: 'Command-pattern stack behind Cmd+Z / Cmd+Y. One trait to implement per action, works across any operation.' },
+  { title: 'Crash reporting', path: 'services/crash_report.rs', body: 'Panic hooks capture stack traces and write structured reports to disk. Surface or upload them on next launch.' },
+  { title: 'Telemetry', path: 'services/telemetry/', body: 'Three modes (disabled, local-only, remote) behind an explicit consent gate. You decide what leaves the machine.' },
+  { title: 'Logging', path: 'services/logging.rs', body: 'File-based logging through tracing-appender, with env-filter levels wired to the same config.' },
+  { title: 'Accessibility', path: 'services/accessibility.rs', body: 'AccessKit integration so the tree is exposed to VoiceOver, Narrator and Orca.' },
+  { title: 'Secure storage', path: 'services/secure_storage.rs', body: 'OS keyring for secrets: macOS Keychain, Windows Credential Manager, Linux Secret Service.' },
+  { title: 'Deep links', path: 'platform/ipc/', body: 'URL-scheme handling forwarded through the single-instance guard, so a link reaches the running window.' },
+  { title: 'Lifecycle', path: 'services/first_run.rs', body: 'Startup, shutdown and crash state machine, including first-run detection for onboarding.' },
+  { title: 'Connectivity', path: 'services/connectivity.rs', body: 'Online/offline awareness so async work can back off instead of piling up retries.' },
+  { title: 'Background tasks', path: 'services/tasks.rs', body: 'A task registry over the tokio runtime, cancelled cleanly on shutdown.' },
+  { title: 'Error surface', path: 'services/error_surface.rs', body: 'One place errors are collected and rendered, instead of unwrap() scattered through the UI.' },
+];
+
+const comparison = [
+  ['Native GPU rendering', '✓', '✓', 'webview', 'webview'],
+  ['Sidebar + page routing', '✓', '—', '—', '—'],
+  ['Theme system, hot-reload', '24 built in', '—', 'CSS', 'CSS'],
+  ['i18n with typed keys', '✓ Fluent', '—', 'plugin', 'library'],
+  ['Command launcher (Cmd+K)', '✓', '—', '—', '—'],
+  ['Signed auto-updater', '✓ ed25519', '—', '✓', '✓'],
+  ['Keyring / secure storage', '✓', '—', 'plugin', 'plugin'],
+  ['Crash reports + diagnostics', '✓', '—', '—', '✓'],
+  ['Screen reader support', '✓ AccessKit', 'manual', '✓', '✓'],
+  ['Ships a browser engine', 'no', 'no', 'system', 'bundled'],
+];
 ---
 
 <MarketingLayout
   title="gpui-starter: Rust desktop app boilerplate for GPUI"
-  description="Ship a Rust desktop app with GPUI in minutes, not weeks. 21 themes, i18n, form validation, Cmd+K launcher, SQLite persistence, auto-updater, and macOS tray out of the box."
+  description="Ship a Rust desktop app with GPUI in minutes, not weeks. 24 themes, i18n, form validation, Cmd+K launcher, SQLite persistence, signed auto-updater, and macOS tray out of the box."
   jsonLd={{
     '@context': 'https://schema.org',
     '@type': 'WebSite',
     name: 'gpui-starter',
-    url: 'https://gpui-starter.hmziq.xyz',
+    url: 'https://gpui-starter.freeoxide.com',
     potentialAction: {
       '@type': 'SearchAction',
-      target: 'https://gpui-starter.hmziq.xyz/docs/?q={search_term_string}',
+      target: 'https://gpui-starter.freeoxide.com/docs/?q={search_term_string}',
       'query-input': 'required name=search_term_string',
     },
   }}
 >
+  <!-- ===== HERO ===== -->
+  <section class="border-b border-line">
+    <div class="frame py-14 md:py-20">
+      <div class="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.02fr)] gap-12 lg:gap-14">
+        <div>
+          <div class="flex items-center gap-3">
+            <span class="tag">New</span>
+            <a href="/changelog/" class="mono text-[11.5px] tracking-[.12em] uppercase text-fg-muted hover:text-fg no-underline transition-colors"
+              >v{latestVersion} released &rarr;</a
+            >
+          </div>
 
-  <!-- ==================== HERO ==================== -->
-  <section id="hero" class="relative pt-32 pb-20 px-6 overflow-hidden">
-    <div class="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
-      <div>
-        <span class="eyebrow">Rust + GPUI</span>
-        <h1 class="mt-6 text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.1]">
-          Ship a Rust desktop app<br /><span class="gradient-text">on GPUI, fast.</span>
-        </h1>
-        <p class="mt-6 text-lg text-text-dim max-w-lg leading-relaxed">
-          Production-ready GPUI boilerplate with multi-page routing, 21 themes,
-          Cmd+K command launcher, i18n, form validation, SQLite persistence,
-          auto-updater, and macOS tray. Clone it and start building your actual product.
-        </p>
-        <div class="mt-4 flex flex-wrap gap-3 text-sm text-text-dim">
-          <span class="flex items-center gap-1.5">
-            <svg class="w-4 h-4 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
-            Rust + GPUI
-          </span>
-          <span class="flex items-center gap-1.5">
-            <svg class="w-4 h-4 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
-            21 themes, hot-reload
-          </span>
-          <span class="flex items-center gap-1.5">
-            <svg class="w-4 h-4 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg>
-            SQLite + auto-updater
-          </span>
+          <h1 class="display t-hero mt-6">
+            One repo for the <span class="text-accent">whole</span> desktop app.
+          </h1>
+
+          <p class="lead mt-7 max-w-[46ch]">
+            Routing, 24 themes, Fluent i18n, SQLite, keyring, tray, signed updates and a
+            Cmd+K launcher are already wired. Run <code class="inline">cargo run</code>, then
+            start deleting what you don't need.
+          </p>
+
+          <p class="text-[14px] font-semibold mt-10">Clone gpui-starter v{latestVersion}</p>
+          <div class="mt-3 flex items-stretch codebox">
+            <div class="flex-1 min-w-0 flex items-center gap-2.5 px-4 py-3.5 overflow-x-auto">
+              <span class="c-p mono text-[14px]">$</span>
+              <code class="mono text-[13.5px] whitespace-nowrap">{CLONE}</code>
+            </div>
+            <button
+              class="copy-btn shrink-0 w-11 grid place-items-center text-fg-subtle hover:text-fg bg-transparent cursor-pointer transition-colors border-0 border-l border-l-line"
+              data-copy={CLONE}
+              aria-label="Copy clone command"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"
+                ><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg
+              >
+            </button>
+          </div>
+
+          <div class="mt-4 flex items-center justify-between gap-4 flex-wrap">
+            <div class="flex gap-2 flex-wrap">
+              <span class="pill">macOS</span>
+              <span class="pill">Linux</span>
+              <span class="pill">Windows</span>
+            </div>
+            <a href="/docs/getting-started/" class="text-[13px] text-fg-muted hover:text-fg no-underline transition-colors"
+              >Build requirements &nearr;</a
+            >
+          </div>
+
+          <p class="mt-8">
+            <a href="#workflow" class="alink font-semibold text-[15px]">Then follow the quickstart</a>
+            <span class="text-fg-muted">&rarr;</span>
+          </p>
         </div>
-        <div class="mt-8 flex flex-wrap gap-4">
-          <a href="/docs/" class="btn-primary">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
-            Start Building
-          </a>
-          <a href="https://github.com/freeoxide/gpui-starter" target="_blank" rel="noopener" class="btn-secondary">
-            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.4-4-1.4-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2 0 1.9 1.2 1.9 1.2 1.1 1.9 2.9 1.4 3.6 1 .1-.8.4-1.4.8-1.7-2.7-.3-5.5-1.3-5.5-6 0-1.3.5-2.4 1.2-3.2-.1-.3-.6-1.5.1-3.2 0 0 1-.3 3.3 1.2A11.5 11.5 0 0 1 12 5.8c1 0 2 .1 3 .4 2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.7-5.5 6 .5.4.9 1.1.9 2.3v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3" /></svg>
-            GitHub
-          </a>
-        </div>
-        <div class="mt-4 flex flex-wrap gap-5 text-sm text-text-dim">
-          <a href="/blog/" class="no-underline hover:text-amber transition-colors">Blog</a>
-          <a href="/faq/" class="no-underline hover:text-amber transition-colors">FAQ</a>
-          <a href="/docs/getting-started/" class="no-underline hover:text-amber transition-colors">Getting Started</a>
+
+        <!-- terminal panel -->
+        <div class="self-start w-full border border-rule">
+          <div class="grid grid-cols-3" role="tablist" data-heroterm-tabs aria-label="Terminal output">
+            <button
+              class="heroterm-tab h-11 text-[13px] font-medium bg-transparent cursor-pointer transition-colors border-0 border-r border-r-rule border-b border-b-rule"
+              role="tab"
+              aria-selected="true"
+              data-term="run">cargo run</button
+            >
+            <button
+              class="heroterm-tab h-11 text-[13px] font-medium bg-transparent cursor-pointer transition-colors border-0 border-r border-r-rule border-b border-b-rule"
+              role="tab"
+              aria-selected="false"
+              data-term="test">cargo test</button
+            >
+            <button
+              class="heroterm-tab h-11 text-[13px] font-medium bg-transparent cursor-pointer transition-colors border-0 border-b border-b-rule"
+              role="tab"
+              aria-selected="false"
+              data-term="theme">hot reload</button
+            >
+          </div>
+
+          <div class="p-6">
+            <div class="codebody min-h-[280px] p-0">
+              <pre data-term-panel="run"><span class="c-p">$ </span>cargo run
+<span class="c-dim">   Compiling gpui-starter v{latestVersion}</span>
+<span class="c-dim">    Finished `dev` profile</span>
+<span class="c-dim">     Running `target/debug/gpui-starter`</span>
+
+<span class="c-ok">  ✓</span> lifecycle       <span class="c-dim">first_run = true</span>
+<span class="c-ok">  ✓</span> single-instance <span class="c-dim">lock acquired</span>
+<span class="c-ok">  ✓</span> themes          <span class="c-dim">24 loaded, watching ./themes</span>
+<span class="c-ok">  ✓</span> i18n            <span class="c-dim">en, zh-CN</span>
+<span class="c-ok">  ✓</span> sqlite          <span class="c-dim">app support dir</span>
+<span class="c-ok">  ✓</span> tray            <span class="c-dim">menu bar registered</span>
+
+<span class="c-str">  window ready</span></pre>
+              <pre class="hidden" data-term-panel="test"><span class="c-p">$ </span>cargo test
+<span class="c-dim">test lifecycle::first_run ............... </span><span class="c-ok">ok</span>
+<span class="c-dim">test config::migrate_v1_to_v3 ........... </span><span class="c-ok">ok</span>
+<span class="c-dim">test updater::rejects_bad_signature ..... </span><span class="c-ok">ok</span>
+<span class="c-dim">test i18n::all_keys_resolve_zh_cn ....... </span><span class="c-ok">ok</span>
+<span class="c-dim">test query::stale_while_revalidate ...... </span><span class="c-ok">ok</span>
+
+<span class="c-ok">test result: ok.</span> <span class="c-dim">0 failed</span></pre>
+              <pre class="hidden" data-term-panel="theme"><span class="c-p">$ </span>cp themes/gruvbox.json themes/mine.json
+<span class="c-dim">  watcher  themes/mine.json added</span>
+<span class="c-ok">  ✓</span> theme reloaded  <span class="c-dim">no restart · 25 themes</span>
+
+<span class="c-p">$ </span>vim i18n/zh-CN/app.ftl
+<span class="c-dim">  watcher  i18n/zh-CN/app.ftl changed</span>
+<span class="c-ok">  ✓</span> fluent bundle rebuilt</pre>
+            </div>
+
+            <div class="mt-6 pt-3 flex items-start justify-between gap-3 border-t border-t-rule/40">
+              <p class="mono text-[10.5px] leading-relaxed text-fg-subtle max-w-[42ch]">
+                illustrative output · your run logs the same subsystems
+              </p>
+              <a href="/docs/getting-started/" class="mono text-[10.5px] text-fg-muted hover:text-fg no-underline shrink-0">get started</a>
+            </div>
+          </div>
         </div>
       </div>
-
-      <!-- Hero 3D glyph -->
-      <div class="relative h-[420px] overflow-hidden" data-three="hero-glyph"></div>
     </div>
   </section>
 
-  <!-- ==================== APP PREVIEW ==================== -->
-  <section id="app-preview" class="py-20 px-6 reveal">
-    <div class="max-w-3xl mx-auto text-center">
-      <span class="eyebrow">See it in action</span>
-      <h2 class="mt-4 text-3xl font-extrabold tracking-tight">A working GPUI app,<br /><span class="gradient-text">not a hello-world.</span></h2>
-      <p class="mt-4 text-text-dim max-w-md mx-auto">Six pages, sidebar routing, theme switching, form validation, and a command palette. Running out of the box after cargo run.</p>
-      <div class="mt-12">
+  <!-- ===== BUILT ON ===== -->
+  <div class="border-b border-line">
+    <div class="wrap py-7">
+      <p class="eyebrow">Built on</p>
+      <div class="mt-4 flex flex-wrap items-center gap-x-9 gap-y-3 text-fg-subtle">
+        {['Rust', 'GPUI', 'SQLite', 'Fluent', 'AccessKit', 'ed25519', 'keyring', 'tokio'].map((s) => (
+          <span class="display text-[19px] tracking-[-.02em]">{s}</span>
+        ))}
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FOUR SUBSYSTEMS ===== -->
+  <section class="sect">
+    <div class="wrap">
+      <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+        <h2 class="display t-h2 max-w-[16ch]">Four subsystems,<br />designed together.</h2>
+        <p class="lead max-w-[38ch] text-[15px]">
+          Each one lives behind its own module. <code class="inline">tray</code> and
+          <code class="inline">telemetry</code> come out cleanly. Nothing else breaks.
+        </p>
+      </div>
+
+      <div class="mt-12 ruled grid sm:grid-cols-2 lg:grid-cols-4 reveal">
+        {subsystems.map((s) => (
+          <article class="p-6 flex flex-col">
+            <span class="grid place-items-center w-10 h-10 rounded-lg text-fg-muted border border-line">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <path d={s.icon} />
+              </svg>
+            </span>
+            <h3 class="text-[17px] font-bold mt-5 tracking-[-.01em]">{s.title}</h3>
+            <p class="mono text-[11px] text-fg-subtle mt-1.5">{s.sub}</p>
+            <p class="text-[14px] text-fg-muted mt-4 flex-1 leading-relaxed">{s.body}</p>
+            <code class="mono block truncate rounded-lg px-3 py-2 mt-5 text-[12px] text-fg-muted border border-line bg-code">
+              {s.code}
+            </code>
+            <a href={s.href} class="alink text-[13px] mt-4">Read the docs</a>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SIX PAGES ===== -->
+  <section id="pages" class="sect-rule">
+    <div class="wrap">
+      <p class="eyebrow">Not a hello-world</p>
+      <h2 class="display t-h2 mt-4 max-w-[18ch]">Six pages, already wired.</h2>
+      <p class="lead mt-5 max-w-[56ch]">
+        Sidebar routing, theme switching, form validation and the command palette are all live
+        the first time you run it. Delete the pages you don't need.
+      </p>
+
+      <div class="mt-12 ruled grid sm:grid-cols-2 lg:grid-cols-3 reveal">
+        {pages.map((p) => (
+          <article class="p-6">
+            <div class="flex items-baseline justify-between gap-3">
+              <h3 class="text-[16px] font-bold">{p.title}</h3>
+              <span class="num text-[11px] text-fg-subtle">{p.n}</span>
+            </div>
+            <p class="text-[13.5px] text-fg-muted mt-3 leading-relaxed">{p.body}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== APP PREVIEW ===== -->
+  <section class="sect">
+    <div class="wrap">
+      <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+        <div>
+          <p class="eyebrow">See it running</p>
+          <h2 class="display t-h2 mt-4 max-w-[16ch]">The shell you get on the first run.</h2>
+        </div>
+        <p class="lead text-[15px] max-w-[40ch]">
+          This cycles through five screens of it: sidebar routing, the theme picker, the Cmd+K
+          launcher, a localized settings page, and form validation catching a bad email.
+        </p>
+      </div>
+
+      <div class="mt-12 reveal">
         <AppPreview />
       </div>
     </div>
   </section>
 
-  <!-- ==================== INSTALL ==================== -->
-  <section id="quick-start" class="py-20 px-6 reveal">
-    <div class="max-w-3xl mx-auto text-center">
-      <span class="eyebrow">Quick Start</span>
-      <h2 class="mt-4 text-3xl font-bold">Three commands to a running app</h2>
-      <div class="mt-8 terminal text-left">
-        <div class="terminal-header">
-          <span class="terminal-dot" style="background:#ff5f57"></span>
-          <span class="terminal-dot" style="background:#febc2e"></span>
-          <span class="terminal-dot" style="background:#28c840"></span>
+  <!-- ===== WORKFLOW ===== -->
+  <section id="workflow" class="sect">
+    <div class="wrap">
+      <p class="eyebrow">A minute with gpui-starter</p>
+      <h2 class="display t-h2 mt-4 max-w-[15ch]">One binary, start to ship.</h2>
+
+      <div class="mt-12 grid lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] gap-8 lg:gap-12 items-start">
+        <div>
+          <p class="lead text-[15px] max-w-[42ch]">
+            Install, develop, test and ship with the same toolchain. Every step below is a real
+            command from this repo.
+          </p>
+          <ol class="list-none p-0 mt-8 m-0" data-stepper>
+            {steps.map((s, i) => (
+              <li>
+                <button
+                  class="step w-full text-left px-4 py-3.5 bg-transparent border-0 cursor-pointer transition-colors"
+                  data-step={String(i)}
+                  aria-selected={i === 0 ? 'true' : 'false'}
+                >
+                  <div class="flex gap-3.5">
+                    <span class="num text-[11px] step-idx">{String(i + 1).padStart(2, '0')}</span>
+                    <div>
+                      <div class="text-[15px] font-semibold step-title">{s.title}</div>
+                      <div class="mono text-[12px] text-fg-muted mt-0.5">{s.cmd}</div>
+                      <div class="text-[13.5px] text-fg-muted mt-2 step-desc hidden leading-relaxed">{s.desc}</div>
+                    </div>
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ol>
         </div>
-        <div class="terminal-body">
-          <div><span class="term-prompt">$ </span><span class="term-cmd">git</span> <span class="term-arg">clone</span> <span class="term-str">https://github.com/freeoxide/gpui-starter.git</span></div>
-          <div><span class="term-prompt">$ </span><span class="term-cmd">cd</span> <span class="term-str">gpui-app</span></div>
-          <div><span class="term-prompt">$ </span><span class="term-cmd">cargo run</span><span class="cursor-blink"></span></div>
-        </div>
-      </div>
-      <p class="mt-4 text-sm text-text-mute">
-        Requires Rust 1.85+. Runs on macOS (Metal), Linux (X11 + Wayland), and Windows.
-      </p>
-    </div>
-  </section>
 
-  <!-- ==================== STATS ==================== -->
-  <section id="stats" class="py-12 px-6">
-    <div class="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-5 gap-6 text-center reveal">
-      <div>
-        <div class="stat-num text-3xl font-extrabold">21</div>
-        <div class="text-sm text-text-mute mt-1">Themes, hot-reload</div>
-      </div>
-      <div>
-        <div class="stat-num text-3xl font-extrabold">6</div>
-        <div class="text-sm text-text-mute mt-1">Pages with sidebar</div>
-      </div>
-      <div>
-        <div class="stat-num text-3xl font-extrabold">2</div>
-        <div class="text-sm text-text-mute mt-1">Languages (en, zh-CN)</div>
-      </div>
-      <div>
-        <div class="stat-num text-3xl font-extrabold">Cmd+K</div>
-        <div class="text-sm text-text-mute mt-1">Command palette</div>
-      </div>
-      <div>
-        <div class="stat-num text-3xl font-extrabold">gpui-query</div>
-        <div class="text-sm text-text-mute mt-1">Async data crate</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==================== QUICK NAV ==================== -->
-  <section class="py-10 px-6">
-    <div class="max-w-4xl mx-auto flex flex-wrap justify-center gap-4 text-sm">
-      <a href="/docs/" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-edge text-text-dim no-underline hover:border-amber hover:text-amber transition-colors">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-        Docs
-      </a>
-      <a href="/blog/" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-edge text-text-dim no-underline hover:border-amber hover:text-amber transition-colors">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>
-        Blog
-      </a>
-      <a href="/faq/" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-edge text-text-dim no-underline hover:border-amber hover:text-amber transition-colors">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-        FAQ
-      </a>
-      <a href="/changelog/" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full border border-edge text-text-dim no-underline hover:border-amber hover:text-amber transition-colors">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
-        Changelog
-      </a>
-    </div>
-  </section>
-
-  <!-- ==================== FEATURES ==================== -->
-  <section id="features" class="py-20 px-6">
-    <div class="max-w-6xl mx-auto">
-      <div class="text-center mb-12 reveal">
-        <span class="eyebrow">Features</span>
-        <h2 class="mt-4 text-3xl font-bold">
-          The plumbing is done. <span class="gradient-text">Ship your product.</span>
-        </h2>
-        <div class="mt-4 flex flex-wrap justify-center gap-3 text-xs">
-          <a href="#feature-routing" class="no-underline text-text-mute hover:text-amber transition-colors">Routing</a>
-          <span class="text-text-mute">/</span>
-          <a href="#feature-themes" class="no-underline text-text-mute hover:text-amber transition-colors">Themes</a>
-          <span class="text-text-mute">/</span>
-          <a href="#feature-i18n" class="no-underline text-text-mute hover:text-amber transition-colors">i18n</a>
-          <span class="text-text-mute">/</span>
-          <a href="#feature-command-palette" class="no-underline text-text-mute hover:text-amber transition-colors">Cmd+K</a>
-          <span class="text-text-mute">/</span>
-          <a href="#feature-forms" class="no-underline text-text-mute hover:text-amber transition-colors">Forms</a>
-          <span class="text-text-mute">/</span>
-          <a href="#feature-tray" class="no-underline text-text-mute hover:text-amber transition-colors">Tray</a>
-          <span class="text-text-mute">/</span>
-          <a href="#feature-gpui-query" class="no-underline text-text-mute hover:text-amber transition-colors">Query</a>
-          <span class="text-text-mute">/</span>
-          <a href="#feature-auto-updater" class="no-underline text-text-mute hover:text-amber transition-colors">Updates</a>
-          <span class="text-text-mute">/</span>
-          <a href="#feature-undo-redo" class="no-underline text-text-mute hover:text-amber transition-colors">Undo</a>
-        </div>
-      </div>
-
-      <div class="grid md:grid-cols-3 gap-5 reveal">
-        <!-- Big card: Multi-page app with 3D orb -->
-        <div id="feature-routing" class="glass rounded-2xl p-8 md:col-span-2 md:row-span-2 relative overflow-hidden" data-three="bento-orb">
-          <div class="relative z-10">
-            <div class="icon-box mb-4">
-              <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-            </div>
-            <h3 class="text-2xl font-bold mb-3">Multi-page architecture</h3>
-            <p class="text-text-dim max-w-md leading-relaxed">
-              Resizable sidebar, six working pages (Home, Form, Settings, About,
-              Diagnostics, Notifications), and route-based navigation. Adding a new page
-              means implementing one Render trait and registering the route. That is it.
-            </p>
-            <a href="/docs/architecture/" class="mt-3 inline-flex items-center gap-1 text-sm text-amber no-underline hover:underline">Learn about the architecture</a>
+        <div class="codebox">
+          <div class="codebar">
+            <span data-step-title>terminal · install</span>
+            <button
+              class="copy-btn bg-transparent border-0 text-inherit cursor-pointer hover:text-fg mono text-[10.5px] uppercase tracking-[.1em]"
+              data-copy="cargo run">Copy</button
+            >
           </div>
-        </div>
+          <div class="codebody min-h-[290px]">
+            <pre data-panel="0"><span class="c-p">$ </span>cargo run
+<span class="c-dim">   Compiling gpui-starter v{latestVersion}</span>
+<span class="c-dim">    Finished `dev` profile</span>
+<span class="c-dim">     Running `target/debug/gpui-starter`</span>
 
-        <!-- Theme system with wireframe dodecahedron -->
-        <div id="feature-themes" class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="dodec">
-          <div class="relative z-10">
-            <div class="icon-box mb-3">
-              <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>
-            </div>
-            <h3 class="text-lg font-bold mb-2">21 themes with hot-reload</h3>
-            <p class="text-sm text-text-dim">Catppuccin, Dracula, Tokyo Night, Solarized, Nord, and 16 more. Edit the JSON file, save, see changes instantly. Switch between light and dark at runtime.</p>
-            <a href="/docs/themes/" class="mt-2 inline-flex items-center gap-1 text-xs text-amber no-underline hover:underline">Theme guide</a>
-          </div>
-        </div>
+<span class="c-ok">  ✓</span> lifecycle       <span class="c-dim">first_run = true</span>
+<span class="c-ok">  ✓</span> single-instance <span class="c-dim">lock acquired</span>
+<span class="c-ok">  ✓</span> themes          <span class="c-dim">24 loaded, watching ./themes</span>
+<span class="c-ok">  ✓</span> i18n            <span class="c-dim">en, zh-CN</span>
+<span class="c-ok">  ✓</span> sqlite          <span class="c-dim">app support dir</span>
+<span class="c-ok">  ✓</span> tray            <span class="c-dim">menu bar registered</span>
 
-        <!-- i18n with wireframe octahedron -->
-        <div id="feature-i18n" class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="octa">
-          <div class="relative z-10">
-            <div class="icon-box mb-3">
-              <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" /></svg>
-            </div>
-            <h3 class="text-lg font-bold mb-2">Internationalization</h3>
-            <p class="text-sm text-text-dim">Built on es-fluent (Fluent message format). Ships with English and Simplified Chinese. Add a new .ftl file and the app picks it up. Error messages included.</p>
-            <a href="/docs/i18n/" class="mt-2 inline-flex items-center gap-1 text-xs text-amber no-underline hover:underline">i18n setup</a>
-          </div>
-        </div>
+<span class="c-str">  window ready</span></pre>
+            <pre class="hidden" data-panel="1"><span class="c-p">$ </span>cp themes/gruvbox.json themes/mine.json
+<span class="c-dim">  watcher  themes/mine.json added</span>
+<span class="c-ok">  ✓</span> theme reloaded  <span class="c-dim">no restart · 25 themes</span>
 
-        <!-- Command Launcher with wireframe icosahedron -->
-        <div id="feature-command-palette" class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="ico">
-          <div class="relative z-10">
-            <div class="icon-box mb-3">
-              <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-            </div>
-            <h3 class="text-lg font-bold mb-2">Command palette</h3>
-            <p class="text-sm text-text-dim">Cmd+K opens a floating popup with fuzzy search. Navigate to any page, switch themes, or trigger actions without touching the mouse. Full keyboard navigation.</p>
-            <a href="/docs/command-palette/" class="mt-2 inline-flex items-center gap-1 text-xs text-amber no-underline hover:underline">Command palette docs</a>
-          </div>
-        </div>
+<span class="c-p">$ </span>vim i18n/zh-CN/app.ftl
+<span class="c-dim">  watcher  i18n/zh-CN/app.ftl changed</span>
+<span class="c-ok">  ✓</span> fluent bundle rebuilt</pre>
+            <pre class="hidden" data-panel="2"><span class="c-p">$ </span>cargo test
+<span class="c-dim">test lifecycle::first_run ............... </span><span class="c-ok">ok</span>
+<span class="c-dim">test config::migrate_v1_to_v3 ........... </span><span class="c-ok">ok</span>
+<span class="c-dim">test updater::rejects_bad_signature ..... </span><span class="c-ok">ok</span>
+<span class="c-dim">test i18n::all_keys_resolve_zh_cn ....... </span><span class="c-ok">ok</span>
 
-        <!-- Form validation with wireframe tetrahedron -->
-        <div id="feature-forms" class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="tetra">
-          <div class="relative z-10">
-            <div class="icon-box mb-3">
-              <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-            </div>
-            <h3 class="text-lg font-bold mb-2">Form validation</h3>
-            <p class="text-sm text-text-dim">gpui-form handles input binding, koruma handles validation rules (email, phone, URL, required). Error messages are localized through Fluent, so your Chinese users see Chinese errors.</p>
-            <a href="/docs/forms/" class="mt-2 inline-flex items-center gap-1 text-xs text-amber no-underline hover:underline">Forms guide</a>
-          </div>
-        </div>
+<span class="c-ok">test result: ok.</span> <span class="c-dim">0 failed</span></pre>
+            <pre class="hidden" data-panel="3"><span class="c-p">$ </span>bash scripts/macos-dev-app.sh
+<span class="c-dim">  bundling   GPUI Starter.app</span>
+<span class="c-dim">  codesign   adhoc, hardened runtime</span>
+<span class="c-ok">  ✓</span> <span class="c-str">target/app/GPUI Starter.app</span>
 
-        <!-- macOS tray with wireframe box -->
-        <div id="feature-tray" class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="box">
-          <div class="relative z-10">
-            <div class="icon-box mb-3">
-              <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-            </div>
-            <h3 class="text-lg font-bold mb-2">macOS tray and global hotkeys</h3>
-            <p class="text-sm text-text-dim">Menu bar icon with a click-to-open launcher. Option+Space as a global hotkey that works from any app. Single-instance enforcement so you never get duplicate windows.</p>
-          </div>
-        </div>
-
-        <!-- gpui-query with wireframe icosahedron -->
-        <div id="feature-gpui-query" class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="ico">
-          <div class="relative z-10">
-            <div class="icon-box mb-3">
-              <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-            </div>
-            <h3 class="text-lg font-bold mb-2">gpui-query</h3>
-            <p class="text-sm text-text-dim">TanStack Query-inspired library for GPUI. Fetch, cache, and sync async data with stale-while-revalidate, automatic refetching, and query invalidation. Ships as a separate crate.</p>
-            <a href="/docs/gpui-query/" class="mt-2 inline-flex items-center gap-1 text-xs text-amber no-underline hover:underline">gpui-query docs</a>
-          </div>
-        </div>
-
-        <!-- Auto-updater with wireframe tetrahedron -->
-        <div id="feature-auto-updater" class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="tetra">
-          <div class="relative z-10">
-            <div class="icon-box mb-3">
-              <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" /></svg>
-            </div>
-            <h3 class="text-lg font-bold mb-2">Auto-updater</h3>
-            <p class="text-sm text-text-dim">Ed25519-signed manifests ensure the update your app downloads is the one you published. Works with GitHub Releases. The user gets a prompt; you control the flow.</p>
-            <a href="/docs/auto-updater/" class="mt-2 inline-flex items-center gap-1 text-xs text-amber no-underline hover:underline">Auto-updater setup</a>
-          </div>
-        </div>
-
-        <!-- Crash reporting with wireframe box -->
-        <div id="feature-crash-reporting" class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="box">
-          <div class="relative z-10">
-            <div class="icon-box mb-3">
-              <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-            </div>
-            <h3 class="text-lg font-bold mb-2">Crash reporting</h3>
-            <p class="text-sm text-text-dim">Panic hooks capture stack traces and write structured crash reports to disk. Next launch, your app can surface them or upload them.</p>
-          </div>
-        </div>
-
-        <!-- Diagnostics with wireframe dodecahedron -->
-        <div id="feature-diagnostics" class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="dodec">
-          <div class="relative z-10">
-            <div class="icon-box mb-3">
-              <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-            </div>
-            <h3 class="text-lg font-bold mb-2">Diagnostics page</h3>
-            <p class="text-sm text-text-dim">Live view of app state: active entities, subsystem health, theme metadata, and debug actions. Useful during development and for user support.</p>
-          </div>
-        </div>
-
-        <!-- Telemetry with wireframe octahedron -->
-        <div id="feature-telemetry" class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="octa">
-          <div class="relative z-10">
-            <div class="icon-box mb-3">
-              <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-            </div>
-            <h3 class="text-lg font-bold mb-2">Telemetry</h3>
-            <p class="text-sm text-text-dim">Three modes: disabled, local-only, or remote. The consent gate is explicit. You decide what to collect and where it goes.</p>
-          </div>
-        </div>
-
-        <!-- Undo/Redo with wireframe icosahedron -->
-        <div id="feature-undo-redo" class="glass rounded-2xl p-6 relative overflow-hidden" data-three="feature-shape" data-shape="ico">
-          <div class="relative z-10">
-            <div class="icon-box mb-3">
-              <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a5 5 0 010 10H9" /><path stroke-linecap="round" stroke-linejoin="round" d="M3 10l4-4m-4 4l4 4" /></svg>
-            </div>
-            <h3 class="text-lg font-bold mb-2">Undo/Redo</h3>
-            <p class="text-sm text-text-dim">Command pattern with keyboard shortcuts (Cmd+Z / Cmd+Y). Stack-based, works across any operation. One trait to implement per action.</p>
+<span class="c-p">$ </span>open "$(bash scripts/macos-dev-app.sh)"</pre>
+            <pre class="hidden" data-panel="4"><span class="c-p">$ </span>just release 0.3.0
+<span class="c-dim">  signing    manifest.json (ed25519)</span>
+<span class="c-dim">  uploading  gh release v0.3.0</span>
+<span class="c-dim">  assets     3 platforms</span>
+<span class="c-ok">  ✓</span> clients verify and update on next check</pre>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ==================== CTA ==================== -->
-  <section id="cta" class="py-20 px-6 reveal">
-    <div class="max-w-3xl mx-auto text-center relative h-[300px] overflow-hidden" data-three="cta-shape">
-      <div class="relative z-10">
-        <h2 class="text-4xl font-extrabold mb-4">
-          Stop wiring boilerplate.<br /><span class="gradient-text">Start shipping your app.</span>
-        </h2>
-        <p class="text-text-dim mb-8 max-w-md mx-auto">
-          You get a working multi-page GPUI app with themes, persistence,
-          auto-updates, and accessibility. Delete the pages you do not need and
-          build what matters.
+  <!-- ===== STATS ===== -->
+  <section class="sect-rule">
+    <div class="wrap">
+      <p class="eyebrow">By the numbers</p>
+      <h2 class="display t-h2 mt-4 max-w-[18ch]">What ships in the box.</h2>
+
+      <div class="mt-11 ruled grid grid-cols-2 md:grid-cols-4 reveal">
+        <div class="p-6">
+          <div class="num text-[30px] font-semibold">24</div>
+          <div class="mono text-[11px] text-fg-muted mt-2">themes, hot-reloaded</div>
+        </div>
+        <div class="p-6">
+          <div class="num text-[30px] font-semibold">6</div>
+          <div class="mono text-[11px] text-fg-muted mt-2">pages wired</div>
+        </div>
+        <div class="p-6">
+          <div class="num text-[30px] font-semibold">2</div>
+          <div class="mono text-[11px] text-fg-muted mt-2">locales (en, zh-CN)</div>
+        </div>
+        <div class="p-6">
+          <div class="num text-[30px] font-semibold">0</div>
+          <div class="mono text-[11px] text-fg-muted mt-2">webviews shipped</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== BUILT-IN APIS ===== -->
+  <section id="explorer" class="sect">
+    <div class="wrap">
+      <p class="eyebrow">Batteries included</p>
+      <h2 class="display t-h2 mt-4 max-w-[20ch]">Real APIs, not a feature checklist.</h2>
+
+      <div class="mt-9 flex gap-2 flex-wrap" role="tablist" data-explorer-tabs aria-label="Built-in APIs">
+        <button class="pill" role="tab" aria-selected="true" data-tab="routing">Routing</button>
+        <button class="pill" role="tab" aria-selected="false" data-tab="themes">Themes</button>
+        <button class="pill" role="tab" aria-selected="false" data-tab="i18n">i18n</button>
+        <button class="pill" role="tab" aria-selected="false" data-tab="forms">Forms</button>
+        <button class="pill" role="tab" aria-selected="false" data-tab="query">Query</button>
+        <button class="pill" role="tab" aria-selected="false" data-tab="notify">Notifications</button>
+      </div>
+
+      <div class="mt-8 grid lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] gap-8 lg:gap-12 items-start" data-explorer-panels>
+        <div data-panel="routing">
+          <h3 class="t-h3 display">Page routing</h3>
+          <p class="lead text-[15px] mt-3">
+            A page is an entity plus a route entry. Sidebar, Cmd+K launcher and deep links all
+            read the same registry.
+          </p>
+          <a href="/docs/routing/" class="alink text-[14px] mt-5 inline-block">Routing docs</a>
+        </div>
+        <div class="codebox" data-panel="routing">
+          <div class="codebar"><span>src/shell/route.rs</span><span>rust</span></div>
+          <div class="codebody"><pre><span class="c-dim">// register once: sidebar, Cmd+K and deep links follow</span>
+<span class="c-key">pub fn</span> routes(cx: &amp;<span class="c-key">mut</span> App) -&gt; Vec&lt;Route&gt; {
+    <span class="c-key">vec!</span>[
+        Route::new(Page::Home).icon(<span class="c-str">"house"</span>),
+        Route::new(Page::Form).icon(<span class="c-str">"file-text"</span>),
+        Route::new(Page::Settings).icon(<span class="c-str">"settings"</span>),
+        Route::new(Page::Diagnostics).dev_only(),
+    ]
+}</pre></div>
+        </div>
+
+        <div class="hidden" data-panel="themes">
+          <h3 class="t-h3 display">Theme system</h3>
+          <p class="lead text-[15px] mt-3">
+            24 themes ship as plain JSON in <code class="inline">themes/</code>. The watcher picks
+            up a new file while the app runs.
+          </p>
+          <a href="/docs/themes/" class="alink text-[14px] mt-5 inline-block">Theme guide</a>
+        </div>
+        <div class="codebox hidden" data-panel="themes">
+          <div class="codebar"><span>themes/tokyonight.json</span><span>json</span></div>
+          <div class="codebody"><pre>{'{'}
+  <span class="c-key">"name"</span>: <span class="c-str">"Tokyo Night"</span>,
+  <span class="c-key">"appearance"</span>: <span class="c-str">"dark"</span>,
+  <span class="c-key">"colors"</span>: {'{'}
+    <span class="c-key">"background"</span>: <span class="c-str">"#1a1b26"</span>,
+    <span class="c-key">"foreground"</span>: <span class="c-str">"#c0caf5"</span>,
+    <span class="c-key">"accent"</span>:     <span class="c-str">"#7aa2f7"</span>
+  {'}'}
+{'}'}
+<span class="c-dim">// drop in themes/ → live in the switcher</span></pre></div>
+        </div>
+
+        <div class="hidden" data-panel="i18n">
+          <h3 class="t-h3 display">Fluent i18n</h3>
+          <p class="lead text-[15px] mt-3">
+            Built on <code class="inline">es-fluent</code>, so message keys are typed at compile
+            time. Validation errors resolve through the same bundle.
+          </p>
+          <a href="/docs/i18n/" class="alink text-[14px] mt-5 inline-block">i18n setup</a>
+        </div>
+        <div class="codebox hidden" data-panel="i18n">
+          <div class="codebar"><span>i18n/en/app.ftl</span><span>fluent</span></div>
+          <div class="codebody"><pre>form-email-invalid = <span class="c-str">{'{'} $value {'}'} is not a valid email</span>
+update-available   = <span class="c-str">Version {'{'} $version {'}'} is ready</span>
+
+<span class="c-dim">// src/pages/form.rs</span>
+label.child(t!(FormEmailInvalid {'{'} value: &amp;input {'}'}))</pre></div>
+        </div>
+
+        <div class="hidden" data-panel="forms">
+          <h3 class="t-h3 display">Forms &amp; validation</h3>
+          <p class="lead text-[15px] mt-3">
+            <code class="inline">gpui-form</code> binds inputs to a struct;
+            <code class="inline">koruma</code> derives the rules. Messages come back localized, per field.
+          </p>
+          <a href="/docs/forms/" class="alink text-[14px] mt-5 inline-block">Forms guide</a>
+        </div>
+        <div class="codebox hidden" data-panel="forms">
+          <div class="codebar"><span>src/pages/form.rs</span><span>rust</span></div>
+          <div class="codebody"><pre><span class="c-dim">#[derive(Form, Validate)]</span>
+<span class="c-key">struct</span> SignUp {'{'}
+    <span class="c-dim">#[validate(email)]</span>
+    email: String,
+    <span class="c-dim">#[validate(length(min = 8))]</span>
+    password: String,
+    <span class="c-dim">#[validate(url, optional)]</span>
+    website: Option&lt;String&gt;,
+{'}'}</pre></div>
+        </div>
+
+        <div class="hidden" data-panel="query">
+          <h3 class="t-h3 display">gpui-query</h3>
+          <p class="lead text-[15px] mt-3">
+            Cache policy per query, plus retries, invalidation and cancellation, all observable
+            from an entity.
+          </p>
+          <a href="/docs/gpui-query/" class="alink text-[14px] mt-5 inline-block">gpui-query docs</a>
+        </div>
+        <div class="codebox hidden" data-panel="query">
+          <div class="codebar"><span>src/pages/home.rs</span><span>rust</span></div>
+          <div class="codebody"><pre><span class="c-key">let</span> projects = use_query(
+    QueryKey::new(<span class="c-str">"projects"</span>),
+    |_| <span class="c-key">async</span> {'{'} api::projects().await {'}'},
+    QueryOptions {'{'}
+        cache: CachePolicy::StaleWhileRevalidate(60.secs()),
+        retry: RetryPolicy::exponential(3),
+        ..default()
+    {'}'},
+    cx,
+);</pre></div>
+        </div>
+
+        <div class="hidden" data-panel="notify">
+          <h3 class="t-h3 display">Notifications</h3>
+          <p class="lead text-[15px] mt-3">
+            It uses the native OS backend where one exists and falls back to an in-app toast
+            where it doesn't. Either way the message lands in an inbox the user can reopen.
+          </p>
+          <a href="/docs/notifications/" class="alink text-[14px] mt-5 inline-block">Notifications docs</a>
+        </div>
+        <div class="codebox hidden" data-panel="notify">
+          <div class="codebar"><span>src/services/notifications/</span><span>rust</span></div>
+          <div class="codebody"><pre>Notification::new(<span class="c-str">"Export finished"</span>)
+    .body(<span class="c-str">"report.csv · 4.2 MB"</span>)
+    .action(<span class="c-str">"Reveal"</span>, Action::RevealInFinder(path))
+    .fallback(Fallback::Toast)
+    .send(cx);
+
+<span class="c-dim">// native → toast → inbox, in that order</span></pre></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== THEMES ===== -->
+  <section id="themes" class="sect-rule">
+    <div class="wrap">
+      <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+        <div>
+          <p class="eyebrow">Theming</p>
+          <h2 class="display t-h2 mt-4 max-w-[16ch]">24 themes, hot-reloaded.</h2>
+        </div>
+        <p class="lead text-[15px] max-w-[40ch]">
+          Every theme is a plain JSON file in <code class="inline">themes/</code>. Drop one in
+          while the app is running and it shows up in the switcher without a rebuild.
         </p>
-        <div class="flex flex-wrap justify-center gap-4">
-          <a href="/docs/" class="btn-primary">Read the docs</a>
-          <a href="https://github.com/freeoxide/gpui-starter" target="_blank" rel="noopener" class="btn-secondary">Clone on GitHub</a>
-        </div>
-        <div class="mt-6 flex flex-wrap justify-center gap-6 text-sm text-text-dim">
-          <a href="/blog/" class="no-underline hover:text-amber transition-colors">Read the blog</a>
-          <a href="/faq/" class="no-underline hover:text-amber transition-colors">Common questions</a>
-          <a href="/changelog/" class="no-underline hover:text-amber transition-colors">What is new</a>
-        </div>
+      </div>
+
+      <div class="mt-11 ruled grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 reveal">
+        {themes.map((t) => (
+          <div class="px-4 py-3 mono text-[12px] text-fg-muted hover:text-fg hover:bg-panel transition-colors">{t}</div>
+        ))}
       </div>
     </div>
   </section>
 
+  <!-- ===== REST OF THE WIRING ===== -->
+  <section id="wiring" class="sect">
+    <div class="wrap">
+      <p class="eyebrow">The unglamorous half</p>
+      <h2 class="display t-h2 mt-4 max-w-[20ch]">The parts nobody wants to write twice.</h2>
+      <p class="lead mt-5 max-w-[56ch]">
+        None of this is a differentiator on its own. All of it is a week you don't spend.
+      </p>
+
+      <div class="mt-12 ruled grid sm:grid-cols-2 lg:grid-cols-4 reveal">
+        {wiring.map((w) => (
+          <article class="p-6">
+            <h3 class="text-[15.5px] font-bold">{w.title}</h3>
+            <code class="mono block text-[11px] text-fg-subtle mt-1.5">{w.path}</code>
+            <p class="text-[13.5px] text-fg-muted mt-3.5 leading-relaxed">{w.body}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== COMPARISON ===== -->
+  <section id="compare" class="sect-rule">
+    <div class="wrap">
+      <p class="eyebrow">Comparison</p>
+      <h2 class="display t-h2 mt-4 max-w-[20ch]">What you get on day one.</h2>
+
+      <div class="mt-11 overflow-x-auto">
+        <table class="w-full border-collapse text-[14px] min-w-[700px]">
+          <thead>
+            <tr>
+              <th class="text-left eyebrow font-normal py-3.5 pr-5 border-b border-b-rule">Capability</th>
+              <th class="text-left eyebrow font-normal py-3.5 px-5 !text-fg border-b border-b-rule border-l border-l-line">gpui-starter</th>
+              <th class="text-left eyebrow font-normal py-3.5 px-5 border-b border-b-rule border-l border-l-line">bare GPUI</th>
+              <th class="text-left eyebrow font-normal py-3.5 px-5 border-b border-b-rule border-l border-l-line">Tauri</th>
+              <th class="text-left eyebrow font-normal py-3.5 px-5 border-b border-b-rule border-l border-l-line">Electron</th>
+            </tr>
+          </thead>
+          <tbody
+            class="[&_td]:py-3 [&_td]:border-b [&_td]:border-b-line [&_td:not(:first-child)]:px-5 [&_td:not(:first-child)]:border-l [&_td:not(:first-child)]:border-l-line [&_td:first-child]:pr-5 [&_td:nth-child(2)]:font-semibold [&_td:nth-child(n+3)]:text-fg-muted"
+          >
+            {comparison.map(([cap, ours, bare, tauri, electron]) => (
+              <tr>
+                <td>{cap}</td>
+                <td>{ours}</td>
+                <td class={bare === '—' ? '!text-fg-subtle' : ''}>{bare}</td>
+                <td class={tauri === '—' ? '!text-fg-subtle' : ''}>{tauri}</td>
+                <td class={electron === '—' ? '!text-fg-subtle' : ''}>{electron}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== DOCS / BLOG / FAQ ===== -->
+  <section id="docs" class="sect">
+    <div class="wrap">
+      <p class="eyebrow">Documentation</p>
+      <h2 class="display t-h2 mt-4 max-w-[18ch]">Three places to look things up.</h2>
+      <p class="lead mt-5 max-w-[52ch]">
+        The docs explain how each subsystem is configured. The blog works through longer builds
+        end to end. The FAQ answers the things people ask before they clone anything.
+      </p>
+
+      <div class="mt-12 ruled grid md:grid-cols-3 reveal">
+        <a href="/docs/getting-started/" class="p-7 no-underline text-fg block hover:bg-panel transition-colors">
+          <h3 class="text-[17px] font-bold">Docs</h3>
+          <p class="text-[14px] text-fg-muted mt-3 leading-relaxed">
+            Lifecycle, entities, themes, i18n, tray, updater. What each subsystem is and how to
+            configure it.
+          </p>
+          <ul class="list-none p-0 mt-5 space-y-1.5 text-[13.5px] text-fg-muted">
+            <li>Getting started</li>
+            <li>Architecture</li>
+            <li>Routing</li>
+          </ul>
+          <span class="alink text-[13.5px] mt-5 inline-block">Read the docs</span>
+        </a>
+        <a href="/blog/" class="p-7 no-underline text-fg block hover:bg-panel transition-colors">
+          <h3 class="text-[17px] font-bold">Blog</h3>
+          <p class="text-[14px] text-fg-muted mt-3 leading-relaxed">
+            Procedural walkthroughs and framework comparisons. Title, context, code, command, done.
+          </p>
+          <ul class="list-none p-0 mt-5 space-y-1.5 text-[13.5px] text-fg-muted">
+            <li>Build a custom title bar</li>
+            <li>keyring for credentials</li>
+            <li>CI/CD for desktop builds</li>
+          </ul>
+          <span class="alink text-[13.5px] mt-5 inline-block">Browse articles</span>
+        </a>
+        <a href="/faq/" class="p-7 no-underline text-fg block hover:bg-panel transition-colors">
+          <h3 class="text-[17px] font-bold">FAQ</h3>
+          <p class="text-[14px] text-fg-muted mt-3 leading-relaxed">
+            The questions that come up before the first build. One answer each, no preamble.
+          </p>
+          <ul class="list-none p-0 mt-5 space-y-1.5 mono text-[12.5px] text-fg-muted">
+            <li><span class="text-accent">Q</span> What is GPUI?</li>
+            <li><span class="text-accent">Q</span> Supported platforms</li>
+            <li><span class="text-accent">Q</span> Adding themes</li>
+          </ul>
+          <span class="alink text-[13.5px] mt-5 inline-block">Browse questions</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== BLOG ===== -->
+  {posts.length > 0 && (
+    <section id="blog" class="sect-rule">
+      <div class="wrap">
+        <div class="flex items-end justify-between gap-6 flex-wrap">
+          <div>
+            <p class="eyebrow">Latest</p>
+            <h2 class="display t-h2 mt-4">From the blog.</h2>
+          </div>
+          <a href="/blog/" class="pill">All articles</a>
+        </div>
+
+        {featured && (
+          <a
+            href={`/blog/${featured.id}/`}
+            class="mt-10 block p-8 no-underline text-fg hover:bg-panel transition-colors border border-rule"
+          >
+            <div class="flex items-center gap-3 flex-wrap">
+              <span class="tag">Latest</span>
+              <time class="mono text-[11px] text-fg-muted" datetime={featured.data.date.toISOString()}>
+                {formatDate(featured.data.date)}
+              </time>
+            </div>
+            <h3 class="display text-[30px] mt-5">{featured.data.title}</h3>
+            <p class="lead mt-4 max-w-[62ch]">{featured.data.description}</p>
+            <span class="alink text-[14px] mt-6 inline-block">Read the article</span>
+          </a>
+        )}
+
+        <ul class="list-none p-0 m-0 mt-2">
+          {rest.map((p) => (
+            <li>
+              <a
+                href={`/blog/${p.id}/`}
+                class="flex items-baseline gap-5 py-3.5 no-underline text-fg hover:text-accent transition-colors border-b border-b-line"
+              >
+                <time class="num text-[12px] text-fg-subtle w-20 shrink-0" datetime={p.data.date.toISOString()}>
+                  {formatDate(p.data.date)}
+                </time>
+                <span class="text-[15px] flex-1">{p.data.title}</span>
+                <span class="mono text-[11px] text-fg-subtle hidden sm:inline">Article</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  )}
+
+  <!-- ===== FINAL CTA ===== -->
+  <section id="install" class="sect">
+    <div class="wrap text-center">
+      <h2 class="display text-[clamp(2.4rem,6vw,4.25rem)] max-w-[16ch] mx-auto">Stop rewriting the shell.</h2>
+      <p class="lead mt-6 max-w-[48ch] mx-auto">
+        Clone it, delete what you don't need, and spend the week on your product instead of the
+        update manifest.
+      </p>
+
+      <div class="mt-10 max-w-[560px] mx-auto flex items-stretch codebox text-left">
+        <div class="flex-1 min-w-0 flex items-center gap-2.5 px-4 py-3.5 overflow-x-auto">
+          <span class="c-p mono text-[14px]">$</span>
+          <code class="mono text-[13.5px] whitespace-nowrap">cargo run</code>
+        </div>
+        <button
+          class="copy-btn shrink-0 w-11 grid place-items-center text-fg-subtle hover:text-fg bg-transparent cursor-pointer transition-colors border-0 border-l border-l-line"
+          data-copy="cargo run"
+          aria-label="Copy run command"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"
+            ><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg
+          >
+        </button>
+      </div>
+
+      <div class="mt-7 flex flex-wrap justify-center gap-3">
+        <a href="/docs/getting-started/" class="btn btn-lg btn-solid">Read the docs</a>
+        <a href="https://github.com/freeoxide/gpui-starter" target="_blank" rel="noopener" class="btn btn-lg btn-accent"
+          >Clone on GitHub</a
+        >
+      </div>
+    </div>
+  </section>
 </MarketingLayout>
+
+<script>
+  // ---------- hero terminal tabs ----------
+  (() => {
+    const tabs = document.querySelector<HTMLElement>('[data-heroterm-tabs]');
+    if (!tabs) return;
+    const paint = () =>
+      tabs.querySelectorAll<HTMLElement>('.heroterm-tab').forEach((t) => {
+        const on = t.getAttribute('aria-selected') === 'true';
+        t.style.background = on ? 'var(--color-canvas)' : 'transparent';
+        t.style.color = on ? 'var(--color-fg)' : 'var(--color-fg-muted)';
+        t.style.borderBottomColor = on ? 'transparent' : 'var(--color-rule)';
+      });
+    tabs.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLElement>('.heroterm-tab');
+      if (!btn) return;
+      tabs.querySelectorAll('.heroterm-tab').forEach((t) => t.setAttribute('aria-selected', String(t === btn)));
+      document
+        .querySelectorAll<HTMLElement>('[data-term-panel]')
+        .forEach((p) => p.classList.toggle('hidden', p.dataset.termPanel !== btn.dataset.term));
+      paint();
+    });
+    paint();
+  })();
+
+  // ---------- workflow stepper ----------
+  (() => {
+    const root = document.querySelector<HTMLElement>('[data-stepper]');
+    if (!root) return;
+    const titles = ['install', 'theme it', 'test', 'bundle', 'ship'];
+    const steps = root.querySelectorAll<HTMLElement>('.step');
+    const bar = document.querySelector<HTMLElement>('[data-step-title]');
+    const paint = () =>
+      steps.forEach((s) => {
+        const on = s.getAttribute('aria-selected') === 'true';
+        s.style.background = on ? 'var(--color-panel)' : 'transparent';
+        s.style.borderLeft = on ? '2px solid var(--color-accent)' : '2px solid transparent';
+        const idx = s.querySelector<HTMLElement>('.step-idx');
+        const title = s.querySelector<HTMLElement>('.step-title');
+        const desc = s.querySelector<HTMLElement>('.step-desc');
+        if (idx) idx.style.color = on ? 'var(--color-accent)' : 'var(--color-fg-subtle)';
+        if (title) title.style.color = on ? 'var(--color-fg)' : 'var(--color-fg-muted)';
+        if (desc) desc.classList.toggle('hidden', !on);
+      });
+    steps.forEach((s) =>
+      s.addEventListener('click', () => {
+        steps.forEach((o) => o.setAttribute('aria-selected', String(o === s)));
+        const i = s.dataset.step;
+        document
+          .querySelectorAll<HTMLElement>('.codebody > pre[data-panel]')
+          .forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== i));
+        if (bar) bar.textContent = 'terminal · ' + titles[Number(i)];
+        paint();
+      })
+    );
+    paint();
+  })();
+
+  // ---------- API explorer ----------
+  (() => {
+    const tabs = document.querySelector<HTMLElement>('[data-explorer-tabs]');
+    const panels = document.querySelector<HTMLElement>('[data-explorer-panels]');
+    if (!tabs || !panels) return;
+    tabs.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-tab]');
+      if (!btn) return;
+      tabs.querySelectorAll('[data-tab]').forEach((t) => t.setAttribute('aria-selected', String(t === btn)));
+      panels
+        .querySelectorAll<HTMLElement>('[data-panel]')
+        .forEach((p) => p.classList.toggle('hidden', p.dataset.panel !== btn.dataset.tab));
+    });
+  })();
+</script>

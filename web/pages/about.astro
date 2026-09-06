@@ -1,203 +1,194 @@
 ---
 import MarketingLayout from '../layouts/MarketingLayout.astro';
 import { latestVersion } from '../util/changelog';
+
+const principles = [
+  {
+    title: 'Real Rust code',
+    sub: 'the version that has to compile',
+    body: 'Proper error handling, entity lifecycle management, render purity. The kind of code you write when the app has to work.',
+  },
+  {
+    title: 'Everything ships',
+    sub: 'working on first run',
+    body: 'Themes, i18n, forms, launcher, tray icon. All working the first time you run cargo run.',
+  },
+  {
+    title: 'Battle-tested structure',
+    sub: 'from production apps',
+    body: 'State tiers, render purity, backpressure handling. Patterns used in production GPUI apps, not ones that looked good in a blog post.',
+  },
+  {
+    title: 'Open source',
+    sub: 'MIT licensed',
+    body: 'Fork it, change it, ship it. No attribution required, no strings attached.',
+  },
+];
+
+const mechanics = [
+  {
+    title: 'AppRoot owns the layout',
+    body: 'A resizable sidebar next to a content area. Pages are enum variants; the active one gets rendered.',
+  },
+  {
+    title: 'Sidebar drives navigation',
+    body: 'Click a nav item to switch pages. The content area re-renders with the new view. No router, just an enum match.',
+  },
+  {
+    title: 'Cmd+K launcher',
+    body: 'A floating popup with fuzzy search. Selections write back through a global, so any part of the app can respond.',
+  },
+  {
+    title: 'Themes reload from disk',
+    body: 'ThemeRegistry watches the themes/ directory. Edit a JSON file, save it, and the running app picks up the change immediately.',
+  },
+  {
+    title: 'gpui-query handles async data',
+    body: 'Fetch from APIs, cache results, refetch on a timer. The same pattern as TanStack Query, built for GPUI entities.',
+  },
+  {
+    title: 'The updater checks for new versions',
+    body: 'ed25519-signed manifests from GitHub Releases. The app prompts the user, downloads in the background, and applies on next launch.',
+  },
+];
 ---
 
-<MarketingLayout title="About gpui-starter" description="Why gpui-starter exists, design principles, how it works, and the person behind the project.">
-
-  <!-- Hero -->
-  <section class="relative z-10 pt-32 pb-16 px-6">
-    <div class="max-w-3xl mx-auto text-center">
-      <div class="reveal flex justify-center mb-6">
-        <a href="/" class="badge no-underline">
-          <svg
-            width="11"
-            height="11"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="text-amber rotate-180"
-            aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg
-          >
-          <span class="text-text-dim">Back to home</span>
-        </a>
-      </div>
-      <span class="eyebrow">// About</span>
-      <h1 class="reveal mt-4 text-4xl sm:text-5xl font-extrabold tracking-tight leading-[1.1] headline-glow">
-        Copy it. Ship it.<br /><span class="gradient-text">Make it yours.</span>
+<MarketingLayout
+  title="About gpui-starter"
+  description="Why gpui-starter exists, design principles, how it works, and the person behind the project."
+  ogImage="/og/pages/about.png"
+>
+  <!-- ===== HERO ===== -->
+  <section class="border-b border-line">
+    <div class="frame py-14 md:py-20">
+      <p class="eyebrow">About</p>
+      <h1 class="display t-hero mt-5 max-w-[14ch]">
+        Copy it. Ship it. <span class="text-accent">Make it yours.</span>
       </h1>
-      <p class="reveal mt-6 text-lg text-text-dim max-w-lg mx-auto">
-        gpui-starter is a working multi-page desktop app you can clone and
-        build on. Every feature actually runs. The patterns come from shipping
-        real GPUI software, not from imagining what might work.
+      <p class="lead mt-7 max-w-[58ch]">
+        gpui-starter is a working multi-page desktop app you can clone and build on. Every
+        feature actually runs. The patterns come from shipping real GPUI software, not from
+        imagining what might work.
       </p>
     </div>
   </section>
 
-  <!-- Why it exists -->
-  <section class="py-12 px-6 reveal">
-    <div class="max-w-4xl mx-auto">
-      <div class="glass rounded-2xl p-8 md:p-10">
-        <h2 class="text-2xl font-bold mb-4">Why it exists</h2>
-        <p class="text-text-dim leading-relaxed">
-          GPUI is Zed's GPU-accelerated UI framework for Rust. The API is solid
-          and fast, but there is almost nothing written about how to structure a
-          real app with it. gpui-starter started as a personal reference: a
-          working desktop application with navigation, themes, i18n, forms, and
-          system integration wired up end to end. Other people found it useful,
-          so I cleaned it up and released it.
+  <!-- ===== WHY ===== -->
+  <section class="sect">
+    <div class="wrap grid lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] gap-8 lg:gap-12 items-start">
+      <h2 class="display t-h2 max-w-[12ch]">Why it exists.</h2>
+      <div class="copy max-w-[64ch]">
+        <p>
+          GPUI is Zed's GPU-accelerated UI framework for Rust. The API is solid and fast, but
+          there is almost nothing written about how to structure a real app with it.
+        </p>
+        <p>
+          gpui-starter started as a personal reference: a working desktop application with
+          navigation, themes, i18n, forms, and system integration wired up end to end. Other
+          people found it useful, so I cleaned it up and released it.
         </p>
       </div>
     </div>
   </section>
 
-  <!-- Design principles -->
-  <section class="py-12 px-6 reveal">
-    <div class="max-w-4xl mx-auto">
-      <h2 class="text-2xl font-bold mb-6 text-center">Design principles</h2>
-      <div class="grid md:grid-cols-2 gap-5">
-        <div class="glass rounded-2xl p-6">
-          <div class="icon-box mb-3">
-            <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
-          </div>
-          <h3 class="text-lg font-bold mb-2">Real Rust code</h3>
-          <p class="text-sm text-text-dim">Not toy examples. Proper error handling, entity lifecycle management, render purity. The kind of code you write when the app has to work.</p>
+  <!-- ===== PRINCIPLES ===== -->
+  <section class="sect-rule">
+    <div class="wrap">
+      <p class="eyebrow">Design principles</p>
+      <h2 class="display t-h2 mt-4 max-w-[18ch]">Four rules the repo keeps.</h2>
+
+      <div class="mt-12 ruled grid sm:grid-cols-2 lg:grid-cols-4 reveal">
+        {principles.map((p) => (
+          <article class="p-6 flex flex-col">
+            <h3 class="text-[17px] font-bold tracking-[-.01em]">{p.title}</h3>
+            <p class="mono text-[11px] text-fg-subtle mt-1.5">{p.sub}</p>
+            <p class="text-[14px] text-fg-muted mt-4 leading-relaxed flex-1">{p.body}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== HOW IT WORKS ===== -->
+  <section class="sect">
+    <div class="wrap">
+      <p class="eyebrow">Mechanics</p>
+      <h2 class="display t-h2 mt-4 max-w-[16ch]">How it works.</h2>
+
+      <ol class="list-none p-0 m-0 mt-11 reveal">
+        {mechanics.map((m, i) => (
+          <li class="flex gap-5 py-5 border-b border-line">
+            <span class="num text-[12px] text-accent shrink-0 pt-1">{String(i + 1).padStart(2, '0')}</span>
+            <div>
+              <h3 class="text-[16px] font-bold">{m.title}</h3>
+              <p class="text-[14px] text-fg-muted mt-1.5 leading-relaxed max-w-[70ch]">{m.body}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+
+  <!-- ===== FACTS ===== -->
+  <section class="sect-rule">
+    <div class="wrap">
+      <p class="eyebrow">At a glance</p>
+
+      <div class="mt-8 ruled grid grid-cols-2 md:grid-cols-5 reveal">
+        <div class="p-6">
+          <div class="num text-[26px] font-semibold">v{latestVersion}</div>
+          <div class="mono text-[11px] text-fg-muted mt-2">current version</div>
         </div>
-        <div class="glass rounded-2xl p-6">
-          <div class="icon-box mb-3">
-            <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-          </div>
-          <h3 class="text-lg font-bold mb-2">Everything ships</h3>
-          <p class="text-sm text-text-dim">Themes, i18n, forms, launcher, tray icon. All working when you first run <code>cargo run</code>. No stub sections to fill in later.</p>
+        <div class="p-6">
+          <div class="num text-[26px] font-semibold">24</div>
+          <div class="mono text-[11px] text-fg-muted mt-2">built-in themes</div>
         </div>
-        <div class="glass rounded-2xl p-6">
-          <div class="icon-box mb-3">
-            <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
-          </div>
-          <h3 class="text-lg font-bold mb-2">Battle-tested structure</h3>
-          <p class="text-sm text-text-dim">State tiers, render purity, backpressure handling. Patterns I use in production GPUI apps, not things that looked good in a blog post.</p>
+        <div class="p-6">
+          <div class="num text-[26px] font-semibold">6</div>
+          <div class="mono text-[11px] text-fg-muted mt-2">pages wired</div>
         </div>
-        <div class="glass rounded-2xl p-6">
-          <div class="icon-box mb-3">
-            <svg class="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          </div>
-          <h3 class="text-lg font-bold mb-2">Open source</h3>
-          <p class="text-sm text-text-dim">MIT licensed. Fork it, change it, ship it. No attribution required, no strings attached.</p>
+        <div class="p-6">
+          <div class="num text-[26px] font-semibold">MIT</div>
+          <div class="mono text-[11px] text-fg-muted mt-2">license</div>
+        </div>
+        <div class="p-6">
+          <div class="num text-[26px] font-semibold">2024</div>
+          <div class="mono text-[11px] text-fg-muted mt-2">rust edition</div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- How it works -->
-  <section class="py-12 px-6 reveal">
-    <div class="max-w-3xl mx-auto">
-      <h2 class="text-2xl font-bold mb-6">How it works</h2>
-      <div class="space-y-4">
-        <div class="glass rounded-xl p-5 flex gap-4 items-start">
-          <span class="stat-num text-2xl font-extrabold shrink-0">1</span>
-          <div>
-            <h3 class="font-bold mb-1">AppRoot owns the layout</h3>
-            <p class="text-sm text-text-dim">A resizable sidebar next to a content area. Pages are enum variants; the active one gets rendered.</p>
-          </div>
-        </div>
-        <div class="glass rounded-xl p-5 flex gap-4 items-start">
-          <span class="stat-num text-2xl font-extrabold shrink-0">2</span>
-          <div>
-            <h3 class="font-bold mb-1">Sidebar drives navigation</h3>
-            <p class="text-sm text-text-dim">Click a nav item to switch pages. The content area re-renders with the new view. No router, just an enum match.</p>
-          </div>
-        </div>
-        <div class="glass rounded-xl p-5 flex gap-4 items-start">
-          <span class="stat-num text-2xl font-extrabold shrink-0">3</span>
-          <div>
-            <h3 class="font-bold mb-1">Cmd+K launcher</h3>
-            <p class="text-sm text-text-dim">A floating popup with fuzzy search. Selections write back through a global, so any part of the app can respond.</p>
-          </div>
-        </div>
-        <div class="glass rounded-xl p-5 flex gap-4 items-start">
-          <span class="stat-num text-2xl font-extrabold shrink-0">4</span>
-          <div>
-            <h3 class="font-bold mb-1">Themes reload from disk</h3>
-            <p class="text-sm text-text-dim">ThemeRegistry watches the themes/ directory. Edit a JSON file, save it, and the running app picks up the change immediately.</p>
-          </div>
-        </div>
-        <div class="glass rounded-xl p-5 flex gap-4 items-start">
-          <span class="stat-num text-2xl font-extrabold shrink-0">5</span>
-          <div>
-            <h3 class="font-bold mb-1">gpui-query handles async data</h3>
-            <p class="text-sm text-text-dim">Fetch from APIs, cache results, refetch on a timer. Same pattern as TanStack Query, built for GPUI entities.</p>
-          </div>
-        </div>
-        <div class="glass rounded-xl p-5 flex gap-4 items-start">
-          <span class="stat-num text-2xl font-extrabold shrink-0">6</span>
-          <div>
-            <h3 class="font-bold mb-1">Auto-updater checks for new versions</h3>
-            <p class="text-sm text-text-dim">Ed25519-signed manifests from GitHub Releases. The app prompts the user, downloads in the background, and applies on next launch.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Stats -->
-  <section class="py-12 px-6 reveal">
-    <div class="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-5 gap-5 text-center">
-      <div class="glass rounded-xl p-5">
-        <div class="stat-num text-2xl font-extrabold">v{latestVersion}</div>
-        <div class="text-sm text-text-mute mt-1">Current version</div>
-      </div>
-      <div class="glass rounded-xl p-5">
-        <div class="stat-num text-2xl font-extrabold">21</div>
-        <div class="text-sm text-text-mute mt-1">Built-in themes</div>
-      </div>
-      <div class="glass rounded-xl p-5">
-        <div class="stat-num text-2xl font-extrabold">gpui-query</div>
-        <div class="text-sm text-text-mute mt-1">Async data crate</div>
-      </div>
-      <div class="glass rounded-xl p-5">
-        <div class="stat-num text-2xl font-extrabold">MIT</div>
-        <div class="text-sm text-text-mute mt-1">License</div>
-      </div>
-      <div class="glass rounded-xl p-5">
-        <div class="stat-num text-2xl font-extrabold">2024</div>
-        <div class="text-sm text-text-mute mt-1">Rust edition</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Author -->
-  <section class="py-12 px-6 reveal">
-    <div class="max-w-3xl mx-auto">
-      <div class="glass rounded-2xl p-8 flex flex-col md:flex-row gap-6 items-center md:items-start">
-        <div class="w-16 h-16 rounded-full bg-amber/20 flex items-center justify-center shrink-0">
-          <span class="text-2xl font-bold text-amber">H</span>
-        </div>
+  <!-- ===== AUTHOR ===== -->
+  <section class="sect">
+    <div class="wrap">
+      <div class="flex flex-col sm:flex-row items-start gap-5 p-7 border border-line max-w-[70ch]">
+        <span class="grid place-items-center w-14 h-14 shrink-0 bg-fg text-canvas display text-[22px] rounded-[10px]" aria-hidden="true">h</span>
         <div>
-          <h3 class="text-lg font-bold">hmziqrs</h3>
-          <p class="text-sm text-text-dim mt-1">
-            Rust developer. I build desktop tools and maintain a few open source
-            projects when the compiler lets me.
+          <h2 class="text-[17px] font-bold">hmziqrs</h2>
+          <p class="text-[14px] text-fg-muted mt-2 leading-relaxed">
+            Rust developer. I build desktop tools and maintain a few open source projects when
+            the compiler lets me.
           </p>
-          <div class="flex gap-4 mt-3">
-            <a href="https://github.com/hmziqrs" target="_blank" rel="noopener" class="text-sm text-text-mute no-underline hover:text-amber transition-colors">GitHub</a>
-            <a href="https://hmziq.rs" target="_blank" rel="noopener" class="text-sm text-text-mute no-underline hover:text-amber transition-colors">hmziq.rs</a>
+          <div class="flex gap-4 mt-4 text-[13.5px]">
+            <a href="https://github.com/hmziqrs" target="_blank" rel="noopener" class="qlink">GitHub</a>
+            <a href="https://hmziq.rs" target="_blank" rel="noopener" class="qlink">hmziq.rs</a>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- CTA -->
-  <section class="py-16 px-6 reveal">
-    <div class="max-w-3xl mx-auto text-center">
-      <div class="flex flex-wrap justify-center gap-4">
-        <a href="/docs/" class="btn-primary">Get started</a>
-        <a href="https://github.com/freeoxide/gpui-starter" target="_blank" rel="noopener" class="btn-secondary">View on GitHub</a>
+  <!-- ===== CTA ===== -->
+  <section class="sect-rule">
+    <div class="wrap text-center">
+      <h2 class="display t-h2 max-w-[18ch] mx-auto">Clone it and start deleting.</h2>
+      <div class="mt-8 flex flex-wrap justify-center gap-3">
+        <a href="/docs/getting-started/" class="btn btn-lg btn-solid">Get started</a>
+        <a href="https://github.com/freeoxide/gpui-starter" target="_blank" rel="noopener" class="btn btn-lg btn-accent">
+          View on GitHub
+        </a>
       </div>
     </div>
   </section>
-
 </MarketingLayout>

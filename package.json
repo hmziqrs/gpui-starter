@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit",
     "deploy": "gh workflow run deploy-docs.yml",
     "og:gen": "bun scripts/generate-og.ts",
-    "og:gen:all": "bun scripts/generate-og.ts"
+    "icons:gen": "bun scripts/generate-icons.ts"
   },
   "keywords": [
     "gpui",
@@ -28,7 +28,7 @@
     "type": "git",
     "url": "git+https://github.com/freeoxide/gpui-starter.git"
   },
-  "homepage": "https://gpui-starter.hmziq.xyz",
+  "homepage": "https://gpui-starter.freeoxide.com",
   "bugs": {
     "url": "https://github.com/freeoxide/gpui-starter/issues"
   },
@@ -36,12 +36,13 @@
     "@astrojs/check": "^0.9.10",
     "@astrojs/sitemap": "^3.7.4",
     "@astrojs/starlight": "^0.41.10",
+    "@fontsource/archivo": "^5.3.0",
+    "@fontsource/martian-mono": "^5.3.0",
     "@tailwindcss/vite": "^4.3.0",
     "@types/node": "^20.0.0",
     "astro": "^7.2.10",
     "oxlint": "^1.67.0",
     "tailwindcss": "^4.3.0",
-    "three": "^0.184.0",
     "typescript": "^6.0.3"
   },
   "dependencies": {

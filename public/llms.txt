@@ -70,7 +70,7 @@ themes/                 # 21 JSON theme files (not Rust code)
 
 ## Documentation
 
-Docs at https://gpui-starter.hmziq.xyz/docs/
+Docs at https://gpui-starter.freeoxide.com/docs/
 
 - **Getting Started** — install, run, prerequisites
 - **Architecture** — GPUI patterns, entities, globals, context
@@ -95,7 +95,7 @@ Docs at https://gpui-starter.hmziq.xyz/docs/
 
 ## Blog
 
-75 posts at https://gpui-starter.hmziq.xyz/blog/
+75 posts at https://gpui-starter.freeoxide.com/blog/
 
 ### Getting Started
 
@@ -213,7 +213,7 @@ Docs at https://gpui-starter.hmziq.xyz/docs/
 
 ## FAQ
 
-18 entries at https://gpui-starter.hmziq.xyz/faq/
+18 entries at https://gpui-starter.freeoxide.com/faq/
 
 - What is GPUI?
 - Why use gpui-starter?
@@ -236,8 +236,8 @@ Docs at https://gpui-starter.hmziq.xyz/docs/
 
 ## Links
 
-- Docs: https://gpui-starter.hmziq.xyz/docs/
-- Blog: https://gpui-starter.hmziq.xyz/blog/
-- FAQ: https://gpui-starter.hmziq.xyz/faq/
+- Docs: https://gpui-starter.freeoxide.com/docs/
+- Blog: https://gpui-starter.freeoxide.com/blog/
+- FAQ: https://gpui-starter.freeoxide.com/faq/
 - GitHub: https://github.com/freeoxide/gpui-starter
 - Issues: https://github.com/freeoxide/gpui-starter/issues

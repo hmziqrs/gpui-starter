@@ -7,10 +7,10 @@ const { src, title } = Astro.props;
 const id = `ap-${Math.random().toString(36).slice(2, 8)}`;
 ---
 
-<div class="audio-player glass rounded-2xl px-5 py-4 mb-10" data-player={id}>
+<div class="audio-player border border-line px-5 py-4 mb-10" data-player={id}>
   <div class="flex items-center gap-4">
     <button
-      class="play-btn flex-shrink-0 w-10 h-10 rounded-full border border-edge bg-[rgba(245,158,11,0.06)] hover:bg-[rgba(245,158,11,0.14)] hover:border-edge-hover text-amber flex items-center justify-center transition-all duration-200"
+      class="play-btn shrink-0 w-10 h-10 rounded-full border border-line hover:border-rule bg-transparent hover:bg-raise text-accent flex items-center justify-center transition-colors duration-150 cursor-pointer"
       aria-label="Play"
     >
       <svg class="icon-play w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
@@ -22,28 +22,28 @@ const id = `ap-${Math.random().toString(36).slice(2, 8)}`;
     </button>
 
     <div class="flex-1 min-w-0">
-      <p class="text-xs text-text-mute font-mono mb-2 truncate">{title}</p>
+      <p class="mono text-[11px] text-fg-subtle mb-2 truncate">{title}</p>
       <div class="flex items-center gap-3">
         <div
-          class="progress-track relative flex-1 h-1 bg-[rgba(245,158,11,0.1)] rounded-full cursor-pointer group"
+          class="progress-track relative flex-1 h-1 bg-track cursor-pointer group"
         >
           <div
-            class="progress-fill h-full bg-amber rounded-full pointer-events-none transition-none"
+            class="progress-fill h-full bg-accent pointer-events-none transition-none"
             style="width:0%"
           ></div>
           <div
-            class="progress-thumb absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-amber opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+            class="progress-thumb absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-accent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
             style="left:0%"
           ></div>
         </div>
-        <span class="time-display text-xs font-mono text-text-mute whitespace-nowrap tabular-nums">
+        <span class="time-display num text-[11px] text-fg-subtle whitespace-nowrap">
           0:00 / 0:00
         </span>
       </div>
     </div>
 
-    <div class="flex items-center gap-2 flex-shrink-0">
-      <button class="mute-btn text-text-mute hover:text-amber transition-colors" aria-label="Mute">
+    <div class="flex items-center gap-2 shrink-0">
+      <button class="mute-btn text-fg-subtle hover:text-fg transition-colors bg-transparent border-0 cursor-pointer" aria-label="Mute">
         <svg class="icon-vol w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
           <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
         </svg>
@@ -53,7 +53,7 @@ const id = `ap-${Math.random().toString(36).slice(2, 8)}`;
       </button>
       <input
         type="range"
-        class="vol-slider w-16 h-1 accent-amber cursor-pointer"
+        class="vol-slider w-16 h-1 accent-accent cursor-pointer"
         min="0"
         max="1"
         step="0.05"

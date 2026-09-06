@@ -17,39 +17,22 @@ const sections = [
 ];
 ---
 
-<Layout title={title} description={description}>
+<Layout title={title} description={description} ogImage="/og/pages/privacy.png">
   <!-- HERO -->
-  <section class="relative z-10 pt-32 pb-12 px-6">
-    <div class="max-w-4xl mx-auto">
-      <div class="reveal flex justify-center mb-6">
-        <a href="/" class="badge no-underline">
-          <svg
-            width="11"
-            height="11"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="text-amber rotate-180"
-            aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg
-          >
-          <span class="text-text-dim">Back to home</span>
-        </a>
-      </div>
+  <section class="border-b border-line">
+    <div class="frame py-14 md:py-20">
 
-      <div class="reveal text-center">
-        <span class="eyebrow">// Legal</span>
+      <div>
+        <p class="eyebrow">Legal</p>
         <h1
-          class="mt-5 text-5xl sm:text-6xl font-extrabold tracking-[-0.03em] leading-[1.05] headline-glow"
+          class="display t-hero mt-5"
         >
-          Privacy <span class="gradient-text">Policy.</span>
+          Privacy <span class="text-accent">Policy.</span>
         </h1>
-        <p class="mt-5 font-mono text-sm text-text-mute">
+        <p class="mono text-[12px] text-fg-subtle mt-5">
           Last updated <time datetime={updated}>{updated}</time>
         </p>
-        <p class="mt-6 text-lg text-text-dim max-w-2xl mx-auto leading-relaxed">
+        <p class="lead mt-7 max-w-[62ch]">
           Short version: we use Google Analytics (via Firebase) for basic page-view
           stats with anonymized IPs and nothing else. This page spells out the
           details, covers what the website and desktop app each do, and lists your
@@ -60,17 +43,17 @@ const sections = [
   </section>
 
   <!-- TWO COLUMN: TOC + CONTENT -->
-  <section class="relative z-10 px-6 pb-24">
+  <section class="sect">
     <div
-      class="max-w-5xl mx-auto grid lg:grid-cols-[16rem_1fr] gap-10 items-start"
+      class="wrap grid lg:grid-cols-[16rem_1fr] gap-10 items-start"
     >
       <!-- Sticky TOC -->
-      <aside class="reveal lg:sticky lg:top-24 self-start">
-        <div class="glass rounded-2xl p-5">
+      <aside class="lg:sticky lg:top-28 self-start">
+        <div class="border border-line p-5">
           <h2
-            class="text-[11px] font-mono uppercase tracking-[0.12em] text-amber mb-3"
+            class="eyebrow mb-3"
           >
-            // Contents
+            Contents
           </h2>
           <nav>
             <ol class="space-y-1.5 list-none p-0 m-0 mono">
@@ -79,12 +62,12 @@ const sections = [
                   <li>
                     <a
                       href={`#${s.id}`}
-                      class="flex items-baseline gap-3 px-2 py-1.5 rounded-md text-sm text-text-dim hover:text-amber hover:bg-amber/[0.04] no-underline transition-colors"
+                      class="flex items-baseline gap-3 px-2 py-1.5 text-[13.5px] text-fg-muted hover:text-fg hover:bg-panel no-underline transition-colors"
                     >
-                      <span class="font-mono text-xs text-text-mute w-5 flex-shrink-0">
+                      <span class="num text-[11px] text-fg-subtle w-5 shrink-0">
                         {String(i + 1).padStart(2, '0')}
                       </span>
-                      <span class="font-sans">{s.label}</span>
+                      <span>{s.label}</span>
                     </a>
                   </li>
                 ))
@@ -95,21 +78,21 @@ const sections = [
       </aside>
 
       <!-- Content -->
-      <article class="reveal space-y-5">
-        <div class="glass rounded-2xl p-7 sm:p-9">
+      <article class="space-y-px">
+        <div class="border border-line p-7 sm:p-9">
           <h2
             id="scope"
-            class="scroll-mt-24 text-xl sm:text-2xl font-bold tracking-tight mb-3"
+            class="display scroll-mt-28 text-[1.4rem] sm:text-[1.6rem] mb-4"
           >
-            <span class="font-mono text-amber mr-2">01</span>Scope
+            <span class="num text-accent text-[0.7em] mr-2.5">01</span>Scope
           </h2>
-          <div class="space-y-3 text-text-dim leading-relaxed text-[0.95rem]">
+          <div class="space-y-3 text-fg-muted leading-relaxed text-[0.95rem]">
             <p>
-              This policy covers two things: <strong class="text-text"
+              This policy covers two things: <strong class="text-fg"
                 >the gpui-starter website</strong
               > at <code
-                class="font-mono text-amber bg-amber/10 px-1.5 py-0.5 rounded text-[0.85em]"
-                >gpui-starter.hmziq.xyz</code
+                class="inline"
+                >gpui-starter.freeoxide.com</code
               > and the gpui-starter desktop application.
             </p>
             <p>
@@ -120,66 +103,66 @@ const sections = [
           </div>
         </div>
 
-        <div class="glass rounded-2xl p-7 sm:p-9">
+        <div class="border border-line p-7 sm:p-9">
           <h2
             id="data-we-collect"
-            class="scroll-mt-24 text-xl sm:text-2xl font-bold tracking-tight mb-3"
+            class="display scroll-mt-28 text-[1.4rem] sm:text-[1.6rem] mb-4"
           >
-            <span class="font-mono text-amber mr-2">02</span>Data we collect
+            <span class="num text-accent text-[0.7em] mr-2.5">02</span>Data we collect
           </h2>
-          <p class="text-text-dim leading-relaxed text-[0.95rem] mb-4">
-            The website uses <strong class="text-text">Google Analytics</strong> (via
+          <p class="text-fg-muted leading-relaxed text-[0.95rem] mb-4">
+            The website uses <strong class="text-fg">Google Analytics</strong> (via
             Firebase) to understand basic usage patterns. It automatically collects:
           </p>
           <ul class="space-y-2 list-none p-0 m-0">
-            <li class="flex gap-3 text-[0.93rem] text-text-dim">
+            <li class="flex gap-3 text-[0.93rem] text-fg-muted">
               <span
-                class="flex-shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-amber"
+                class="shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-accent"
               ></span>Page views (URL, title, referrer)
             </li>
-            <li class="flex gap-3 text-[0.93rem] text-text-dim">
+            <li class="flex gap-3 text-[0.93rem] text-fg-muted">
               <span
-                class="flex-shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-amber"
+                class="shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-accent"
               ></span>Device info (browser, OS, screen resolution)
             </li>
-            <li class="flex gap-3 text-[0.93rem] text-text-dim">
+            <li class="flex gap-3 text-[0.93rem] text-fg-muted">
               <span
-                class="flex-shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-amber"
+                class="shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-accent"
               ></span>Anonymized IP address (last octet zeroed out)
             </li>
-            <li class="flex gap-3 text-[0.93rem] text-text-dim">
+            <li class="flex gap-3 text-[0.93rem] text-fg-muted">
               <span
-                class="flex-shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-amber"
+                class="shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-accent"
               ></span>Session duration and engagement metrics
             </li>
           </ul>
-          <p class="text-text-dim leading-relaxed text-[0.95rem] mt-4">
+          <p class="text-fg-muted leading-relaxed text-[0.95rem] mt-4">
             No cookies are used for tracking. Firebase Analytics relies on
             first-party storage. We do not collect names, emails, or any personally
-            identifiable information. The desktop app collects <strong class="text-text">nothing</strong>.
+            identifiable information. The desktop app collects <strong class="text-fg">nothing</strong>.
           </p>
         </div>
 
-        <div class="glass rounded-2xl p-7 sm:p-9">
+        <div class="border border-line p-7 sm:p-9">
           <h2
             id="data-we-dont"
-            class="scroll-mt-24 text-xl sm:text-2xl font-bold tracking-tight mb-3"
+            class="display scroll-mt-28 text-[1.4rem] sm:text-[1.6rem] mb-4"
           >
-            <span class="font-mono text-amber mr-2">03</span>Data we don't
+            <span class="num text-accent text-[0.7em] mr-2.5">03</span>Data we don't
             collect
           </h2>
           <ul class="space-y-2 list-none p-0 m-0">
-            <li class="flex gap-3 text-[0.93rem] text-text-dim">
+            <li class="flex gap-3 text-[0.93rem] text-fg-muted">
               <span
                 class="flex-shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-cyan-400"
               ></span>Name, email, or any other personally identifiable information
             </li>
-            <li class="flex gap-3 text-[0.93rem] text-text-dim">
+            <li class="flex gap-3 text-[0.93rem] text-fg-muted">
               <span
                 class="flex-shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-cyan-400"
               ></span>Cross-site trackers or third-party ad pixels
             </li>
-            <li class="flex gap-3 text-[0.93rem] text-text-dim">
+            <li class="flex gap-3 text-[0.93rem] text-fg-muted">
               <span
                 class="flex-shrink-0 mt-2 w-1.5 h-1.5 rounded-full bg-cyan-400"
               ></span>Any data from the desktop application
@@ -187,66 +170,66 @@ const sections = [
           </ul>
         </div>
 
-        <div class="glass rounded-2xl p-7 sm:p-9">
+        <div class="border border-line p-7 sm:p-9">
           <h2
             id="third-party"
-            class="scroll-mt-24 text-xl sm:text-2xl font-bold tracking-tight mb-3"
+            class="display scroll-mt-28 text-[1.4rem] sm:text-[1.6rem] mb-4"
           >
-            <span class="font-mono text-amber mr-2">04</span>Third-party services
+            <span class="num text-accent text-[0.7em] mr-2.5">04</span>Third-party services
           </h2>
-          <p class="text-text-dim leading-relaxed text-[0.95rem] mb-4">
+          <p class="text-fg-muted leading-relaxed text-[0.95rem] mb-4">
             The site loads the following external resources:
           </p>
           <div class="space-y-3">
             <div
-              class="flex gap-4 items-start p-4 rounded-xl border border-edge bg-amber/[0.03]"
+              class="flex gap-4 items-start p-4 rounded-xl border border-line bg-accent/[0.03]"
             >
-              <div class="font-mono text-xs text-amber mt-0.5">&rarr;</div>
+              <div class="font-mono text-xs text-accent mt-0.5">&rarr;</div>
               <div>
-                <div class="font-semibold text-text">Google Analytics (via Firebase)</div>
-                <p class="text-sm text-text-dim mt-1">
+                <div class="font-semibold text-fg">Google Analytics (via Firebase)</div>
+                <p class="text-sm text-fg-muted mt-1">
                   We use Firebase Analytics to collect anonymized page-view data.
                   The Firebase SDK is loaded from <code
-                    class="font-mono text-amber bg-amber/10 px-1 py-0.5 rounded text-[0.85em]"
+                    class="font-mono text-accent bg-accent/10 px-1 py-0.5 rounded text-[0.85em]"
                   >gstatic.com</code>. Their privacy practices are documented in the <a
                     href="https://policies.google.com/privacy"
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="text-amber no-underline hover:underline"
+                    class="text-accent no-underline hover:underline"
                     >Google Privacy Policy</a>.
                 </p>
               </div>
             </div>
             <div
-              class="flex gap-4 items-start p-4 rounded-xl border border-edge bg-amber/[0.03]"
+              class="flex gap-4 items-start p-4 rounded-xl border border-line bg-accent/[0.03]"
             >
-              <div class="font-mono text-xs text-amber mt-0.5">&rarr;</div>
+              <div class="font-mono text-xs text-accent mt-0.5">&rarr;</div>
               <div>
-                <div class="font-semibold text-text">Google Fonts</div>
-                <p class="text-sm text-text-dim mt-1">
+                <div class="font-semibold text-fg">Google Fonts</div>
+                <p class="text-sm text-fg-muted mt-1">
                   We serve Inter and JetBrains Mono from Google's CDN. Their
                   privacy practices are documented in the <a
                     href="https://developers.google.com/fonts/faq/privacy"
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="text-amber no-underline hover:underline"
+                    class="text-accent no-underline hover:underline"
                     >Google Fonts privacy FAQ</a
                   >.
                 </p>
               </div>
             </div>
             <div
-              class="flex gap-4 items-start p-4 rounded-xl border border-edge bg-amber/[0.03]"
+              class="flex gap-4 items-start p-4 rounded-xl border border-line bg-accent/[0.03]"
             >
-              <div class="font-mono text-xs text-amber mt-0.5">&rarr;</div>
+              <div class="font-mono text-xs text-accent mt-0.5">&rarr;</div>
               <div>
-                <div class="font-semibold text-text">GitHub</div>
-                <p class="text-sm text-text-dim mt-1">
+                <div class="font-semibold text-fg">GitHub</div>
+                <p class="text-sm text-fg-muted mt-1">
                   Links to <a
                     href="https://github.com/freeoxide/gpui-starter"
                     target="_blank"
                     rel="noopener"
-                    class="text-amber no-underline hover:underline">github.com</a
+                    class="text-accent no-underline hover:underline">github.com</a
                   > take you off this site. GitHub's own privacy policy applies
                   once you arrive there.
                 </p>
@@ -255,62 +238,62 @@ const sections = [
           </div>
         </div>
 
-        <div class="glass rounded-2xl p-7 sm:p-9">
+        <div class="border border-line p-7 sm:p-9">
           <h2
             id="your-rights"
-            class="scroll-mt-24 text-xl sm:text-2xl font-bold tracking-tight mb-3"
+            class="display scroll-mt-28 text-[1.4rem] sm:text-[1.6rem] mb-4"
           >
-            <span class="font-mono text-amber mr-2">05</span>Your rights
+            <span class="num text-accent text-[0.7em] mr-2.5">05</span>Your rights
           </h2>
-          <p class="text-text-dim leading-relaxed text-[0.95rem]">
+          <p class="text-fg-muted leading-relaxed text-[0.95rem]">
             Regulations like GDPR (EU/EEA) and CCPA (California) give you the right
             to access, correct, and delete your personal data. Our analytics
-            collection is limited to anonymized, aggregate data — we do not have
+            collection is limited to anonymized, aggregate data, so we hold no
             personal data to return or delete. You can opt out of Google Analytics
             using the <a
               href="https://tools.google.com/dlpage/gaoptout"
               target="_blank"
               rel="noopener noreferrer"
-              class="text-amber no-underline hover:underline"
+              class="text-accent no-underline hover:underline"
               >Google Analytics opt-out browser add-on</a
             >. If that ever changes, this page will say so.
           </p>
         </div>
 
-        <div class="glass rounded-2xl p-7 sm:p-9">
+        <div class="border border-line p-7 sm:p-9">
           <h2
             id="changes"
-            class="scroll-mt-24 text-xl sm:text-2xl font-bold tracking-tight mb-3"
+            class="display scroll-mt-28 text-[1.4rem] sm:text-[1.6rem] mb-4"
           >
-            <span class="font-mono text-amber mr-2">06</span>Changes to this
+            <span class="num text-accent text-[0.7em] mr-2.5">06</span>Changes to this
             policy
           </h2>
-          <p class="text-text-dim leading-relaxed text-[0.95rem]">
+          <p class="text-fg-muted leading-relaxed text-[0.95rem]">
             If we make material changes, the "last updated" date at the top of this
             page will change. Every revision is tracked in the repo, so you can
             <a
               href="https://github.com/freeoxide/gpui-starter/commits/master/web/pages/privacy.astro"
               target="_blank"
               rel="noopener"
-              class="text-amber no-underline hover:underline"
+              class="text-accent no-underline hover:underline"
               >view the full edit history</a
             >.
           </p>
         </div>
 
-        <div class="glass rounded-2xl p-7 sm:p-9">
+        <div class="border border-line p-7 sm:p-9">
           <h2
             id="contact"
-            class="scroll-mt-24 text-xl sm:text-2xl font-bold tracking-tight mb-3"
+            class="display scroll-mt-28 text-[1.4rem] sm:text-[1.6rem] mb-4"
           >
-            <span class="font-mono text-amber mr-2">07</span>Contact
+            <span class="num text-accent text-[0.7em] mr-2.5">07</span>Contact
           </h2>
-          <p class="text-text-dim leading-relaxed text-[0.95rem]">
+          <p class="text-fg-muted leading-relaxed text-[0.95rem]">
             Questions or takedown requests? Open an <a
               href="https://github.com/freeoxide/gpui-starter/issues"
               target="_blank"
               rel="noopener"
-              class="text-amber no-underline hover:underline">issue on GitHub</a
+              class="text-accent no-underline hover:underline">issue on GitHub</a
             >. That is the fastest way to reach us and it creates a public record
             we can act on promptly.
           </p>
@@ -319,7 +302,7 @@ const sections = [
               href="https://github.com/freeoxide/gpui-starter/issues"
               target="_blank"
               rel="noopener"
-              class="btn-primary"
+              class="btn btn-lg btn-accent"
             >
               Open an issue
               <svg
@@ -335,7 +318,7 @@ const sections = [
                 ><path d="M7 17 17 7"></path><path d="M7 7h10v10"></path></svg
               >
             </a>
-            <a href="/terms/" class="btn-secondary">Read the terms</a>
+            <a href="/terms/" class="btn btn-lg btn-solid">Read the terms</a>
           </div>
         </div>
       </article>

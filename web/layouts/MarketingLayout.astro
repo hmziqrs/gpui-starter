@@ -1,5 +1,5 @@
 ---
-import { latestVersion } from '../util/changelog';
+import { latestVersion, latestHighlight } from '../util/changelog';
 
 interface Props {
   title?: string;
@@ -13,7 +13,7 @@ interface Props {
   noindex?: boolean;
 }
 
-const SITE = 'https://gpui-starter.hmziq.xyz';
+const SITE = 'https://gpui-starter.freeoxide.com';
 const DEFAULT_TITLE = 'gpui-starter: Rust Desktop App Boilerplate with GPUI, SQLite, and Auto-Update';
 const DEFAULT_DESC =
   'Ship Rust desktop apps faster. GPUI starter includes 21 themes, i18n (en + zh-CN), form validation, Cmd+K command palette, macOS tray, SQLite persistence, OS keyring storage, Ed25519-signed auto-update, gpui-query async state management, and AccessKit accessibility. MIT licensed.';
@@ -32,6 +32,7 @@ const {
 } = Astro.props;
 
 const canonical = new URL(Astro.url.pathname, SITE).toString();
+const navSeg = Astro.url.pathname.split('/').filter(Boolean)[0] ?? '';
 const ogImageUrl = ogImage.startsWith('http') ? ogImage : `${SITE}${ogImage}`;
 
 const crumbs = Astro.url.pathname
@@ -149,12 +150,13 @@ if (customJsonLd) jsonLdArray.push(customJsonLd);
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#0d0a0c" />
     <link rel="alternate" type="application/rss+xml" title="gpui-starter Blog (RSS)" href={`${SITE}/feed.xml`} />
     <link rel="alternate" type="application/atom+xml" title="gpui-starter Blog (Atom)" href={`${SITE}/feed.atom`} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Martian+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
     <meta property="og:title" content={title} />
@@ -184,7 +186,7 @@ if (customJsonLd) jsonLdArray.push(customJsonLd);
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImageUrl} />
     <meta name="twitter:image:alt" content={title} />
-    <meta name="twitter:domain" content="gpui-starter.hmziq.xyz" />
+    <meta name="twitter:domain" content="gpui-starter.freeoxide.com" />
     <meta property="pinterest:media" content={ogImageUrl} />
     {jsonLdArray.map((schema) => (
       <script type="application/ld+json" set:html={JSON.stringify(schema)} />
@@ -202,340 +204,157 @@ if (customJsonLd) jsonLdArray.push(customJsonLd);
       @import '../styles/globals.css';
     </style>
   </head>
-  <body class="bg-bg text-text">
-    <div class="scroll-progress" id="scroll-progress"></div>
-    <div class="grid-overlay"></div>
-    <div class="grain"></div>
+  <body>
+    <!-- ===== ANNOUNCEMENT ===== -->
+    <a
+      href="/changelog/"
+      class="block bg-black no-underline border-b border-line"
+    >
+      <div class="wrap h-10 flex items-center justify-center gap-2.5 text-[13px] text-fg text-center">
+        <span class="truncate">gpui-starter v{latestVersion} · {latestHighlight()}</span>
+        <span class="text-fg-muted shrink-0">&rarr;</span>
+      </div>
+    </a>
 
-    <header class="nav-bar fixed top-0 left-0 right-0 z-50">
-      <div
-        class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between"
-      >
-        <a href="/" class="flex items-center gap-3 no-underline">
-          <svg
-            class="brand-mark"
-            viewBox="0 0 64 64"
-            fill="none"
-            width="36"
-            height="36"
-            aria-hidden="true"
+    <!-- ===== HEADER ===== -->
+    <header
+      class="sticky top-0 z-50 backdrop-blur-xl border-b border-line"
+      style="background:rgb(13 10 12 / 86%)"
+    >
+      <div class="wrap h-16 flex items-center gap-6">
+        <a href="/" class="flex items-center gap-2.5 no-underline text-fg shrink-0">
+          <span
+            class="grid place-items-center w-7 h-7 bg-fg text-canvas mono text-[13px] font-semibold rounded-[7px]"
+            aria-hidden="true">g</span
           >
-            <defs>
-              <linearGradient id="brandGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stop-color="#fde68a"></stop>
-                <stop offset="1" stop-color="#d97706"></stop>
-              </linearGradient>
-            </defs>
-            <rect
-              x="10"
-              y="22"
-              width="36"
-              height="28"
-              rx="5"
-              fill="#0c0c0f"
-              stroke="#fbbf24"
-              stroke-opacity=".5"></rect>
-            <rect
-              x="14"
-              y="18"
-              width="36"
-              height="28"
-              rx="5"
-              fill="#0c0c0f"
-              stroke="#d97706"
-              stroke-opacity=".6"></rect>
-            <rect
-              x="18"
-              y="14"
-              width="36"
-              height="28"
-              rx="5"
-              fill="#0c0c0f"
-              stroke="#f59e0b"
-              stroke-opacity=".7"></rect>
-            <rect
-              x="20"
-              y="16"
-              width="28"
-              height="22"
-              rx="5"
-              fill="url(#brandGrad)"></rect>
-            <rect
-              x="26"
-              y="22"
-              width="16"
-              height="3"
-              rx="1.5"
-              fill="#0c0c0f"
-              opacity="0.6"></rect>
-            <rect
-              x="26"
-              y="28"
-              width="10"
-              height="3"
-              rx="1.5"
-              fill="#0c0c0f"
-              opacity="0.4"></rect>
-          </svg>
-          <span class="text-[15px] font-bold tracking-tight text-text"
-            >gpui<span class="text-text-mute">-</span><span class="text-amber"
-              >starter</span
-            ></span
-          >
+          <span class="display text-[20px] tracking-[-.03em]">gpui-starter</span>
         </a>
-        <nav class="flex items-center gap-1" aria-label="Main navigation">
-          <a
-            href="/docs/"
-            class="px-3 py-2 text-sm text-text-dim no-underline hover:text-amber rounded-md transition-colors"
-            >Docs</a
-          >
-          <a
-            href="/blog/"
-            class="px-3 py-2 text-sm text-text-dim no-underline hover:text-amber rounded-md transition-colors"
-            >Blog</a
-          >
-          <a
-            href="/faq/"
-            class="px-3 py-2 text-sm text-text-dim no-underline hover:text-amber rounded-md transition-colors"
-            >FAQ</a
-          >
-          <a
-            href="/changelog/"
-            class="px-3 py-2 text-sm text-text-dim no-underline hover:text-amber rounded-md transition-colors"
-            >Changelog</a
-          >
-          <a
-            href="/about/"
-            class="px-3 py-2 text-sm text-text-dim no-underline hover:text-amber rounded-md transition-colors"
-            >About</a
-          >
+
+        <nav class="hidden md:flex items-center gap-1 ml-3" aria-label="Main navigation">
+          <a href="/docs/getting-started/" class="nav-link" aria-current={navSeg === 'docs' ? 'page' : undefined}>Docs</a>
+          <a href="/blog/" class="nav-link" aria-current={navSeg === 'blog' ? 'page' : undefined}>Blog</a>
+          <a href="/faq/" class="nav-link" aria-current={navSeg === 'faq' ? 'page' : undefined}>FAQ</a>
+          <a href="/changelog/" class="nav-link" aria-current={navSeg === 'changelog' ? 'page' : undefined}>Changelog</a>
+          <a href="/about/" class="nav-link" aria-current={navSeg === 'about' ? 'page' : undefined}>About</a>
+        </nav>
+
+        <div class="flex items-center gap-2 ml-auto">
           <a
             href="https://github.com/freeoxide/gpui-starter"
             target="_blank"
             rel="noopener"
-            class="ml-2 px-3 py-2 text-sm text-text-dim no-underline hover:text-amber rounded-md transition-colors inline-flex items-center gap-1.5"
+            aria-label="GitHub"
+            class="hidden sm:grid place-items-center w-9 h-9 rounded-full text-fg-muted hover:text-fg hover:bg-raise no-underline transition-colors"
           >
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-              aria-hidden="true"
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
               ><path
                 d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.4-4-1.4-.5-1.4-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2 0 1.9 1.2 1.9 1.2 1.1 1.9 2.9 1.4 3.6 1 .1-.8.4-1.4.8-1.7-2.7-.3-5.5-1.3-5.5-6 0-1.3.5-2.4 1.2-3.2-.1-.3-.6-1.5.1-3.2 0 0 1-.3 3.3 1.2A11.5 11.5 0 0 1 12 5.8c1 0 2 .1 3 .4 2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.7-5.5 6 .5.4.9 1.1.9 2.3v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"
               ></path></svg
             >
-            GitHub
           </a>
-        </nav>
+          <a href="/docs/getting-started/" class="btn btn-solid">Install</a>
+        </div>
       </div>
     </header>
 
-    <main class="relative z-10">
+    <main>
       <slot />
     </main>
 
-    <footer
-      class="relative z-10 mt-32 pt-16 pb-10 px-6 border-t border-edge bg-gradient-to-b from-transparent to-amber/[0.025]"
-    >
-      <div class="max-w-6xl mx-auto">
-        <div
-          class="grid grid-cols-2 md:grid-cols-[1.4fr_1fr_1fr_1fr_1fr] gap-10 md:gap-12"
-        >
-          <div class="col-span-2 md:col-span-1">
-            <div class="flex items-center gap-2 mb-3">
-              <span class="inline-block w-2 h-2 rounded-full bg-amber"></span>
-              <span class="text-base font-bold">gpui-starter</span>
-            </div>
-            <p class="text-sm text-text-mute max-w-xs leading-relaxed">
-              Rust boilerplate for GPUI desktop apps. Ships with 21 themes,
-              i18n, form validation, SQLite persistence, Cmd+K launcher,
-              auto-update, and AccessKit accessibility.
-            </p>
-          </div>
-          <div>
-            <h4
-              class="text-xs font-semibold uppercase tracking-wider text-text mb-3"
+    <!-- ===== FOOTER ===== -->
+    <footer class="border-t border-line">
+      <div class="wrap py-14 grid grid-cols-2 lg:grid-cols-5 gap-10">
+        <div class="col-span-2 lg:col-span-1">
+          <div class="flex items-center gap-2.5">
+            <span
+              class="grid place-items-center w-7 h-7 bg-fg text-canvas mono text-[13px] font-semibold rounded-[7px]"
+              aria-hidden="true">g</span
             >
-              Product
-            </h4>
-            <ul class="space-y-2 text-sm list-none p-0 m-0">
-              <li>
-                <a
-                  href="/docs/getting-started/"
-                  class="text-text-mute no-underline hover:text-amber"
-                  >Get started</a
-                >
-              </li>
-              <li>
-                <a
-                  href="/docs/themes/"
-                  class="text-text-mute no-underline hover:text-amber"
-                  >Themes</a
-                >
-              </li>
-              <li>
-                <a
-                  href="/docs/i18n/"
-                  class="text-text-mute no-underline hover:text-amber"
-                  >i18n</a
-                >
-              </li>
-              <li>
-                <a
-                  href="/docs/forms/"
-                  class="text-text-mute no-underline hover:text-amber"
-                  >Forms</a
-                >
-              </li>
-              <li>
-                <a
-                  href="/changelog/"
-                  class="text-text-mute no-underline hover:text-amber"
-                  >Changelog</a
-                >
-              </li>
-            </ul>
+            <span class="display text-[18px] tracking-[-.03em]">gpui-starter</span>
           </div>
-          <div>
-            <h4
-              class="text-xs font-semibold uppercase tracking-wider text-text mb-3"
-            >
-              Resources
-            </h4>
-            <ul class="space-y-2 text-sm list-none p-0 m-0">
-              <li>
-                <a
-                  href="/docs/architecture/"
-                  class="text-text-mute no-underline hover:text-amber"
-                  >Architecture</a
-                >
-              </li>
-              <li>
-                <a
-                  href="/docs/performance/"
-                  class="text-text-mute no-underline hover:text-amber"
-                  >Performance</a
-                >
-              </li>
-              <li>
-                <a
-                  href="/faq/"
-                  class="text-text-mute no-underline hover:text-amber"
-                  >FAQ</a
-                >
-              </li>
-              <li>
-                <a
-                  href="/blog/"
-                  class="text-text-mute no-underline hover:text-amber"
-                  >Blog</a
-                >
-              </li>
-            </ul>
-          </div>
-          <div>
-            <h4
-              class="text-xs font-semibold uppercase tracking-wider text-text mb-3"
-            >
-              Community
-            </h4>
-            <ul class="space-y-2 text-sm list-none p-0 m-0">
-              <li>
-                <a
-                  href="/about/"
-                  class="text-text-mute no-underline hover:text-amber"
-                  >About</a
-                >
-              </li>
-              <li>
-                <a
-                  href="https://github.com/freeoxide/gpui-starter"
-                  target="_blank"
-                  rel="noopener"
-                  class="text-text-mute no-underline hover:text-amber"
-                  >GitHub</a
-                >
-              </li>
-              <li>
-                <a
-                  href="https://github.com/freeoxide/gpui-starter/issues"
-                  target="_blank"
-                  rel="noopener"
-                  class="text-text-mute no-underline hover:text-amber"
-                  >Issues</a
-                >
-              </li>
-              <li>
-                <a
-                  href="https://hmziq.rs"
-                  target="_blank"
-                  rel="noopener"
-                  class="text-text-mute no-underline hover:text-amber"
-                  >hmziq.rs</a
-                >
-              </li>
-            </ul>
-          </div>
-          <div>
-            <h4
-              class="text-xs font-semibold uppercase tracking-wider text-text mb-3"
-            >
-              Legal
-            </h4>
-            <ul class="space-y-2 text-sm list-none p-0 m-0">
-              <li>
-                <a
-                  href="/privacy/"
-                  class="text-text-mute no-underline hover:text-amber"
-                  >Privacy policy</a
-                >
-              </li>
-              <li>
-                <a
-                  href="/terms/"
-                  class="text-text-mute no-underline hover:text-amber"
-                  >Terms of use</a
-                >
-              </li>
-              <li>
-                <a
-                  href="https://github.com/freeoxide/gpui-starter/blob/master/LICENSE"
-                  target="_blank"
-                  rel="noopener"
-                  class="text-text-mute no-underline hover:text-amber"
-                  >MIT license</a
-                >
-              </li>
-            </ul>
-          </div>
+          <p class="text-[13.5px] text-fg-muted mt-4 max-w-[30ch] leading-relaxed">
+            A GPUI desktop boilerplate. Routing, themes, i18n, SQLite, keyring, tray
+            and signed updates are already wired up. MIT licensed.
+          </p>
         </div>
-        <div class="divider-glow mt-12 mb-6"></div>
-        <div
-          class="flex flex-wrap justify-between items-center gap-3 text-xs text-text-mute"
-        >
-          <span>MIT licensed &copy; 2026 hmziqrs</span>
-          <div class="flex items-center gap-4">
-            <a
-              href="/sitemap-index.xml"
-              class="hover:text-amber transition-colors no-underline text-text-mute"
-              >Sitemap</a
-            >
-            <span class="font-mono">v{latestVersion}</span>
-          </div>
+
+        <div>
+          <p class="eyebrow">Product</p>
+          <ul class="list-none p-0 mt-4 space-y-2.5 text-[13.5px]">
+            <li><a href="/docs/getting-started/" class="qlink">Get started</a></li>
+            <li><a href="/docs/themes/" class="qlink">Themes</a></li>
+            <li><a href="/docs/i18n/" class="qlink">i18n</a></li>
+            <li><a href="/docs/forms/" class="qlink">Forms</a></li>
+            <li><a href="/changelog/" class="qlink">Changelog</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <p class="eyebrow">Resources</p>
+          <ul class="list-none p-0 mt-4 space-y-2.5 text-[13.5px]">
+            <li><a href="/docs/architecture/" class="qlink">Architecture</a></li>
+            <li><a href="/docs/performance/" class="qlink">Performance</a></li>
+            <li><a href="/faq/" class="qlink">FAQ</a></li>
+            <li><a href="/blog/" class="qlink">Blog</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <p class="eyebrow">Community</p>
+          <ul class="list-none p-0 mt-4 space-y-2.5 text-[13.5px]">
+            <li><a href="/about/" class="qlink">About</a></li>
+            <li>
+              <a href="https://github.com/freeoxide/gpui-starter" target="_blank" rel="noopener" class="qlink">GitHub</a>
+            </li>
+            <li>
+              <a href="https://github.com/freeoxide/gpui-starter/issues" target="_blank" rel="noopener" class="qlink">Issues</a>
+            </li>
+            <li><a href="https://hmziq.rs" target="_blank" rel="noopener" class="qlink">hmziq.rs</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <p class="eyebrow">Legal</p>
+          <ul class="list-none p-0 mt-4 space-y-2.5 text-[13.5px]">
+            <li><a href="/privacy/" class="qlink">Privacy policy</a></li>
+            <li><a href="/terms/" class="qlink">Terms of use</a></li>
+            <li>
+              <a
+                href="https://github.com/freeoxide/gpui-starter/blob/master/LICENSE"
+                target="_blank"
+                rel="noopener"
+                class="qlink">MIT license</a
+              >
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="wrap pb-10 flex flex-wrap justify-between gap-4 mono text-[11px] text-fg-subtle">
+        <span>&copy; 2026 hmziqrs &middot; MIT</span>
+        <div class="flex items-center gap-4">
+          <a href="/sitemap-index.xml" class="qlink">Sitemap</a>
+          <span>v{latestVersion}</span>
         </div>
       </div>
     </footer>
 
     <script>
-      // ---------- Scroll progress ----------
-      const progress = document.getElementById('scroll-progress');
-      function updateProgress() {
-        const h = document.documentElement;
-        const pct = (h.scrollTop / (h.scrollHeight - h.clientHeight)) * 100;
-        if (progress) progress.style.width = pct + '%';
-      }
-      window.addEventListener('scroll', updateProgress, { passive: true });
+      // ---------- Copy-to-clipboard ----------
+      document.querySelectorAll<HTMLElement>('.copy-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(btn.dataset.copy || '');
+          } catch {
+            /* clipboard unavailable, nothing to do */
+          }
+          const prev = btn.innerHTML;
+          btn.textContent = '✓';
+          setTimeout(() => {
+            btn.innerHTML = prev;
+          }, 1100);
+        });
+      });
 
       // ---------- Reveal on scroll ----------
       const io = new IntersectionObserver(
@@ -550,815 +369,6 @@ if (customJsonLd) jsonLdArray.push(customJsonLd);
         { threshold: 0, rootMargin: '0px 0px -10% 0px' }
       );
       document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
-
-      // ---------- Three.js: wireframe geometry structures ----------
-      async function initThree() {
-        const THREE = await import('three');
-        const AMBER_C = 0xf59e0b;
-        const GOLD_C  = 0xfbbf24;
-        const DEEP_C  = 0xd97706;
-
-        function makeScene(host, builder) {
-          const canvas = document.createElement('canvas');
-          canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:block;';
-          host.appendChild(canvas);
-          const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-          renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-          const scene = new THREE.Scene();
-          const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
-          camera.position.z = 5;
-          const group = new THREE.Group();
-          scene.add(group);
-          const ctx = { THREE, scene, camera, renderer, group };
-          let tickFn = null;
-          ctx.onTick = (fn) => { tickFn = fn; };
-          
-          // Reveal animation tracking
-          const trackedMaterials = [];
-          ctx.trackMaterial = (mat, targetOpacity) => {
-            trackedMaterials.push({ mat, target: targetOpacity, startTime: -1 });
-          };
-          
-          let hovered = false;
-          host.addEventListener('mouseenter', () => { hovered = true; });
-          host.addEventListener('mouseleave', () => { hovered = false; });
-          builder(ctx);
-          let lastW = 0, lastH = 0;
-          function resize() {
-            const w = host.clientWidth || 1;
-            const h = host.clientHeight || 1;
-            if (w === lastW && h === lastH) return;
-            lastW = w; lastH = h;
-            renderer.setSize(w, h, false);
-            canvas.width = w * renderer.getPixelRatio();
-            canvas.height = h * renderer.getPixelRatio();
-            canvas.style.width = w + 'px';
-            canvas.style.height = h + 'px';
-            camera.aspect = w / h;
-            camera.updateProjectionMatrix();
-          }
-          resize();
-          const ro = new ResizeObserver(resize);
-          ro.observe(host);
-          setTimeout(() => ro.disconnect(), 600);
-          let visible = true;
-          let revealed = false;
-          let revealTime = 0;
-          const revealObserver = new IntersectionObserver(([e]) => {
-            visible = e.isIntersecting;
-            if (e.isIntersecting && !revealed) {
-              revealed = true;
-              revealTime = t;
-            }
-          }, { threshold: 0.1 });
-          revealObserver.observe(host);
-          let t = 0;
-          (function loop() {
-            requestAnimationFrame(loop);
-            if (!visible) return;
-            if (!hovered) t += 0.016;
-            
-            // Animate tracked materials with staggered reveal
-            if (revealed && trackedMaterials.length > 0) {
-              const elapsed = t - revealTime;
-              trackedMaterials.forEach((item, i) => {
-                const delay = i * 0.08; // 80ms stagger
-                const matElapsed = Math.max(0, elapsed - delay);
-                const duration = 0.6;
-                const progress = Math.min(1, matElapsed / duration);
-                // Ease out cubic
-                const eased = 1 - Math.pow(1 - progress, 3);
-                item.mat.opacity = item.target * eased;
-              });
-            }
-            
-            if (tickFn) {
-              tickFn(t, group);
-            } else {
-              group.rotation.y = t * 0.1;
-              group.rotation.x = Math.sin(t * 0.06) * 0.12;
-            }
-            renderer.render(scene, camera);
-          })();
-        }
-
-        // Helper: add a wireframe mesh with amber lines
-        function addWire(ctx, geometry, color, opacity) {
-          const targetOpacity = opacity || 0.35;
-          const mat = new ctx.THREE.MeshBasicMaterial({
-            color, wireframe: true, transparent: true, opacity: 0
-          });
-          const mesh = new ctx.THREE.Mesh(geometry, mat);
-          ctx.group.add(mesh);
-          if (ctx.trackMaterial) ctx.trackMaterial(mat, targetOpacity);
-          return mesh;
-        }
-
-        // Helper: add a LineSegments from pairs of [x,y,z]
-        function addLines(ctx, pairs, color, opacity) {
-          const targetOpacity = opacity || 0.4;
-          const verts = [];
-          pairs.forEach(([a, b]) => { verts.push(...a, ...b); });
-          const geo = new ctx.THREE.BufferGeometry();
-          geo.setAttribute('position', new ctx.THREE.Float32BufferAttribute(verts, 3));
-          const mat = new ctx.THREE.LineBasicMaterial({ color, transparent: true, opacity: 0 });
-          ctx.group.add(new ctx.THREE.LineSegments(geo, mat));
-          if (ctx.trackMaterial) ctx.trackMaterial(mat, targetOpacity);
-        }
-
-        // Helper: add small dots at positions
-        function addDots(ctx, positions, color, opacity, size) {
-          const targetOpacity = opacity || 0.8;
-          const geo = new ctx.THREE.BufferGeometry();
-          geo.setAttribute('position', new ctx.THREE.Float32BufferAttribute(positions, 3));
-          const mat = new ctx.THREE.PointsMaterial({
-            color, transparent: true, opacity: 0,
-            size: size || 0.06, sizeAttenuation: true
-          });
-          ctx.group.add(new ctx.THREE.Points(geo, mat));
-          if (ctx.trackMaterial) ctx.trackMaterial(mat, targetOpacity);
-        }
-
-        // ===== 1. HERO — Lattice cube with build animation =====
-        const heroHost = document.querySelector('[data-three="hero-glyph"]');
-        if (heroHost)
-          makeScene(heroHost, (ctx) => {
-            ctx.camera.position.z = 6;
-            const d = 1.5;
-            const items = [];
-
-            let mouseX = 0, mouseY = 0, smoothMX = 0, smoothMY = 0;
-            let clickPulse = 0;
-            heroHost.addEventListener('mousemove', (e) => {
-              const r = heroHost.getBoundingClientRect();
-              mouseX = ((e.clientX - r.left) / r.width - 0.5) * 2;
-              mouseY = ((e.clientY - r.top) / r.height - 0.5) * 2;
-            });
-            heroHost.addEventListener('mouseleave', () => { mouseX = 0; mouseY = 0; });
-            heroHost.addEventListener('click', () => { clickPulse = 1.0; });
-
-            function track(mat, target, start, dur) {
-              mat.opacity = 0;
-              items.push({ mat, target, start, dur });
-            }
-
-            function dot(pos, color, size, target, start, dur) {
-              // Create glow texture with strong white shine
-              const canvas = document.createElement('canvas');
-              canvas.width = 64;
-              canvas.height = 64;
-              const ctx2d = canvas.getContext('2d');
-              const gradient = ctx2d.createRadialGradient(32, 32, 0, 32, 32, 32);
-              gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-              gradient.addColorStop(0.15, 'rgba(255, 255, 255, 1)');
-              gradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.9)');
-              gradient.addColorStop(0.5, `rgba(${(color >> 16) & 255}, ${(color >> 8) & 255}, ${color & 255}, 0.5)`);
-              gradient.addColorStop(0.75, `rgba(${(color >> 16) & 255}, ${(color >> 8) & 255}, ${color & 255}, 0.2)`);
-              gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-              ctx2d.fillStyle = gradient;
-              ctx2d.fillRect(0, 0, 64, 64);
-              const texture = new ctx.THREE.CanvasTexture(canvas);
-
-              // Shiny glow sprite
-              const mat = new ctx.THREE.PointsMaterial({
-                color: 0xffffff,
-                map: texture,
-                transparent: true,
-                opacity: 0,
-                size: size * 6,
-                sizeAttenuation: true,
-                blending: ctx.THREE.AdditiveBlending,
-                depthWrite: false,
-                alphaTest: 0.01
-              });
-              const geo = new ctx.THREE.BufferGeometry();
-              geo.setAttribute('position', new ctx.THREE.Float32BufferAttribute(pos, 3));
-              const points = new ctx.THREE.Points(geo, mat);
-              ctx.group.add(points);
-              track(mat, target, start, dur);
-            }
-
-            function line(a, b, color, target, start, dur) {
-              const verts = [...a, ...b];
-              const geo = new ctx.THREE.BufferGeometry();
-              geo.setAttribute('position', new ctx.THREE.Float32BufferAttribute(verts, 3));
-              const mat = new ctx.THREE.LineBasicMaterial({
-                color, transparent: true, opacity: 0,
-                blending: ctx.THREE.AdditiveBlending
-              });
-              ctx.group.add(new ctx.THREE.LineSegments(geo, mat));
-              track(mat, target, start, dur);
-            }
-
-            const c = [];
-            for (let x = -1; x <= 1; x += 2)
-              for (let y = -1; y <= 1; y += 2)
-                for (let z = -1; z <= 1; z += 2)
-                  c.push([x * d, y * d, z * d]);
-
-            c.forEach((pos, i) => {
-              dot(pos, GOLD_C, 0.07, 1.0, i * 0.3, 0.9);
-            });
-
-            const edgeIdx = [
-              [0,4],[4,5],[5,1],[1,0],
-              [2,6],[6,7],[7,3],[3,2],
-              [0,2],[4,6],[5,7],[1,3],
-            ];
-            edgeIdx.forEach(([a, b], i) => {
-              line(c[a], c[b], AMBER_C, 0.4, 1.8 + i * 0.3, 0.9);
-            });
-
-            const mids = [];
-            for (let a = -d; a <= d; a += 2 * d)
-              for (let b = -d; b <= d; b += 2 * d) {
-                mids.push([0, a, b], [a, 0, b], [a, b, 0]);
-              }
-            mids.forEach((pos, i) => {
-              dot(pos, AMBER_C, 0.04, 0.7, 3.6 + i * 0.075, 0.75);
-            });
-
-            const faceCross = [
-              [[-d,-d,d],[d,d,d]], [[-d,d,d],[d,-d,d]],       // front
-              [[-d,-d,-d],[d,d,-d]], [[-d,d,-d],[d,-d,-d]],   // back
-              [[-d,-d,-d],[-d,d,d]], [[-d,-d,d],[-d,d,-d]],   // left
-              [[d,-d,-d],[d,d,d]], [[d,-d,d],[d,d,-d]],       // right
-              [[-d,d,-d],[d,d,d]], [[-d,d,d],[d,d,-d]],       // top
-              [[-d,-d,-d],[d,-d,d]], [[-d,-d,d],[d,-d,-d]],   // bottom
-            ];
-            faceCross.forEach(([a, b], i) => {
-              line(a, b, AMBER_C, 0.25, 5.5 + i * 0.12, 0.8);
-            });
-
-            const innerMat = new ctx.THREE.MeshBasicMaterial({
-              color: GOLD_C, wireframe: true, transparent: true, opacity: 0,
-              blending: ctx.THREE.AdditiveBlending
-            });
-            ctx.group.add(new ctx.THREE.Mesh(new ctx.THREE.IcosahedronGeometry(1.0, 0), innerMat));
-            track(innerMat, 0.12, 6.6, 2.4);
-
-            const outerMat = new ctx.THREE.MeshBasicMaterial({
-              color: AMBER_C, wireframe: true, transparent: true, opacity: 0,
-              blending: ctx.THREE.AdditiveBlending
-            });
-            ctx.group.add(new ctx.THREE.Mesh(new ctx.THREE.BoxGeometry(3, 3, 3), outerMat));
-            track(outerMat, 0.15, 7.8, 2.4);
-
-            const pCount = 50;
-            const pPos = new Float32Array(pCount * 3);
-            const pVel = new Float32Array(pCount * 3);
-            for (let i = 0; i < pCount * 3; i++) {
-              pPos[i] = (Math.random() - 0.5) * 5;
-              pVel[i] = (Math.random() - 0.5) * 0.003;
-            }
-            const pGeo = new ctx.THREE.BufferGeometry();
-            pGeo.setAttribute('position', new ctx.THREE.BufferAttribute(pPos, 3));
-            const pMat = new ctx.THREE.PointsMaterial({
-              color: GOLD_C, transparent: true, opacity: 0,
-              size: 0.025, sizeAttenuation: true,
-              blending: ctx.THREE.AdditiveBlending, depthWrite: false
-            });
-            ctx.group.add(new ctx.THREE.Points(pGeo, pMat));
-            track(pMat, 0.5, 4.0, 2.0);
-
-            const BUILD_END = 10.2;
-            ctx.onTick((t, group) => {
-              smoothMX += (mouseX - smoothMX) * 0.05;
-              smoothMY += (mouseY - smoothMY) * 0.05;
-              clickPulse *= 0.93;
-              if (clickPulse < 0.005) clickPulse = 0;
-
-              for (const item of items) {
-                const p = Math.max(0, Math.min(1, (t - item.start) / item.dur));
-                const base = item.target * (1 - Math.pow(1 - p, 3));
-                item.mat.opacity = Math.min(1, base + clickPulse * item.target * 0.6);
-              }
-
-              const arr = pGeo.attributes.position.array;
-              for (let i = 0; i < pCount; i++) {
-                for (let j = 0; j < 3; j++) {
-                  arr[i * 3 + j] += pVel[i * 3 + j];
-                  if (arr[i * 3 + j] > 2.5) arr[i * 3 + j] = -2.5;
-                  if (arr[i * 3 + j] < -2.5) arr[i * 3 + j] = 2.5;
-                }
-              }
-              pGeo.attributes.position.needsUpdate = true;
-
-              const scale = 1 + clickPulse * 0.08;
-              group.scale.set(scale, scale, scale);
-
-              if (t > BUILD_END) {
-                const rt = t - BUILD_END;
-                const ease = Math.min(1, rt / 1.5);
-                group.rotation.y = rt * 0.1 * ease + smoothMX * 0.4 * ease;
-                group.rotation.x = Math.sin(rt * 0.06) * 0.12 * ease + smoothMY * 0.25 * ease;
-              } else {
-                group.rotation.y = smoothMX * 0.2;
-                group.rotation.x = smoothMY * 0.15;
-              }
-            });
-          });
-
-        // ===== 2. BENTO — DNA double helix with build animation =====
-        const bentoHost = document.querySelector('[data-three="bento-orb"]');
-        if (bentoHost)
-          makeScene(bentoHost, (ctx) => {
-            ctx.camera.position.z = 5;
-            const turns = 3;
-            const steps = 80;
-            const radius = 1.0;
-            const height = 4.0;
-            const items = [];
-            let revealed = false;
-            let buildStart = 0;
-
-            function track(mat, target, start, dur) {
-              mat.opacity = 0;
-              items.push({ mat, target, start, dur });
-            }
-
-            // Build strand paths
-            const strandA = [], strandB = [];
-            for (let i = 0; i <= steps; i++) {
-              const prog = i / steps;
-              const angle = prog * turns * Math.PI * 2;
-              const y = (prog - 0.5) * height;
-              strandA.push([radius * Math.cos(angle), y, radius * Math.sin(angle)]);
-              strandB.push([radius * Math.cos(angle + Math.PI), y, radius * Math.sin(angle + Math.PI)]);
-            }
-
-            // Draw strands as connected line segments
-            const pairsA = [], pairsB = [];
-            for (let i = 0; i < steps; i++) {
-              pairsA.push([strandA[i], strandA[i+1]]);
-              pairsB.push([strandB[i], strandB[i+1]]);
-            }
-
-            // Track strand A lines
-            const vertsA = [];
-            pairsA.forEach(([a, b]) => { vertsA.push(...a, ...b); });
-            const geoA = new ctx.THREE.BufferGeometry();
-            geoA.setAttribute('position', new ctx.THREE.Float32BufferAttribute(vertsA, 3));
-            const matA = new ctx.THREE.LineBasicMaterial({ color: AMBER_C, transparent: true, opacity: 0, blending: ctx.THREE.AdditiveBlending });
-            ctx.group.add(new ctx.THREE.LineSegments(geoA, matA));
-            track(matA, 0.7, 0, 2.0);
-
-            // Track strand B lines
-            const vertsB = [];
-            pairsB.forEach(([a, b]) => { vertsB.push(...a, ...b); });
-            const geoB = new ctx.THREE.BufferGeometry();
-            geoB.setAttribute('position', new ctx.THREE.Float32BufferAttribute(vertsB, 3));
-            const matB = new ctx.THREE.LineBasicMaterial({ color: GOLD_C, transparent: true, opacity: 0, blending: ctx.THREE.AdditiveBlending });
-            ctx.group.add(new ctx.THREE.LineSegments(geoB, matB));
-            track(matB, 0.5, 0.5, 2.0);
-
-            // Rungs connecting the two strands
-            const rungs = [];
-            for (let i = 0; i < steps; i += 6) {
-              rungs.push([strandA[i], strandB[i]]);
-            }
-            const vertsR = [];
-            rungs.forEach(([a, b]) => { vertsR.push(...a, ...b); });
-            const geoR = new ctx.THREE.BufferGeometry();
-            geoR.setAttribute('position', new ctx.THREE.Float32BufferAttribute(vertsR, 3));
-            const matR = new ctx.THREE.LineBasicMaterial({ color: DEEP_C, transparent: true, opacity: 0, blending: ctx.THREE.AdditiveBlending });
-            ctx.group.add(new ctx.THREE.LineSegments(geoR, matR));
-            track(matR, 0.3, 1.5, 1.5);
-
-            // Dots at strand vertices
-            const dotsA = [];
-            strandA.forEach(p => dotsA.push(...p));
-            const geoDotsA = new ctx.THREE.BufferGeometry();
-            geoDotsA.setAttribute('position', new ctx.THREE.Float32BufferAttribute(dotsA, 3));
-            const matDotsA = new ctx.THREE.PointsMaterial({ color: AMBER_C, transparent: true, opacity: 0, size: 0.06, sizeAttenuation: true, blending: ctx.THREE.AdditiveBlending, depthWrite: false });
-            ctx.group.add(new ctx.THREE.Points(geoDotsA, matDotsA));
-            track(matDotsA, 0.9, 1.0, 1.5);
-
-            const dotsB = [];
-            strandB.forEach(p => dotsB.push(...p));
-            const geoDotsB = new ctx.THREE.BufferGeometry();
-            geoDotsB.setAttribute('position', new ctx.THREE.Float32BufferAttribute(dotsB, 3));
-            const matDotsB = new ctx.THREE.PointsMaterial({ color: GOLD_C, transparent: true, opacity: 0, size: 0.05, sizeAttenuation: true, blending: ctx.THREE.AdditiveBlending, depthWrite: false });
-            ctx.group.add(new ctx.THREE.Points(geoDotsB, matDotsB));
-            track(matDotsB, 0.7, 1.5, 1.5);
-
-            const BUILD_END = 3.5;
-            ctx.onTick((t, group) => {
-              if (!revealed) {
-                revealed = true;
-                buildStart = t;
-              }
-              const elapsed = t - buildStart;
-
-              for (const item of items) {
-                const p = Math.max(0, Math.min(1, (elapsed - item.start) / item.dur));
-                item.mat.opacity = item.target * (1 - Math.pow(1 - p, 3));
-              }
-
-              if (elapsed > BUILD_END) {
-                const rt = elapsed - BUILD_END;
-                const ease = Math.min(1, rt / 1.5);
-                group.rotation.y = rt * 0.15 * ease;
-                group.rotation.x = Math.sin(rt * 0.08) * 0.15 * ease;
-              }
-            });
-          });
-
-        // ===== 3. FEATURE CARDS — 5 distinct wireframe structures with build animations =====
-        const structures = {
-          // Brick/block wall — rectangles stacked in brick pattern
-          dodec(ctx) {
-            const items = [];
-            let revealed = false;
-            let buildStart = 0;
-
-            function track(mat, target, start, dur) {
-              mat.opacity = 0;
-              items.push({ mat, target, start, dur });
-            }
-
-            const lines = [];
-            const rows = 5, cols = 4;
-            const bw = 0.4, bh = 0.3, gap = 0.05;
-            for (let r = 0; r < rows; r++) {
-              const off = (r % 2) * (bw + gap) * 0.5;
-              for (let c = 0; c < cols; c++) {
-                const x = c * (bw + gap) + off - cols * (bw + gap) * 0.5;
-                const y = r * (bh + gap) - rows * (bh + gap) * 0.5;
-                const tl = [x, y + bh, 0], tr = [x + bw, y + bh, 0];
-                const bl = [x, y, 0], br = [x + bw, y, 0];
-                lines.push([tl,tr],[tr,br],[br,bl],[bl,tl]);
-              }
-            }
-
-            const verts = [];
-            lines.forEach(([a, b]) => { verts.push(...a, ...b); });
-            const geo = new ctx.THREE.BufferGeometry();
-            geo.setAttribute('position', new ctx.THREE.Float32BufferAttribute(verts, 3));
-            const mat = new ctx.THREE.LineBasicMaterial({ color: AMBER_C, transparent: true, opacity: 0, blending: ctx.THREE.AdditiveBlending });
-            ctx.group.add(new ctx.THREE.LineSegments(geo, mat));
-            track(mat, 0.5, 0, 1.5);
-
-            const dots = [];
-            for (let r = 0; r < rows; r++) {
-              const off = (r % 2) * (bw + gap) * 0.5;
-              for (let c = 0; c < cols; c++) {
-                const x = c * (bw + gap) + off - cols * (bw + gap) * 0.5;
-                const y = r * (bh + gap) - rows * (bh + gap) * 0.5;
-                dots.push(x, y+bh, 0, x+bw, y+bh, 0, x+bw, y, 0, x, y, 0);
-              }
-            }
-            const dotsGeo = new ctx.THREE.BufferGeometry();
-            dotsGeo.setAttribute('position', new ctx.THREE.Float32BufferAttribute(dots, 3));
-            const dotsMat = new ctx.THREE.PointsMaterial({ color: GOLD_C, transparent: true, opacity: 0, size: 0.05, sizeAttenuation: true, blending: ctx.THREE.AdditiveBlending, depthWrite: false });
-            ctx.group.add(new ctx.THREE.Points(dotsGeo, dotsMat));
-            track(dotsMat, 0.9, 0.8, 1.2);
-
-            const BUILD_END = 2.5;
-            ctx.onTick((t, group) => {
-              if (!revealed) { revealed = true; buildStart = t; }
-              const elapsed = t - buildStart;
-              for (const item of items) {
-                const p = Math.max(0, Math.min(1, (elapsed - item.start) / item.dur));
-                item.mat.opacity = item.target * (1 - Math.pow(1 - p, 3));
-              }
-              if (elapsed > BUILD_END) {
-                const rt = elapsed - BUILD_END;
-                const ease = Math.min(1, rt / 1.5);
-                group.rotation.y = rt * 0.1 * ease;
-                group.rotation.x = Math.sin(rt * 0.06) * 0.12 * ease;
-              }
-            });
-          },
-
-          // Pyramid — stacked square rings
-          octa(ctx) {
-            const items = [];
-            let revealed = false;
-            let buildStart = 0;
-
-            function track(mat, target, start, dur) {
-              mat.opacity = 0;
-              items.push({ mat, target, start, dur });
-            }
-
-            const lines = [];
-            const layers = 7;
-            const base = 1.4;
-            for (let i = 0; i < layers; i++) {
-              const frac = i / (layers - 1);
-              const s = base * (1 - frac * 0.85);
-              const y = (frac - 0.5) * 2.8;
-              const h = s / 2;
-              const c = [[-h,y,-h],[h,y,-h],[h,y,h],[-h,y,h]];
-              for (let j = 0; j < 4; j++) lines.push([c[j], c[(j+1)%4]]);
-              if (i < layers - 1) {
-                const ns = base * (1 - (frac + 1/(layers-1)) * 0.85);
-                const ny = ((frac + 1/(layers-1)) - 0.5) * 2.8;
-                const nh = ns / 2;
-                const nc = [[-nh,ny,-nh],[nh,ny,-nh],[nh,ny,nh],[-nh,ny,nh]];
-                for (let j = 0; j < 4; j++) lines.push([c[j], nc[j]]);
-              }
-            }
-
-            const verts = [];
-            lines.forEach(([a, b]) => { verts.push(...a, ...b); });
-            const geo = new ctx.THREE.BufferGeometry();
-            geo.setAttribute('position', new ctx.THREE.Float32BufferAttribute(verts, 3));
-            const mat = new ctx.THREE.LineBasicMaterial({ color: AMBER_C, transparent: true, opacity: 0, blending: ctx.THREE.AdditiveBlending });
-            ctx.group.add(new ctx.THREE.LineSegments(geo, mat));
-            track(mat, 0.5, 0, 2.0);
-
-            const apexGeo = new ctx.THREE.BufferGeometry();
-            apexGeo.setAttribute('position', new ctx.THREE.Float32BufferAttribute([0, 1.2, 0], 3));
-            const apexMat = new ctx.THREE.PointsMaterial({ color: GOLD_C, transparent: true, opacity: 0, size: 0.08, sizeAttenuation: true, blending: ctx.THREE.AdditiveBlending, depthWrite: false });
-            ctx.group.add(new ctx.THREE.Points(apexGeo, apexMat));
-            track(apexMat, 1.0, 1.5, 1.0);
-
-            const BUILD_END = 3.0;
-            ctx.onTick((t, group) => {
-              if (!revealed) { revealed = true; buildStart = t; }
-              const elapsed = t - buildStart;
-              for (const item of items) {
-                const p = Math.max(0, Math.min(1, (elapsed - item.start) / item.dur));
-                item.mat.opacity = item.target * (1 - Math.pow(1 - p, 3));
-              }
-              if (elapsed > BUILD_END) {
-                const rt = elapsed - BUILD_END;
-                const ease = Math.min(1, rt / 1.5);
-                group.rotation.y = rt * 0.1 * ease;
-                group.rotation.x = Math.sin(rt * 0.06) * 0.12 * ease;
-              }
-            });
-          },
-
-          // Atom — nucleus + 3 tilted orbital rings
-          ico(ctx) {
-            const items = [];
-            let revealed = false;
-            let buildStart = 0;
-
-            function track(mat, target, start, dur) {
-              mat.opacity = 0;
-              items.push({ mat, target, start, dur });
-            }
-
-            const ringLines = [];
-            for (let ri = 0; ri < 3; ri++) {
-              const r = 0.7 + ri * 0.25;
-              const steps = 48;
-              const tiltX = ri === 0 ? 0 : ri === 1 ? Math.PI/3 : -Math.PI/4;
-              const tiltZ = ri === 0 ? 0 : ri === 1 ? 0 : Math.PI/6;
-              for (let i = 0; i < steps; i++) {
-                const a1 = (i / steps) * Math.PI * 2;
-                const a2 = ((i+1) / steps) * Math.PI * 2;
-                let p1 = [r*Math.cos(a1), 0, r*Math.sin(a1)];
-                let p2 = [r*Math.cos(a2), 0, r*Math.sin(a2)];
-                [p1, p2].forEach(p => {
-                  let [x,y,z] = p;
-                  let ny = y*Math.cos(tiltX) - z*Math.sin(tiltX);
-                  let nz = y*Math.sin(tiltX) + z*Math.cos(tiltX);
-                  y = ny; z = nz;
-                  let nx = x*Math.cos(tiltZ) - y*Math.sin(tiltZ);
-                  ny = x*Math.sin(tiltZ) + y*Math.cos(tiltZ);
-                  p[0]=nx; p[1]=ny; p[2]=nz;
-                });
-                ringLines.push([p1, p2]);
-              }
-            }
-
-            const verts = [];
-            ringLines.forEach(([a, b]) => { verts.push(...a, ...b); });
-            const geo = new ctx.THREE.BufferGeometry();
-            geo.setAttribute('position', new ctx.THREE.Float32BufferAttribute(verts, 3));
-            const mat = new ctx.THREE.LineBasicMaterial({ color: AMBER_C, transparent: true, opacity: 0, blending: ctx.THREE.AdditiveBlending });
-            ctx.group.add(new ctx.THREE.LineSegments(geo, mat));
-            track(mat, 0.4, 0, 2.0);
-
-            const nucGeo = new ctx.THREE.OctahedronGeometry(0.12);
-            const nucMat = new ctx.THREE.MeshBasicMaterial({ color: GOLD_C, wireframe: true, transparent: true, opacity: 0 });
-            ctx.group.add(new ctx.THREE.Mesh(nucGeo, nucMat));
-            track(nucMat, 0.8, 1.0, 1.0);
-
-            const centerGeo = new ctx.THREE.BufferGeometry();
-            centerGeo.setAttribute('position', new ctx.THREE.Float32BufferAttribute([0,0,0], 3));
-            const centerMat = new ctx.THREE.PointsMaterial({ color: GOLD_C, transparent: true, opacity: 0, size: 0.08, sizeAttenuation: true, blending: ctx.THREE.AdditiveBlending, depthWrite: false });
-            ctx.group.add(new ctx.THREE.Points(centerGeo, centerMat));
-            track(centerMat, 1.0, 1.5, 1.0);
-
-            const BUILD_END = 3.0;
-            ctx.onTick((t, group) => {
-              if (!revealed) { revealed = true; buildStart = t; }
-              const elapsed = t - buildStart;
-              for (const item of items) {
-                const p = Math.max(0, Math.min(1, (elapsed - item.start) / item.dur));
-                item.mat.opacity = item.target * (1 - Math.pow(1 - p, 3));
-              }
-              if (elapsed > BUILD_END) {
-                const rt = elapsed - BUILD_END;
-                const ease = Math.min(1, rt / 1.5);
-                group.rotation.y = rt * 0.1 * ease;
-                group.rotation.x = Math.sin(rt * 0.06) * 0.12 * ease;
-              }
-            });
-          },
-
-          // Crystal — octahedron with visible edges
-          tetra(ctx) {
-            const items = [];
-            let revealed = false;
-            let buildStart = 0;
-
-            function track(mat, target, start, dur) {
-              mat.opacity = 0;
-              items.push({ mat, target, start, dur });
-            }
-
-            const v = [
-              [0,1.2,0],[0,-1.2,0],[1.2,0,0],[-1.2,0,0],[0,0,1.2],[0,0,-1.2]
-            ];
-            const edges = [
-              [0,2],[0,3],[0,4],[0,5],
-              [1,2],[1,3],[1,4],[1,5],
-              [2,4],[4,3],[3,5],[5,2]
-            ];
-            const lines = edges.map(([a,b]) => [v[a], v[b]]);
-
-            const verts = [];
-            lines.forEach(([a, b]) => { verts.push(...a, ...b); });
-            const geo = new ctx.THREE.BufferGeometry();
-            geo.setAttribute('position', new ctx.THREE.Float32BufferAttribute(verts, 3));
-            const mat = new ctx.THREE.LineBasicMaterial({ color: AMBER_C, transparent: true, opacity: 0, blending: ctx.THREE.AdditiveBlending });
-            ctx.group.add(new ctx.THREE.LineSegments(geo, mat));
-            track(mat, 0.6, 0, 1.5);
-
-            const dots = [];
-            v.forEach(p => dots.push(...p));
-            const dotsGeo = new ctx.THREE.BufferGeometry();
-            dotsGeo.setAttribute('position', new ctx.THREE.Float32BufferAttribute(dots, 3));
-            const dotsMat = new ctx.THREE.PointsMaterial({ color: GOLD_C, transparent: true, opacity: 0, size: 0.07, sizeAttenuation: true, blending: ctx.THREE.AdditiveBlending, depthWrite: false });
-            ctx.group.add(new ctx.THREE.Points(dotsGeo, dotsMat));
-            track(dotsMat, 1.0, 0.8, 1.2);
-
-            const BUILD_END = 2.5;
-            ctx.onTick((t, group) => {
-              if (!revealed) { revealed = true; buildStart = t; }
-              const elapsed = t - buildStart;
-              for (const item of items) {
-                const p = Math.max(0, Math.min(1, (elapsed - item.start) / item.dur));
-                item.mat.opacity = item.target * (1 - Math.pow(1 - p, 3));
-              }
-              if (elapsed > BUILD_END) {
-                const rt = elapsed - BUILD_END;
-                const ease = Math.min(1, rt / 1.5);
-                group.rotation.y = rt * 0.1 * ease;
-                group.rotation.x = Math.sin(rt * 0.06) * 0.12 * ease;
-              }
-            });
-          },
-
-          // Tower — vertical scaffold with cross-bracing
-          box(ctx) {
-            const items = [];
-            let revealed = false;
-            let buildStart = 0;
-
-            function track(mat, target, start, dur) {
-              mat.opacity = 0;
-              items.push({ mat, target, start, dur });
-            }
-
-            const lines = [];
-            const floors = 6;
-            const w = 0.5, fh = 0.35;
-            for (let f = 0; f < floors; f++) {
-              const y = (f - floors/2 + 0.5) * fh;
-              const hw = w/2 * (1 - f * 0.02);
-              const c = [[-hw,y,-hw],[hw,y,-hw],[hw,y,hw],[-hw,y,hw]];
-              for (let j = 0; j < 4; j++) lines.push([c[j], c[(j+1)%4]]);
-              if (f < floors - 1) {
-                const ny = y + fh;
-                const nhw = w/2 * (1 - (f+1) * 0.02);
-                const nc = [[-nhw,ny,-nhw],[nhw,ny,-nhw],[nhw,ny,nhw],[-nhw,ny,nhw]];
-                for (let j = 0; j < 4; j++) lines.push([c[j], nc[j]]);
-                for (let j = 0; j < 4; j++) {
-                  lines.push([c[j], nc[(j+1)%4]]);
-                }
-              }
-            }
-
-            const verts = [];
-            lines.forEach(([a, b]) => { verts.push(...a, ...b); });
-            const geo = new ctx.THREE.BufferGeometry();
-            geo.setAttribute('position', new ctx.THREE.Float32BufferAttribute(verts, 3));
-            const mat = new ctx.THREE.LineBasicMaterial({ color: AMBER_C, transparent: true, opacity: 0, blending: ctx.THREE.AdditiveBlending });
-            ctx.group.add(new ctx.THREE.LineSegments(geo, mat));
-            track(mat, 0.5, 0, 2.0);
-
-            const dots = [];
-            for (let f = 0; f < floors; f++) {
-              const y = (f - floors/2 + 0.5) * fh;
-              const hw = w/2 * (1 - f * 0.02);
-              dots.push(-hw,y,-hw, hw,y,-hw, hw,y,hw, -hw,y,hw);
-            }
-            const dotsGeo = new ctx.THREE.BufferGeometry();
-            dotsGeo.setAttribute('position', new ctx.THREE.Float32BufferAttribute(dots, 3));
-            const dotsMat = new ctx.THREE.PointsMaterial({ color: GOLD_C, transparent: true, opacity: 0, size: 0.04, sizeAttenuation: true, blending: ctx.THREE.AdditiveBlending, depthWrite: false });
-            ctx.group.add(new ctx.THREE.Points(dotsGeo, dotsMat));
-            track(dotsMat, 0.8, 1.0, 1.5);
-
-            const BUILD_END = 3.0;
-            ctx.onTick((t, group) => {
-              if (!revealed) { revealed = true; buildStart = t; }
-              const elapsed = t - buildStart;
-              for (const item of items) {
-                const p = Math.max(0, Math.min(1, (elapsed - item.start) / item.dur));
-                item.mat.opacity = item.target * (1 - Math.pow(1 - p, 3));
-              }
-              if (elapsed > BUILD_END) {
-                const rt = elapsed - BUILD_END;
-                const ease = Math.min(1, rt / 1.5);
-                group.rotation.y = rt * 0.1 * ease;
-                group.rotation.x = Math.sin(rt * 0.06) * 0.12 * ease;
-              }
-            });
-          },
-        };
-
-        document.querySelectorAll('[data-three="feature-shape"]').forEach((host) => {
-          const kind = host.getAttribute('data-shape') || 'ico';
-          makeScene(host, (ctx) => {
-            ctx.camera.position.z = 3.6;
-            (structures[kind] || structures.ico)(ctx);
-          });
-        });
-
-        // ===== 4. CTA — Icosahedron wireframe with build animation =====
-        const ctaHost = document.querySelector('[data-three="cta-shape"]');
-        if (ctaHost)
-          makeScene(ctaHost, (ctx) => {
-            ctx.camera.position.z = 5.5;
-            const items = [];
-            let revealed = false;
-            let buildStart = 0;
-
-            function track(mat, target, start, dur) {
-              mat.opacity = 0;
-              items.push({ mat, target, start, dur });
-            }
-
-            // Outer icosahedron wireframe
-            const outerGeo = new ctx.THREE.IcosahedronGeometry(2.0, 0);
-            const outerMat = new ctx.THREE.MeshBasicMaterial({
-              color: AMBER_C, wireframe: true, transparent: true, opacity: 0,
-              blending: ctx.THREE.AdditiveBlending
-            });
-            ctx.group.add(new ctx.THREE.Mesh(outerGeo, outerMat));
-            track(outerMat, 0.25, 0, 1.5);
-
-            // Inner dodecahedron
-            const innerGeo = new ctx.THREE.DodecahedronGeometry(1.0, 0);
-            const innerMat = new ctx.THREE.MeshBasicMaterial({
-              color: GOLD_C, wireframe: true, transparent: true, opacity: 0,
-              blending: ctx.THREE.AdditiveBlending
-            });
-            ctx.group.add(new ctx.THREE.Mesh(innerGeo, innerMat));
-            track(innerMat, 0.15, 0.8, 1.5);
-
-            // Vertex dots on outer
-            const dotsGeo = new ctx.THREE.BufferGeometry();
-            dotsGeo.setAttribute('position', outerGeo.attributes.position);
-            const dotsMat = new ctx.THREE.PointsMaterial({
-              color: GOLD_C, transparent: true, opacity: 0,
-              size: 0.08, sizeAttenuation: true,
-              blending: ctx.THREE.AdditiveBlending, depthWrite: false
-            });
-            ctx.group.add(new ctx.THREE.Points(dotsGeo, dotsMat));
-            track(dotsMat, 0.9, 1.5, 1.0);
-
-            const BUILD_END = 3.0;
-            ctx.onTick((t, group) => {
-              if (!revealed) {
-                revealed = true;
-                buildStart = t;
-              }
-              const elapsed = t - buildStart;
-
-              for (const item of items) {
-                const p = Math.max(0, Math.min(1, (elapsed - item.start) / item.dur));
-                item.mat.opacity = item.target * (1 - Math.pow(1 - p, 3));
-              }
-
-              if (elapsed > BUILD_END) {
-                const rt = elapsed - BUILD_END;
-                const ease = Math.min(1, rt / 1.5);
-                group.rotation.y = rt * 0.12 * ease;
-                group.rotation.x = Math.sin(rt * 0.07) * 0.1 * ease;
-              }
-            });
-          });
-      }
-      initThree();
     </script>
   </body>
 </html>

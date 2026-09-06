@@ -3,6 +3,7 @@ import starlight from "@astrojs/starlight";
 import tailwindcss from "@tailwindcss/vite";
 import icon from "astro-icon";
 import { readFileSync } from "fs";
+import { execFileSync } from "child_process";
 import { join } from "path";
 import sitemap from "@astrojs/sitemap";
 
@@ -24,22 +25,38 @@ function serveLocalAudio() {
   };
 }
 
+
+/**
+ * Rasterize the icon set and render every OG card before the build copies
+ * public/ into dist, so social images are always in sync with the theme.
+ */
+function generateStaticAssets() {
+  return {
+    name: "generate-static-assets",
+    hooks: {
+      "astro:build:start": () => {
+        for (const script of ["scripts/generate-icons.ts", "scripts/generate-og.ts"]) {
+          try {
+            execFileSync(process.execPath, [script], { stdio: "inherit" });
+          } catch {
+            // process.execPath is node when astro is invoked with node, which
+            // cannot run these TypeScript entrypoints — fall back to bun.
+            execFileSync("bun", [script], { stdio: "inherit" });
+          }
+        }
+      },
+    },
+  };
+}
+
 export default defineConfig({
-  site: "https://gpui-starter.hmziq.xyz",
+  site: "https://gpui-starter.freeoxide.com",
   srcDir: "./web",
   vite: {
     plugins: [tailwindcss(), serveLocalAudio()],
-    build: {
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            if (id.includes("node_modules/three")) return "three";
-          },
-        },
-      },
-    },
   },
   integrations: [
+    generateStaticAssets(),
     sitemap({
       filter: (page) => !page.includes('/api/'),
     }),
@@ -111,9 +128,6 @@ export default defineConfig({
         { tag: 'meta', attrs: { property: 'og:type', content: 'website' } },
         { tag: 'meta', attrs: { property: 'og:site_name', content: 'gpui-starter' } },
         { tag: 'meta', attrs: { property: 'og:locale', content: 'en_US' } },
-        { tag: 'meta', attrs: { property: 'og:image', content: 'https://gpui-starter.hmziq.xyz/og-image.png' } },
-        { tag: 'meta', attrs: { property: 'og:image:width', content: '1200' } },
-        { tag: 'meta', attrs: { property: 'og:image:height', content: '630' } },
         { tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
         { tag: 'meta', attrs: { name: 'twitter:site', content: '@hmziqrs' } },
         { tag: 'meta', attrs: { name: 'twitter:creator', content: '@hmziqrs' } },
@@ -122,6 +136,9 @@ export default defineConfig({
           content: `requestIdleCallback(()=>{import('https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js').then(({initializeApp})=>{const c={apiKey:'AIzaSyDI-CutFk3prIj64gQfz332Cnrvh3xeUfc',authDomain:'gpui-starter.firebaseapp.com',projectId:'gpui-starter',storageBucket:'gpui-starter.firebasestorage.app',messagingSenderId:'117315648896',appId:'1:117315648896:web:4291ed5b219b49d7cfd565',measurementId:'G-9KJX86QRFG'};const a=initializeApp(c);import('https://www.gstatic.com/firebasejs/12.13.0/firebase-analytics.js').then(({getAnalytics})=>{getAnalytics(a)})})});`,
         },
       ],
+      components: {
+        Head: "./web/components/StarlightHead.astro",
+      },
       favicon: "/favicon.svg",
     }),
   ],

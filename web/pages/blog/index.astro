@@ -7,109 +7,116 @@ import { author, formatDate } from '../../util/author';
 const posts = (await getCollection('blog'))
   .filter((p) => !p.data.draft)
   .toSorted((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+const [featured, ...rest] = posts;
 ---
 
 <Layout
   title="Blog - Rust Desktop Apps, GPUI Tutorials & Framework Comparisons | gpui-starter"
+  ogImage="/og/pages/blog.png"
   description="75+ articles on building desktop apps with Rust and GPUI. Tutorials, framework comparisons (GPUI vs Tauri vs Electron), and production patterns from the gpui-starter boilerplate."
 >
-  <section class="relative z-10 pt-36 pb-12 px-6">
-    <div class="max-w-4xl mx-auto">
-      <span class="eyebrow">// Blog</span>
-      <h1
-        class="reveal mt-5 text-4xl sm:text-5xl font-extrabold tracking-[-0.02em] leading-[1.05]"
-      >
-        Rust desktop <span class="gradient-text">guides &amp; tutorials.</span>
+  <!-- ===== HEADER ===== -->
+  <section class="border-b border-line">
+    <div class="frame py-14 md:py-20">
+      <p class="eyebrow">Blog</p>
+      <h1 class="display t-hero mt-5 max-w-[16ch]">
+        Rust desktop <span class="text-accent">guides</span> &amp; tutorials.
       </h1>
-      <p class="reveal mt-5 text-text-dim max-w-2xl text-lg leading-relaxed">
-        GPUI walkthroughs, framework comparisons, and production patterns
-        from building gpui-starter. Covers state management, SQLite, i18n,
-        accessibility, theming, auto-updates, and the rest of the stack.
+      <p class="lead mt-7 max-w-[58ch]">
+        GPUI walkthroughs, framework comparisons, and production patterns from building
+        gpui-starter. Covers state management, SQLite, i18n, accessibility, theming,
+        auto-updates, and the rest of the stack.
+      </p>
+      <p class="mono text-[11.5px] tracking-[.12em] uppercase text-fg-subtle mt-8">
+        {posts.length} article{posts.length === 1 ? '' : 's'}
       </p>
     </div>
   </section>
 
-  <section class="relative z-10 pb-32 px-6">
-    <div class="max-w-4xl mx-auto">
-      {
-        posts.length === 0 ? (
-          <p class="text-text-mute text-center py-16">
-            No posts yet. Check back soon.
-          </p>
-        ) : (
-          <ul class="list-none p-0 m-0 space-y-4">
-            {posts.map((post) => (
-              <li class="reveal">
-                <a
-                  href={`/blog/${post.id}/`}
-                  class="block glass rounded-2xl p-7 no-underline transition-colors hover:border-edge-hover group"
-                >
-                  <div class="flex items-center gap-3 text-xs text-text-mute mb-3 font-mono">
-                    <time datetime={post.data.date.toISOString()}>
-                      {formatDate(post.data.date)}
-                    </time>
+  {
+    posts.length === 0 ? (
+      <section class="sect">
+        <div class="wrap">
+          <p class="lead">No posts yet. Check back soon.</p>
+        </div>
+      </section>
+    ) : (
+      <section class="sect">
+        <div class="wrap">
+          {featured && (
+            <a
+              href={`/blog/${featured.id}/`}
+              class="block p-8 no-underline text-fg hover:bg-panel transition-colors border border-rule"
+            >
+              <div class="flex items-center gap-3 flex-wrap">
+                <span class="tag">Latest</span>
+                <time class="mono text-[11px] text-fg-muted" datetime={featured.data.date.toISOString()}>
+                  {formatDate(featured.data.date)}
+                </time>
+              </div>
+              <h2 class="display text-[30px] mt-5">{featured.data.title}</h2>
+              <p class="lead mt-4 max-w-[62ch]">{featured.data.description}</p>
+              <span class="alink text-[14px] mt-6 inline-block">Read the article</span>
+            </a>
+          )}
+
+          <ul class="list-none p-0 m-0 mt-12 ruled grid sm:grid-cols-2 lg:grid-cols-3">
+            {rest.map((post) => (
+              <li>
+                <a href={`/blog/${post.id}/`} class="flex flex-col h-full p-6 no-underline text-fg hover:bg-panel transition-colors">
+                  <div class="flex items-center gap-2.5 mono text-[11px] text-fg-subtle flex-wrap">
+                    <time datetime={post.data.date.toISOString()}>{formatDate(post.data.date)}</time>
                     {post.data.tags.length > 0 && (
                       <>
-                        <span class="opacity-40">·</span>
-                        <span class="flex gap-2">
-                          {post.data.tags.map((t) => (
-                            <span class="text-amber">#{t}</span>
-                          ))}
-                        </span>
+                        <span aria-hidden="true">·</span>
+                        <span class="text-accent">#{post.data.tags[0]}</span>
                       </>
                     )}
                   </div>
-                  <h2 class="text-2xl font-bold tracking-tight mb-2 group-hover:text-amber transition-colors">
-                    {post.data.title}
-                  </h2>
-                  <p class="text-text-dim leading-relaxed">
-                    {post.data.description}
-                  </p>
+                  <h2 class="text-[16px] font-bold mt-3 tracking-[-.01em] leading-snug">{post.data.title}</h2>
+                  <p class="text-[13.5px] text-fg-muted mt-3 leading-relaxed flex-1">{post.data.description}</p>
                 </a>
               </li>
             ))}
           </ul>
-        )
-      }
+        </div>
+      </section>
+    )
+  }
 
-      <div class="reveal mt-16 flex items-start gap-4 glass rounded-2xl p-6">
+  <!-- ===== AUTHOR ===== -->
+  <section class="sect-rule">
+    <div class="wrap">
+      <div class="flex flex-col sm:flex-row items-start gap-5 p-7 border border-line">
         <img
           src={author.avatar.dark}
           alt={author.name}
           width="56"
           height="56"
-          class="rounded-full border border-edge flex-shrink-0"
+          class="rounded-full border border-line shrink-0"
         />
         <div class="flex-1">
-          <div class="flex items-baseline gap-2">
-            <a
-              href={author.url}
-              target="_blank"
-              rel="noopener"
-              class="font-semibold text-text no-underline hover:text-amber"
-            >
+          <div class="flex items-baseline gap-2.5 flex-wrap">
+            <a href={author.url} target="_blank" rel="noopener" class="alink font-semibold text-[15px]">
               {author.name}
             </a>
-            <span class="text-xs text-text-mute font-mono">@{author.twitterHandle}</span>
+            <span class="mono text-[11px] text-fg-subtle">@{author.twitterHandle}</span>
           </div>
-          <p class="text-sm text-text-mute mt-1 mb-3 leading-relaxed">
-            {author.bio}
-          </p>
+          <p class="text-[13.5px] text-fg-muted mt-2 mb-4 leading-relaxed max-w-[62ch]">{author.bio}</p>
           <div class="flex flex-wrap gap-2">
-            {
-              author.socials.map((s) => (
-                <a
-                  href={s.url}
-                  target="_blank"
-                  rel="noopener"
-                  aria-label={s.platform}
-                  title={s.platform}
-                  class="inline-flex items-center justify-center w-8 h-8 rounded-md border border-edge bg-[rgba(255,255,255,0.02)] text-text-mute no-underline hover:text-amber hover:border-edge-hover transition-colors"
-                >
-                  <SocialIcon platform={s.platform} size={15} />
-                </a>
-              ))
-            }
+            {author.socials.map((s) => (
+              <a
+                href={s.url}
+                target="_blank"
+                rel="noopener"
+                aria-label={s.platform}
+                title={s.platform}
+                class="inline-flex items-center justify-center w-8 h-8 border border-line text-fg-subtle no-underline hover:text-fg hover:border-rule transition-colors"
+              >
+                <SocialIcon platform={s.platform} size={15} />
+              </a>
+            ))}
           </div>
         </div>
       </div>
