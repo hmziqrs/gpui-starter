@@ -43,222 +43,123 @@ const audioSrc = post.data.audio ?? (existsSync(localAudioPath) ? `/audio/${post
     publisher: {
       '@type': 'Organization',
       name: 'gpui-starter',
-      url: 'https://gpui-starter.hmziq.xyz',
+      url: 'https://gpui-starter.freeoxide.com',
     },
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': `https://gpui-starter.hmziq.xyz/blog/${post.id}/`,
+      '@id': `https://gpui-starter.freeoxide.com/blog/${post.id}/`,
     },
   }}
 >
-  <article class="relative z-10 pt-36 pb-24 px-6">
-    <div class="max-w-3xl mx-auto">
-      <a
-        href="/blog/"
-        class="text-sm text-text-mute no-underline hover:text-amber inline-flex items-center gap-1.5 mb-8"
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <path d="m12 19-7-7 7-7"></path>
-          <path d="M19 12H5"></path>
-        </svg>
-        Back to blog
-      </a>
+  <article>
+    <!-- ===== HEADER ===== -->
+    <section class="border-b border-line">
+      <div class="frame py-12 md:py-16">
+        <a href="/blog/" class="mono text-[11.5px] tracking-[.12em] uppercase text-fg-muted hover:text-fg no-underline inline-flex items-center gap-2 transition-colors">
+          <span aria-hidden="true">&larr;</span> Back to blog
+        </a>
 
-      <div class="flex flex-wrap items-center gap-3 text-xs text-text-mute mb-5 font-mono">
-        <time datetime={post.data.date.toISOString()}>
-          {formatDate(post.data.date)}
-        </time>
-        <span class="opacity-40">·</span>
-        <span>{minutes} min read</span>
-        {
-          post.data.tags.length > 0 && (
+        <div class="flex flex-wrap items-center gap-2.5 mono text-[11px] text-fg-subtle mt-8">
+          <time datetime={post.data.date.toISOString()}>{formatDate(post.data.date)}</time>
+          <span aria-hidden="true">·</span>
+          <span>{minutes} min read</span>
+          {post.data.tags.length > 0 && (
             <>
-              <span class="opacity-40">·</span>
-              <span class="flex gap-2">
+              <span aria-hidden="true">·</span>
+              <span class="flex gap-2 flex-wrap">
                 {post.data.tags.map((t) => (
-                  <span class="text-amber">#{t}</span>
+                  <span class="text-accent">#{t}</span>
                 ))}
               </span>
             </>
-          )
-        }
+          )}
+        </div>
+
+        <h1 class="display mt-4 text-[clamp(2rem,4.5vw,3.25rem)] max-w-[22ch]">{post.data.title}</h1>
+
+        <p class="lead mt-6 max-w-[62ch]">{post.data.description}</p>
+
+        <div class="flex items-center gap-3 mt-8">
+          <img src={author.avatar.dark} alt={author.name} width="40" height="40" class="rounded-full border border-line" />
+          <div>
+            <a href={author.url} target="_blank" rel="noopener" class="alink font-semibold text-[14px] block">{author.name}</a>
+            <span class="mono text-[11px] text-fg-subtle">@{author.twitterHandle}</span>
+          </div>
+        </div>
       </div>
+    </section>
 
-      <h1
-        class="text-3xl sm:text-5xl font-extrabold tracking-[-0.02em] leading-[1.05] mb-5"
-      >
-        {post.data.title}
-      </h1>
+    <!-- ===== BODY ===== -->
+    <div class="wrap py-14 md:py-20 grid lg:grid-cols-[minmax(0,1fr)_15rem] gap-10 lg:gap-14 items-start">
+      <div class="min-w-0 max-w-[72ch]">
+        {audioSrc && <AudioPlayer src={audioSrc} title={post.data.title} />}
 
-      <p class="text-lg text-text-dim leading-relaxed mb-10">
-        {post.data.description}
-      </p>
-
-      <div class="flex items-center gap-3 pb-10 mb-10 border-b border-edge">
-        <img
-          src={author.avatar.dark}
-          alt={author.name}
-          width="44"
-          height="44"
-          class="rounded-full border border-edge"
-        />
-        <div>
-          <a
-            href={author.url}
-            target="_blank"
-            rel="noopener"
-            class="font-semibold text-text text-sm no-underline hover:text-amber block"
-          >
-            {author.name}
-          </a>
-          <span class="text-xs text-text-mute font-mono">@{author.twitterHandle}</span>
+        <div class="copy">
+          <Content />
         </div>
       </div>
 
-      {audioSrc && (
-        <AudioPlayer src={audioSrc} title={post.data.title} />
-      )}
+      <aside class="hidden lg:block lg:sticky lg:top-28 border-l border-line pl-6">
+        <p class="eyebrow">Published</p>
+        <time class="mono text-[12px] text-fg-muted block mt-2" datetime={post.data.date.toISOString()}>
+          {formatDate(post.data.date)}
+        </time>
 
-      <div class="prose-blog">
-        <Content />
-      </div>
+        <p class="eyebrow mt-7">Length</p>
+        <p class="mono text-[12px] text-fg-muted mt-2">{minutes} min read</p>
 
-      <footer class="mt-16 pt-10 border-t border-edge">
-        <div class="glass rounded-2xl p-6 flex items-start gap-4">
-          <img
-            src={author.avatar.dark}
-            alt={author.name}
-            width="56"
-            height="56"
-            class="rounded-full border border-edge flex-shrink-0"
-          />
+        {post.data.tags.length > 0 && (
+          <>
+            <p class="eyebrow mt-7">Tags</p>
+            <ul class="list-none p-0 m-0 mt-2 space-y-1">
+              {post.data.tags.map((t) => (
+                <li class="mono text-[12px] text-fg-muted">
+                  <span class="text-accent">#</span>{t}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        <p class="eyebrow mt-7">Written by</p>
+        <a href={author.url} target="_blank" rel="noopener" class="qlink text-[13px] block mt-2">
+          {author.name}
+        </a>
+
+        <a href="/blog/" class="qlink mono text-[11px] tracking-[.12em] uppercase block mt-8">
+          &larr; All articles
+        </a>
+      </aside>
+    </div>
+
+    <!-- ===== AUTHOR ===== -->
+    <section class="sect">
+      <div class="wrap">
+        <div class="flex flex-col sm:flex-row items-start gap-5 p-7 border border-line">
+          <img src={author.avatar.dark} alt={author.name} width="56" height="56" class="rounded-full border border-line shrink-0" />
           <div class="flex-1">
-            <div class="flex items-baseline gap-2 mb-1">
-              <a
-                href={author.url}
-                target="_blank"
-                rel="noopener"
-                class="font-semibold text-text no-underline hover:text-amber"
-              >
-                {author.name}
-              </a>
-              <span class="text-xs text-text-mute font-mono">@{author.twitterHandle}</span>
+            <div class="flex items-baseline gap-2.5 flex-wrap">
+              <a href={author.url} target="_blank" rel="noopener" class="alink font-semibold text-[15px]">{author.name}</a>
+              <span class="mono text-[11px] text-fg-subtle">@{author.twitterHandle}</span>
             </div>
-            <p class="text-sm text-text-mute leading-relaxed mb-3">
-              {author.bio}
-            </p>
+            <p class="text-[13.5px] text-fg-muted mt-2 mb-4 leading-relaxed max-w-[62ch]">{author.bio}</p>
             <div class="flex flex-wrap gap-2">
-              {
-                author.socials.map((s) => (
-                  <a
-                    href={s.url}
-                    target="_blank"
-                    rel="noopener"
-                    aria-label={s.platform}
-                    title={s.platform}
-                    class="inline-flex items-center justify-center w-8 h-8 rounded-md border border-edge bg-[rgba(255,255,255,0.02)] text-text-mute no-underline hover:text-amber hover:border-edge-hover transition-colors"
-                  >
-                    <SocialIcon platform={s.platform} size={15} />
-                  </a>
-                ))
-              }
+              {author.socials.map((s) => (
+                <a
+                  href={s.url}
+                  target="_blank"
+                  rel="noopener"
+                  aria-label={s.platform}
+                  title={s.platform}
+                  class="inline-flex items-center justify-center w-8 h-8 border border-line text-fg-subtle no-underline hover:text-fg hover:border-rule transition-colors"
+                >
+                  <SocialIcon platform={s.platform} size={15} />
+                </a>
+              ))}
             </div>
           </div>
         </div>
-      </footer>
-    </div>
+      </div>
+    </section>
   </article>
 </Layout>
-
-<style is:global>
-  .prose-blog {
-    color: var(--color-text-dim);
-    font-size: 1.05rem;
-    line-height: 1.75;
-  }
-  .prose-blog h2 {
-    color: var(--color-text);
-    font-size: 1.75rem;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    margin-top: 3rem;
-    margin-bottom: 1rem;
-  }
-  .prose-blog h3 {
-    color: var(--color-text);
-    font-size: 1.3rem;
-    font-weight: 600;
-    margin-top: 2.25rem;
-    margin-bottom: 0.85rem;
-  }
-  .prose-blog p {
-    margin-bottom: 1.25rem;
-  }
-  .prose-blog a {
-    color: var(--color-amber);
-    text-decoration: none;
-    border-bottom: 1px solid rgba(245, 158, 11, 0.3);
-    transition: border-color 0.15s;
-  }
-  .prose-blog a:hover {
-    border-bottom-color: var(--color-amber);
-  }
-  .prose-blog code {
-    font-family: var(--font-mono);
-    font-size: 0.92em;
-    color: var(--color-amber);
-    background: rgba(245, 158, 11, 0.08);
-    padding: 0.12rem 0.4rem;
-    border-radius: 0.3rem;
-  }
-  .prose-blog pre {
-    background: rgba(10, 10, 14, 0.85);
-    border: 1px solid var(--color-edge);
-    border-radius: 0.85rem;
-    padding: 1.1rem 1.25rem;
-    overflow-x: auto;
-    margin: 1.5rem 0;
-    font-size: 0.88rem;
-    line-height: 1.6;
-  }
-  .prose-blog pre code {
-    background: none;
-    padding: 0;
-    color: inherit;
-    font-size: inherit;
-  }
-  .prose-blog ul,
-  .prose-blog ol {
-    padding-left: 1.5rem;
-    margin-bottom: 1.25rem;
-  }
-  .prose-blog li {
-    margin-bottom: 0.4rem;
-  }
-  .prose-blog blockquote {
-    border-left: 3px solid var(--color-amber);
-    padding-left: 1rem;
-    margin: 1.5rem 0;
-    color: var(--color-text-mute);
-    font-style: italic;
-  }
-  .prose-blog hr {
-    border: none;
-    border-top: 1px solid var(--color-edge);
-    margin: 2.5rem 0;
-  }
-  .prose-blog strong {
-    color: var(--color-text);
-    font-weight: 600;
-  }
-</style>

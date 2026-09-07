@@ -1,31 +1,51 @@
 #!/usr/bin/env node
 /**
- * Generate OG images for blog posts on the fly.
+ * Generate OG / social-card images for every page of the site at build time.
  *
  * Usage:
- *   bun scripts/generate-og.ts                       # generate all posts
- *   bun scripts/generate-og.ts <slug>                # generate one post
- *   bun scripts/generate-og.ts --out ./dist/og       # custom output dir
- *   bun scripts/generate-og.ts --only-missing        # skip already-generated
+ *   bun scripts/generate-og.ts                # generate everything
+ *   bun scripts/generate-og.ts <slug>         # generate cards whose out path matches <slug>
+ *   bun scripts/generate-og.ts --only-missing # skip already-generated files
+ *   bun scripts/generate-og.ts --out ./dist   # write under a different root
  *
- * Output: public/og/blog/<slug>.png (or --out dir)
+ * Output (relative to public/):
+ *   og-image.png            site default
+ *   og/pages/<page>.png     marketing pages
+ *   og/blog/<slug>.png      blog posts
+ *   og/faq/<slug>.png       faq entries
+ *   og/docs/<slug>.png      documentation pages
+ *
+ * Card design follows the warm-technical system in web/styles/globals.css.
  */
 
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync } from 'fs';
-import { join, resolve, basename } from 'path';
+import { join, resolve, dirname } from 'path';
 import satori from 'satori';
 import { Resvg } from '@resvg/resvg-js';
 
 const ROOT = resolve(import.meta.dirname, '..');
-const BLOG_DIR = join(ROOT, 'web/content/blog');
-const DEFAULT_OUT = join(ROOT, 'public/og/blog');
+const CONTENT = join(ROOT, 'web/content');
+const DEFAULT_OUT = join(ROOT, 'public');
+const SITE = 'gpui-starter.freeoxide.com';
+
+// ---------- theme (warm-technical) ----------
+const T = {
+  canvas: '#0d0a0c',
+  panel: '#161418',
+  line: '#28282b',
+  rule: '#3e3e42',
+  fg: '#eaeae8',
+  fgMuted: '#a8a8a5',
+  fgSubtle: '#6f6f72',
+  accent: '#ff2e97',
+};
 
 // --- arg parsing ---
 const args = process.argv.slice(2);
 const outIdx = args.indexOf('--out');
 const onlyMissing = args.includes('--only-missing');
-const outDir = outIdx !== -1 ? resolve(args[outIdx + 1]) : DEFAULT_OUT;
-const slugArg = args.filter((a) => !a.startsWith('--') && (outIdx === -1 || args.indexOf(a) !== outIdx + 1))[0];
+const outRoot = outIdx !== -1 ? resolve(args[outIdx + 1]) : DEFAULT_OUT;
+const filterArg = args.filter((a) => !a.startsWith('--') && (outIdx === -1 || args.indexOf(a) !== outIdx + 1))[0];
 
 // --- frontmatter parser (no extra dep) ---
 function parseFrontmatter(src: string): Record<string, string | string[]> {
@@ -49,172 +69,233 @@ function parseFrontmatter(src: string): Record<string, string | string[]> {
   return result;
 }
 
-function getPostMeta(file: string): { slug: string; title: string; description: string; tag: string } {
-  const src = readFileSync(file, 'utf8');
-  const fm = parseFrontmatter(src);
-  const slug = basename(file, '.md');
-  const title = String(fm.title ?? slug);
-  const description = String(fm.description ?? '');
-  const tags = fm.tags;
-  const tag = Array.isArray(tags) ? tags[0] : String(tags ?? 'GPUI');
-  return { slug, title, description, tag };
+// ---------- cards ----------
+interface Card {
+  /** output path relative to the public root, without extension */
+  out: string;
+  kicker: string;
+  title: string;
+  description: string;
 }
 
-// --- font fetch (cached in memory for batch runs) ---
-let fontCache: { w700: ArrayBuffer; w800: ArrayBuffer } | null = null;
-async function getFonts() {
-  if (fontCache) return fontCache;
-  const [w700, w800] = await Promise.all([
-    fetch('https://cdn.jsdelivr.net/npm/@fontsource/inter@5/files/inter-latin-700-normal.woff').then((r) => r.arrayBuffer()),
-    fetch('https://cdn.jsdelivr.net/npm/@fontsource/inter@5/files/inter-latin-800-normal.woff').then((r) => r.arrayBuffer()),
-  ]);
-  fontCache = { w700, w800 };
-  return fontCache;
+function collectionCards(
+  dir: string,
+  outPrefix: string,
+  pick: (fm: Record<string, string | string[]>, slug: string) => { kicker: string; title: string; description: string },
+): Card[] {
+  const base = join(CONTENT, dir);
+  if (!existsSync(base)) return [];
+  const cards: Card[] = [];
+  const walk = (rel: string) => {
+    for (const entry of readdirSync(join(base, rel), { withFileTypes: true })) {
+      const next = rel ? `${rel}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        walk(next);
+      } else if (entry.name.endsWith('.md') || entry.name.endsWith('.mdx')) {
+        const slug = next.replace(/\.mdx?$/, '');
+        const fm = parseFrontmatter(readFileSync(join(base, next), 'utf8'));
+        cards.push({ out: `${outPrefix}/${slug}`, ...pick(fm, slug) });
+      }
+    }
+  };
+  walk('');
+  return cards;
+}
+
+const first = (v: string | string[] | undefined, fallback: string) =>
+  Array.isArray(v) ? (v[0] ?? fallback) : (v ?? fallback);
+
+/** Static marketing pages. Titles here mirror each page's <Layout title>, trimmed for the card. */
+const PAGE_CARDS: Card[] = [
+  {
+    out: 'og-image',
+    kicker: 'Rust · GPUI',
+    title: 'Ship Rust desktop apps faster',
+    description:
+      'A production-ready GPUI boilerplate: themes, i18n, forms, command palette, SQLite, keyring, and signed auto-update — already wired up.',
+  },
+  {
+    out: 'og/pages/blog',
+    kicker: 'Blog',
+    title: 'Rust desktop apps, GPUI tutorials, and framework comparisons',
+    description:
+      'Tutorials, framework comparisons, and production patterns from the gpui-starter boilerplate.',
+  },
+  {
+    out: 'og/pages/faq',
+    kicker: 'FAQ',
+    title: 'Answers about gpui-starter and GPUI',
+    description:
+      'GPUI basics, themes, i18n, forms, the command launcher, data storage, and more — answered in short.',
+  },
+  {
+    out: 'og/pages/changelog',
+    kicker: 'Changelog',
+    title: 'Every feature, fix, and change',
+    description: 'Release history for gpui-starter, from v0.1 to today.',
+  },
+  {
+    out: 'og/pages/about',
+    kicker: 'About',
+    title: 'Why gpui-starter exists',
+    description:
+      'Real Rust code, everything shipping on first run, and structure taken from production GPUI apps. MIT licensed.',
+  },
+  {
+    out: 'og/pages/privacy',
+    kicker: 'Legal',
+    title: 'Privacy policy',
+    description:
+      'How the gpui-starter website handles your data. Basic page-view stats and nothing else. The desktop app collects nothing.',
+  },
+  {
+    out: 'og/pages/terms',
+    kicker: 'Legal',
+    title: 'Terms of use',
+    description: 'The terms that apply to the gpui-starter website and documentation.',
+  },
+];
+
+function allCards(): Card[] {
+  return [
+    ...PAGE_CARDS,
+    ...collectionCards('blog', 'og/blog', (fm, slug) => ({
+      kicker: first(fm.tags, 'GPUI'),
+      title: String(fm.title ?? slug),
+      description: String(fm.description ?? ''),
+    })),
+    ...collectionCards('faq', 'og/faq', (fm, slug) => ({
+      kicker: `FAQ · ${first(fm.category, 'General')}`,
+      title: String(fm.question ?? slug),
+      description: String(fm.description ?? ''),
+    })),
+    ...collectionCards('docs', 'og/docs', (fm, slug) => ({
+      kicker: 'Docs',
+      title: String(fm.title ?? slug),
+      description: String(fm.description ?? ''),
+    })),
+  ];
+}
+
+// --- fonts (bundled, so builds need no network) ---
+const FONT_DIR = join(ROOT, 'node_modules/@fontsource');
+function font(pkg: string, file: string) {
+  const buf = readFileSync(join(FONT_DIR, pkg, 'files', file));
+  return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+}
+const FONTS = [
+  { name: 'Archivo', data: font('archivo', 'archivo-latin-600-normal.woff'), weight: 600 as const, style: 'normal' as const },
+  { name: 'Archivo', data: font('archivo', 'archivo-latin-700-normal.woff'), weight: 700 as const, style: 'normal' as const },
+  { name: 'Archivo', data: font('archivo', 'archivo-latin-800-normal.woff'), weight: 800 as const, style: 'normal' as const },
+  { name: 'Martian Mono', data: font('martian-mono', 'martian-mono-latin-400-normal.woff'), weight: 400 as const, style: 'normal' as const },
+];
+
+// --- tiny JSX-free element helpers ---
+type Node = { type: string; props: Record<string, unknown> };
+const el = (type: string, style: Record<string, unknown>, children?: unknown): Node => ({
+  type,
+  props: children === undefined ? { style } : { style, children },
+});
+
+/** Long titles get a smaller size so three lines always fit. */
+function titleSize(title: string) {
+  if (title.length > 90) return 40;
+  if (title.length > 60) return 46;
+  return 54;
 }
 
 // --- image renderer ---
-async function renderOG(title: string, description: string, tag: string): Promise<Buffer> {
-  const { w700, w800 } = await getFonts();
-
+async function renderCard(card: Card): Promise<Buffer> {
   const svg = await satori(
-    {
-      type: 'div',
-      props: {
-        style: {
-          width: 1200,
-          height: 630,
-          display: 'flex',
-          flexDirection: 'column',
-          background: 'linear-gradient(135deg, #06060a 0%, #1a1a2e 100%)',
-          padding: '80px',
-          position: 'relative',
-        },
-        children: [
-          {
-            type: 'div',
-            props: {
-              style: {
-                position: 'absolute',
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: 6,
-                background: 'linear-gradient(180deg, #fbbf24, #f59e0b)',
-              },
-            },
-          },
-          {
-            type: 'div',
-            props: {
-              style: { display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 },
-              children: [
-                {
-                  type: 'span',
-                  props: {
-                    style: { fontSize: 28, fontWeight: 600, color: '#f59e0b' },
-                    children: 'gpui-starter',
-                  },
-                },
-                {
-                  type: 'span',
-                  props: { style: { fontSize: 20, color: '#4b4b5a' }, children: '|' },
-                },
-                {
-                  type: 'span',
-                  props: {
-                    style: {
-                      fontSize: 18,
-                      color: '#818194',
-                      background: 'rgba(245, 158, 11, 0.1)',
-                      padding: '4px 12px',
-                      borderRadius: 6,
-                      border: '1px solid rgba(245, 158, 11, 0.15)',
-                    },
-                    children: tag,
-                  },
-                },
-              ],
-            },
-          },
-          {
-            type: 'div',
-            props: {
-              style: {
-                width: 120,
-                height: 3,
-                background: 'linear-gradient(90deg, #fbbf24, #f59e0b)',
-                borderRadius: 2,
-                marginBottom: 40,
-              },
-            },
-          },
-          {
-            type: 'div',
-            props: {
-              style: {
-                fontSize: 52,
-                fontWeight: 800,
-                color: '#e7e7ed',
-                lineHeight: 1.2,
-                letterSpacing: '-0.02em',
-                maxWidth: 1040,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                display: '-webkit-box',
-                WebkitLineClamp: 3,
-                WebkitBoxOrient: 'vertical',
-              },
-              children: title,
-            },
-          },
-          {
-            type: 'div',
-            props: {
-              style: {
-                marginTop: 'auto',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-end',
-              },
-              children: [
-                {
-                  type: 'div',
-                  props: {
-                    style: {
-                      fontSize: 20,
-                      color: '#a8a8b8',
-                      maxWidth: 800,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      lineHeight: 1.4,
-                    },
-                    children: description,
-                  },
-                },
-                {
-                  type: 'span',
-                  props: {
-                    style: { fontSize: 14, fontFamily: 'monospace', color: '#4b4b5a' },
-                    children: 'gpui-starter.hmziq.xyz',
-                  },
-                },
-              ],
-            },
-          },
-        ],
+    el(
+      'div',
+      {
+        width: 1200,
+        height: 630,
+        display: 'flex',
+        flexDirection: 'column',
+        background: T.canvas,
+        padding: '72px 80px',
+        fontFamily: 'Archivo',
+        position: 'relative',
       },
-    },
-    {
-      width: 1200,
-      height: 630,
-      fonts: [
-        { name: 'Inter', data: w700, weight: 700, style: 'normal' },
-        { name: 'Inter', data: w800, weight: 800, style: 'normal' },
+      [
+        // left accent rule
+        el('div', { position: 'absolute', left: 0, top: 0, bottom: 0, width: 8, background: T.accent }),
+        // hairline frame echoing the site's ruled columns
+        el('div', { position: 'absolute', left: 40, top: 0, bottom: 0, width: 1, background: T.line }),
+        el('div', { position: 'absolute', left: 1159, top: 0, bottom: 0, width: 1, background: T.line }),
+
+        // masthead
+        el('div', { display: 'flex', alignItems: 'center', gap: 16 }, [
+          el('span', { fontSize: 26, fontWeight: 700, color: T.accent, letterSpacing: '-0.01em' }, 'gpui-starter'),
+          el('span', { width: 1, height: 22, background: T.rule }),
+          el(
+            'span',
+            {
+              fontFamily: 'Martian Mono',
+              fontSize: 15,
+              color: T.fgMuted,
+              background: T.panel,
+              border: `1px solid ${T.line}`,
+              padding: '6px 14px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+            },
+            card.kicker,
+          ),
+        ]),
+
+        el('div', { height: 1, background: T.line, marginTop: 32, marginBottom: 44 }),
+
+        // title
+        el(
+          'div',
+          {
+            fontSize: titleSize(card.title),
+            fontWeight: 800,
+            color: T.fg,
+            lineHeight: 1.16,
+            letterSpacing: '-0.025em',
+            maxWidth: 1000,
+            display: '-webkit-box',
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          },
+          card.title,
+        ),
+
+        el('div', { width: 120, height: 4, background: T.accent, marginTop: 36 }),
+
+        // footer
+        el('div', { marginTop: 'auto', display: 'flex', flexDirection: 'column' }, [
+          el(
+            'div',
+            {
+              fontSize: 21,
+              fontWeight: 600,
+              color: T.fgMuted,
+              lineHeight: 1.45,
+              maxWidth: 900,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            },
+            card.description,
+          ),
+          el('div', { height: 1, background: T.line, marginTop: 28, marginBottom: 20 }),
+          el('div', { display: 'flex', justifyContent: 'space-between', alignItems: 'center' }, [
+            el('span', { fontFamily: 'Martian Mono', fontSize: 14, color: T.fgSubtle }, SITE),
+            el('span', { fontFamily: 'Martian Mono', fontSize: 14, color: T.fgSubtle }, 'MIT · Rust · GPUI'),
+          ]),
+        ]),
       ],
-    },
+    ) as unknown as React.ReactNode,
+    { width: 1200, height: 630, fonts: FONTS },
   );
 
   const resvg = new Resvg(svg, { fitTo: { mode: 'width', value: 1200 } });
@@ -223,43 +304,35 @@ async function renderOG(title: string, description: string, tag: string): Promis
 
 // --- main ---
 async function main() {
-  mkdirSync(outDir, { recursive: true });
+  let cards = allCards();
 
-  let files = slugArg
-    ? [join(BLOG_DIR, `${slugArg}.md`)]
-    : readdirSync(BLOG_DIR)
-        .filter((f) => f.endsWith('.md'))
-        .map((f) => join(BLOG_DIR, f));
-
-  if (files.length === 0) {
-    console.error(`No blog posts found${slugArg ? ` for slug "${slugArg}"` : ''}.`);
+  if (filterArg) cards = cards.filter((c) => c.out.includes(filterArg));
+  if (cards.length === 0) {
+    console.error(`No cards found${filterArg ? ` matching "${filterArg}"` : ''}.`);
     process.exit(1);
   }
 
   if (onlyMissing) {
-    const before = files.length;
-    files = files.filter((f) => {
-      const slug = basename(f, '.md');
-      return !existsSync(join(outDir, `${slug}.png`));
-    });
-    const skipped = before - files.length;
+    const before = cards.length;
+    cards = cards.filter((c) => !existsSync(join(outRoot, `${c.out}.png`)));
+    const skipped = before - cards.length;
     if (skipped > 0) console.log(`  skipping ${skipped} already-generated image(s)`);
   }
 
-  if (files.length === 0) {
+  if (cards.length === 0) {
     console.log('All OG images already up to date.');
     return;
   }
 
-  for (const file of files) {
-    const { slug, title, description, tag } = getPostMeta(file);
-    process.stdout.write(`  generating ${slug}.png … `);
-    const png = await renderOG(title, description, tag);
-    writeFileSync(join(outDir, `${slug}.png`), png);
+  for (const card of cards) {
+    const file = join(outRoot, `${card.out}.png`);
+    mkdirSync(dirname(file), { recursive: true });
+    process.stdout.write(`  ${card.out}.png … `);
+    writeFileSync(file, await renderCard(card));
     console.log('done');
   }
 
-  console.log(`\n${files.length} image(s) written to ${outDir}`);
+  console.log(`\n${cards.length} image(s) written to ${outRoot}`);
 }
 
 main().catch((err) => {

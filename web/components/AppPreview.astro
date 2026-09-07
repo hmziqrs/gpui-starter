@@ -43,7 +43,7 @@
         <div class="frame-header">Welcome to GPUI Starter</div>
         <div class="frame-sub">A boilerplate for building desktop apps with GPUI</div>
         <div class="frame-stats">
-          <div class="stat-pill"><span class="stat-val">21</span> themes</div>
+          <div class="stat-pill"><span class="stat-val">24</span> themes</div>
           <div class="stat-pill"><span class="stat-val">2</span> languages</div>
           <div class="stat-pill"><span class="stat-val">100%</span> Rust</div>
         </div>
@@ -53,10 +53,10 @@
       <div class="app-frame">
         <div class="frame-header">Settings</div>
         <div class="flex items-center justify-between mb-3">
-          <span class="text-[10px] text-text-dim">Dark Mode</span>
+          <span class="text-[10px] text-fg-muted">Dark Mode</span>
           <div class="toggle-on"><div class="toggle-knob"></div></div>
         </div>
-        <div class="text-[10px] text-text-dim mb-2">Theme</div>
+        <div class="text-[10px] text-fg-muted mb-2">Theme</div>
         <div class="flex flex-wrap gap-1.5">
           <span class="theme-tag active-tag">Catppuccin</span>
           <span class="theme-tag">Tokyo Night</span>
@@ -68,22 +68,22 @@
       <!-- Frame 3: Command Launcher -->
       <div class="app-frame">
         <div class="cmd-bar">
-          <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" class="text-amber"><circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-          <span class="text-text-dim text-[10px]">Search pages and commands...</span>
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" class="text-accent"><circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <span class="text-fg-muted text-[10px]">Search pages and commands...</span>
           <span class="cursor-blink"></span>
         </div>
         <div class="cmd-results">
           <div class="cmd-row active">
             <div class="cmd-icon">⌂</div>
-            <div><div class="text-[10px] font-medium text-text">Home</div><div class="text-[8px] text-text-mute">Open the Home page</div></div>
+            <div><div class="text-[10px] font-medium text-fg">Home</div><div class="text-[8px] text-fg-subtle">Open the Home page</div></div>
           </div>
           <div class="cmd-row">
             <div class="cmd-icon dim">☆</div>
-            <div><div class="text-[10px] text-text-dim">Form</div><div class="text-[8px] text-text-mute">Open the Form page</div></div>
+            <div><div class="text-[10px] text-fg-muted">Form</div><div class="text-[8px] text-fg-subtle">Open the Form page</div></div>
           </div>
           <div class="cmd-row">
             <div class="cmd-icon dim">⚙</div>
-            <div><div class="text-[10px] text-text-dim">Settings</div><div class="text-[8px] text-text-mute">Open settings</div></div>
+            <div><div class="text-[10px] text-fg-muted">Settings</div><div class="text-[8px] text-fg-subtle">Open settings</div></div>
           </div>
         </div>
         <div class="cmd-footer">
@@ -95,10 +95,10 @@
       <div class="app-frame">
         <div class="frame-header">设置</div>
         <div class="flex items-center justify-between mb-3">
-          <span class="text-[10px] text-text-dim">深色模式</span>
+          <span class="text-[10px] text-fg-muted">深色模式</span>
           <div class="toggle-on"><div class="toggle-knob"></div></div>
         </div>
-        <div class="text-[10px] text-text-dim mb-2">语言</div>
+        <div class="text-[10px] text-fg-muted mb-2">语言</div>
         <div class="flex flex-wrap gap-1.5">
           <span class="theme-tag">English</span>
           <span class="theme-tag active-tag">简体中文</span>
@@ -134,12 +134,9 @@
 
 <style>
   .desktop-mockup {
-    border-radius: 12px;
-    border: 1px solid rgba(245, 158, 11, 0.15);
-    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--color-rule);
+    background: var(--color-code);
     overflow: hidden;
-    backdrop-filter: blur(16px);
-    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5), 0 0 80px rgba(245, 158, 11, 0.05);
   }
 
   .mock-titlebar {
@@ -147,8 +144,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 10px 14px;
-    background: rgba(0, 0, 0, 0.4);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--color-panel);
+    border-bottom: 1px solid var(--color-line);
   }
 
   .mock-dot {
@@ -161,7 +158,7 @@
   .mock-title {
     font-size: 11px;
     font-weight: 600;
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--color-fg-subtle);
     letter-spacing: 0.02em;
   }
 
@@ -173,8 +170,8 @@
   .mock-sidebar {
     width: 72px;
     padding: 12px 8px;
-    background: rgba(0, 0, 0, 0.3);
-    border-right: 1px solid rgba(255, 255, 255, 0.04);
+    background: var(--color-panel);
+    border-right: 1px solid var(--color-line);
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -185,15 +182,14 @@
     align-items: center;
     gap: 6px;
     padding: 6px 8px;
-    border-radius: 6px;
     font-size: 9px;
-    color: rgba(255, 255, 255, 0.35);
+    color: var(--color-fg-subtle);
     transition: all 0.2s;
   }
 
   .sidebar-item.active {
-    color: #f59e0b;
-    background: rgba(245, 158, 11, 0.1);
+    color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent) 12%, transparent);
   }
 
   .mock-content {
@@ -227,13 +223,13 @@
   .frame-header {
     font-size: 13px;
     font-weight: 700;
-    color: #e4e4e7;
+    color: var(--color-fg);
     margin-bottom: 10px;
   }
 
   .frame-sub {
     font-size: 10px;
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--color-fg-muted);
     margin-bottom: 14px;
   }
 
@@ -244,15 +240,14 @@
 
   .stat-pill {
     font-size: 9px;
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--color-fg-muted);
     padding: 4px 10px;
-    border-radius: 20px;
-    background: rgba(245, 158, 11, 0.06);
-    border: 1px solid rgba(245, 158, 11, 0.12);
+    background: var(--color-panel);
+    border: 1px solid var(--color-line);
   }
 
   .stat-val {
-    color: #f59e0b;
+    color: var(--color-accent);
     font-weight: 700;
   }
 
@@ -260,7 +255,7 @@
     width: 28px;
     height: 14px;
     border-radius: 999px;
-    background: #f59e0b;
+    background: var(--color-accent);
     position: relative;
   }
 
@@ -271,21 +266,20 @@
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background: #0c0c0f;
+    background: var(--color-canvas);
   }
 
   .theme-tag {
     font-size: 9px;
     padding: 3px 8px;
-    border-radius: 4px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.4);
+    border: 1px solid var(--color-line);
+    color: var(--color-fg-muted);
   }
 
   .active-tag {
-    border-color: #f59e0b;
-    color: #f59e0b;
-    background: rgba(245, 158, 11, 0.08);
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent) 12%, transparent);
   }
 
   .cmd-bar {
@@ -293,9 +287,8 @@
     align-items: center;
     gap: 8px;
     padding: 8px 12px;
-    border: 1px solid rgba(245, 158, 11, 0.25);
-    border-radius: 8px;
-    background: rgba(10, 10, 16, 0.9);
+    border: 1px solid var(--color-line);
+    background: var(--color-canvas);
     margin-bottom: 6px;
   }
 
@@ -309,11 +302,10 @@
     align-items: center;
     gap: 8px;
     padding: 6px 8px;
-    border-radius: 6px;
   }
 
   .cmd-row.active {
-    background: rgba(245, 158, 11, 0.08);
+    background: color-mix(in srgb, var(--color-accent) 12%, transparent);
   }
 
   .cmd-icon {
@@ -322,46 +314,44 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 4px;
-    background: rgba(245, 158, 11, 0.15);
+    background: color-mix(in srgb, var(--color-accent) 12%, transparent);
     font-size: 10px;
-    color: #f59e0b;
+    color: var(--color-accent);
   }
 
   .cmd-icon.dim {
-    background: rgba(255, 255, 255, 0.04);
-    color: rgba(255, 255, 255, 0.3);
+    background: var(--color-panel);
+    color: var(--color-fg-subtle);
   }
 
   .cmd-footer {
     display: flex;
     gap: 14px;
     padding: 6px 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    border-top: 1px solid var(--color-line);
     font-size: 8px;
-    color: rgba(255, 255, 255, 0.25);
+    color: var(--color-fg-subtle);
   }
 
   .field-label {
     font-size: 9px;
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--color-fg-muted);
     margin-bottom: 3px;
   }
 
   .field-box {
     height: 22px;
-    border-radius: 5px;
-    border: 1px solid rgba(245, 158, 11, 0.15);
-    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--color-line);
+    background: var(--color-canvas);
     padding: 0 8px;
     display: flex;
     align-items: center;
     font-size: 10px;
-    color: #e4e4e7;
+    color: var(--color-fg);
   }
 
   .field-box.error {
-    border-color: rgba(248, 113, 113, 0.4);
+    border-color: #f87171;
   }
 
   .field-error {
@@ -373,25 +363,23 @@
   .btn-sm-primary {
     font-size: 9px;
     padding: 4px 10px;
-    border-radius: 5px;
-    background: #f59e0b;
-    color: #0c0c0f;
+    background: var(--color-accent);
+    color: var(--color-canvas);
     font-weight: 700;
   }
 
   .btn-sm-ghost {
     font-size: 9px;
     padding: 4px 10px;
-    border-radius: 5px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.4);
+    border: 1px solid var(--color-line);
+    color: var(--color-fg-muted);
   }
 
   .cursor-blink {
     display: inline-block;
     width: 1px;
     height: 12px;
-    background: #f59e0b;
+    background: var(--color-accent);
     margin-left: auto;
     animation: blink 1s steps(1) infinite;
   }

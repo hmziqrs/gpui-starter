@@ -36,169 +36,73 @@ const faqJsonLd = {
   title={`${entry.data.question} - gpui-starter FAQ`}
   description={entry.data.description}
   ogType="article"
+  ogImage={`/og/faq/${entry.id}.png`}
   jsonLd={faqJsonLd}
 >
-  <article class="relative z-10 pt-36 pb-24 px-6">
-    <div class="max-w-3xl mx-auto">
-      <a
-        href="/faq/"
-        class="text-sm text-text-mute no-underline hover:text-amber inline-flex items-center gap-1.5 mb-8"
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <path d="m12 19-7-7 7-7"></path>
-          <path d="M19 12H5"></path>
-        </svg>
-        Back to FAQ
-      </a>
+  <article>
+    <!-- ===== HEADER ===== -->
+    <section class="border-b border-line">
+      <div class="frame py-12 md:py-16">
+        <a href="/faq/" class="mono text-[11.5px] tracking-[.12em] uppercase text-fg-muted hover:text-fg no-underline inline-flex items-center gap-2 transition-colors">
+          <span aria-hidden="true">&larr;</span> Back to FAQ
+        </a>
 
-      <span class="text-xs font-mono uppercase tracking-[0.2em] text-amber mb-4 block">
-        {entry.data.category}
-      </span>
+        <p class="eyebrow mt-8">{entry.data.category}</p>
 
-      <h1 class="text-3xl sm:text-4xl font-extrabold tracking-[-0.02em] leading-[1.1] mb-5">
-        {entry.data.question}
-      </h1>
+        <h1 class="display mt-4 text-[clamp(1.9rem,4vw,3rem)] max-w-[22ch]">{entry.data.question}</h1>
 
-      <p class="text-lg text-text-dim leading-relaxed mb-10">
-        {entry.data.description}
-      </p>
+        <p class="lead mt-6 max-w-[62ch]">{entry.data.description}</p>
+      </div>
+    </section>
 
-      <div class="prose-faq">
+    <!-- ===== ANSWER ===== -->
+    <div class="wrap py-14 md:py-20 grid lg:grid-cols-[minmax(0,1fr)_15rem] gap-10 lg:gap-14 items-start">
+      <div class="min-w-0 max-w-[72ch] copy">
         <Content />
       </div>
 
-      <div class="mt-16 pt-8 border-t border-edge grid grid-cols-2 gap-4">
-        {prev ? (
-          <a
-            href={`/faq/${prev.id}/`}
-            class="glass rounded-xl p-4 no-underline group"
-          >
-            <span class="text-xs text-text-mute font-mono block mb-1">Previous</span>
-            <span class="text-sm font-semibold group-hover:text-amber transition-colors text-text-dim">
-              {prev.data.question}
-            </span>
-          </a>
-        ) : <div />}
-        {next ? (
-          <a
-            href={`/faq/${next.id}/`}
-            class="glass rounded-xl p-4 no-underline text-right group"
-          >
-            <span class="text-xs text-text-mute font-mono block mb-1">Next</span>
-            <span class="text-sm font-semibold group-hover:text-amber transition-colors text-text-dim">
-              {next.data.question}
-            </span>
-          </a>
-        ) : <div />}
-      </div>
+      <aside class="hidden lg:block lg:sticky lg:top-28 border-l border-line pl-6">
+        <p class="eyebrow">Category</p>
+        <p class="mono text-[12px] text-fg-muted mt-2">{entry.data.category}</p>
+
+        <p class="eyebrow mt-7">More</p>
+        <ul class="list-none p-0 m-0 mt-2 space-y-1.5 text-[13px]">
+          <li><a href="/faq/" class="qlink">All questions</a></li>
+          <li><a href="/docs/getting-started/" class="qlink">Documentation</a></li>
+          <li><a href="/blog/" class="qlink">Blog</a></li>
+        </ul>
+
+        <a
+          href="https://github.com/freeoxide/gpui-starter/issues"
+          target="_blank"
+          rel="noopener"
+          class="qlink mono text-[11px] tracking-[.12em] uppercase block mt-8">Ask on GitHub &nearr;</a
+        >
+      </aside>
     </div>
+
+    <!-- ===== PREV / NEXT ===== -->
+    <section class="sect">
+      <div class="wrap">
+        <div class="ruled grid sm:grid-cols-2">
+          {prev ? (
+            <a href={`/faq/${prev.id}/`} class="block p-6 no-underline text-fg hover:bg-panel transition-colors">
+              <span class="mono text-[11px] text-fg-subtle block">Previous</span>
+              <span class="text-[15px] font-semibold mt-1.5 block">{prev.data.question}</span>
+            </a>
+          ) : (
+            <div class="p-6" />
+          )}
+          {next ? (
+            <a href={`/faq/${next.id}/`} class="block p-6 no-underline text-fg hover:bg-panel transition-colors sm:text-right">
+              <span class="mono text-[11px] text-fg-subtle block">Next</span>
+              <span class="text-[15px] font-semibold mt-1.5 block">{next.data.question}</span>
+            </a>
+          ) : (
+            <div class="p-6" />
+          )}
+        </div>
+      </div>
+    </section>
   </article>
 </Layout>
-
-<style is:global>
-  .prose-faq {
-    color: var(--color-text-dim);
-    font-size: 1.05rem;
-    line-height: 1.75;
-  }
-  .prose-faq h2 {
-    color: var(--color-text);
-    font-size: 1.5rem;
-    font-weight: 700;
-    margin-top: 2.5rem;
-    margin-bottom: 0.85rem;
-  }
-  .prose-faq h3 {
-    color: var(--color-text);
-    font-size: 1.2rem;
-    font-weight: 600;
-    margin-top: 2rem;
-    margin-bottom: 0.75rem;
-  }
-  .prose-faq p {
-    margin-bottom: 1.15rem;
-  }
-  .prose-faq a {
-    color: var(--color-amber);
-    text-decoration: none;
-    border-bottom: 1px solid rgba(245, 158, 11, 0.3);
-    transition: border-color 0.15s;
-  }
-  .prose-faq a:hover {
-    border-bottom-color: var(--color-amber);
-  }
-  .prose-faq code {
-    font-family: var(--font-mono);
-    font-size: 0.92em;
-    color: var(--color-amber);
-    background: rgba(245, 158, 11, 0.08);
-    padding: 0.12rem 0.4rem;
-    border-radius: 0.3rem;
-  }
-  .prose-faq pre {
-    background: rgba(10, 10, 14, 0.85);
-    border: 1px solid var(--color-edge);
-    border-radius: 0.85rem;
-    padding: 1.1rem 1.25rem;
-    overflow-x: auto;
-    margin: 1.5rem 0;
-    font-size: 0.88rem;
-    line-height: 1.6;
-  }
-  .prose-faq pre code {
-    background: none;
-    padding: 0;
-    color: inherit;
-    font-size: inherit;
-  }
-  .prose-faq ul,
-  .prose-faq ol {
-    padding-left: 1.5rem;
-    margin-bottom: 1.15rem;
-  }
-  .prose-faq li {
-    margin-bottom: 0.35rem;
-  }
-  .prose-faq blockquote {
-    border-left: 3px solid var(--color-amber);
-    padding-left: 1rem;
-    margin: 1.5rem 0;
-    color: var(--color-text-mute);
-    font-style: italic;
-  }
-  .prose-faq hr {
-    border: none;
-    border-top: 1px solid var(--color-edge);
-    margin: 2rem 0;
-  }
-  .prose-faq strong {
-    color: var(--color-text);
-    font-weight: 600;
-  }
-  .prose-faq table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 1.25rem 0;
-  }
-  .prose-faq th,
-  .prose-faq td {
-    text-align: left;
-    padding: 0.6rem 0.8rem;
-    border-bottom: 1px solid var(--color-edge);
-    font-size: 0.9rem;
-  }
-  .prose-faq th {
-    color: var(--color-text);
-    font-weight: 600;
-  }
-</style>

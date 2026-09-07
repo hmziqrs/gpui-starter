@@ -6,6 +6,7 @@ on:
     paths:
       - 'web/**'
       - 'public/**'
+      - 'scripts/**'
       - 'astro.config.mjs'
       - 'package.json'
       - 'CHANGELOG.md'

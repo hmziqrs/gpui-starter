@@ -1,0 +1,27 @@
+---
+/**
+ * Starlight <Head> override: point each docs page at its own OG card
+ * (generated into public/og/docs/<id>.png at build time). Virtual routes
+ * such as 404 have no card, so they fall back to the site default.
+ */
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import Default from '@astrojs/starlight/components/Head.astro';
+
+const SITE = 'https://gpui-starter.freeoxide.com';
+const { id, data } = Astro.locals.starlightRoute.entry;
+const slug = id.replace(/\.mdx?$/, '');
+// Starlight drops the trailing "index" from an entry id, so try both shapes.
+const has = (card: string) => existsSync(join(process.cwd(), 'public', card));
+const card = [`og/docs/${slug}.png`, `og/docs/${slug}/index.png`].find(has) ?? 'og-image.png';
+const ogImage = `${SITE}/${card}`;
+---
+
+<Default><slot /></Default>
+<meta property="og:image" content={ogImage} />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:alt" content={data.title} />
+<meta name="twitter:image" content={ogImage} />
+<meta name="twitter:image:alt" content={data.title} />
